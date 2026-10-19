@@ -6,6 +6,7 @@ import 'package:get/get.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:window_manager/window_manager.dart';
 
+import 'core/error_log.dart';
 import 'core/owner.dart';
 import 'core/theme.dart';
 import 'db/database.dart';
@@ -13,6 +14,7 @@ import 'shell.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  installErrorLog();
   LicenseRegistry.addLicense(() async* {
     yield LicenseEntryWithLineBreaks(['Inter'], await rootBundle.loadString('assets/fonts/OFL.txt'));
   });
