@@ -50,7 +50,7 @@ class _GajiState extends State<_Gaji> {
             OutlinedButton(
               onPressed: () async {
                 final msg = await c.export();
-                if (msg != null && context.mounted) toast(context, msg);
+                if (msg != null && context.mounted) notify(context, msg);
               },
               child: const Text('Export Excel'),
             ),
@@ -299,48 +299,50 @@ Future<void> _slipDialog(BuildContext context, GajiController c, Slip s) async {
             ),
           ),
         ),
-        actions: [
-          if (s.paid)
-            TextButton(
-              style: TextButton.styleFrom(foregroundColor: C.danger),
-              onPressed: () async {
-                final ok = await _confirm(
-                  ctx,
-                  'Batalkan pembayaran gaji?',
-                  '${rupiah(s.total)} kembali ke rekening. Slip kembali mengikuti data terbaru.',
-                );
-                if (!ok || !ctx.mounted) return;
-                await runAction(ctx, () async {
-                  await c.db.cancelSlipPayment(s.saved!.id);
+        actionsAlignment: MainAxisAlignment.spaceBetween,
+        actions: dialogActions(
+          danger: !s.paid
+              ? null
+              : DangerButton(
+                  label: 'Batalkan pembayaran',
+                  onPressed: () async {
+                    final ok = await confirmAction(
+                      ctx,
+                      title: 'Batalkan pembayaran gaji?',
+                      message: '${rupiah(s.total)} kembali ke rekening. Slip kembali mengikuti data terbaru.',
+                      confirmLabel: 'Batalkan pembayaran',
+                      destructive: true,
+                    );
+                    if (!ok || !ctx.mounted) return;
+                    await runAction(ctx, () async {
+                      await c.db.cancelSlipPayment(s.saved!.id);
+                      if (ctx.mounted) Navigator.pop(ctx);
+                    }, 'Pembayaran dibatalkan');
+                  },
+                ),
+          children: [
+            OutlinedButton(onPressed: () => Navigator.pop(ctx), child: Text(s.paid ? 'Tutup' : 'Batal')),
+            if (!s.paid) ...[
+              OutlinedButton(
+                onPressed: () => runAction(ctx, () async {
+                  await save();
                   if (ctx.mounted) Navigator.pop(ctx);
-                }, 'Pembayaran dibatalkan');
-              },
-              child: const Text('Batalkan pembayaran'),
-            ),
-          OutlinedButton(onPressed: () => Navigator.pop(ctx), child: Text(s.paid ? 'Tutup' : 'Batal')),
-          if (!s.paid) ...[
-            OutlinedButton(
-              onPressed: () => runAction(ctx, () async {
-                await save();
-                if (ctx.mounted) Navigator.pop(ctx);
-              }, 'Slip tersimpan'),
-              child: const Text('Simpan'),
-            ),
-            FilledButton(
-              onPressed: () => runAction(ctx, () async {
-                await save();
-                if (ctx.mounted && await _payDialog(ctx, c, s) && ctx.mounted) Navigator.pop(ctx);
-              }),
-              child: const Text('Bayar'),
-            ),
+                }, 'Slip tersimpan'),
+                child: const Text('Simpan'),
+              ),
+              FilledButton(
+                onPressed: () => runAction(ctx, () async {
+                  await save();
+                  if (ctx.mounted && await _payDialog(ctx, c, s) && ctx.mounted) Navigator.pop(ctx);
+                }),
+                child: const Text('Bayar'),
+              ),
+            ],
           ],
-        ],
+        ),
       ),
     ),
   );
-  for (final t in [overtime, bonus, deduction, commission, note]) {
-    t.dispose();
-  }
 }
 
 class _IncentiveTable extends StatelessWidget {
@@ -402,7 +404,7 @@ Future<bool> _payDialog(BuildContext context, GajiController c, Slip s) async {
   final accounts = await c.db.watchActiveAccounts().first;
   if (!context.mounted) return false;
   if (accounts.isEmpty) {
-    toast(context, 'Belum ada rekening aktif');
+    warn(context, 'Belum ada rekening aktif');
     return false;
   }
   int? accountId = accounts.first.id;
@@ -437,7 +439,7 @@ Future<bool> _payDialog(BuildContext context, GajiController c, Slip s) async {
           OutlinedButton(onPressed: () => Navigator.pop(ctx), child: const Text('Batal')),
           FilledButton(
             onPressed: () async {
-              if (accountId == null) return toast(ctx, 'Pilih rekening');
+              if (accountId == null) return warn(ctx, 'Pilih rekening');
               await runAction(ctx, () async {
                 await c.db.paySlip(
                   employeeId: s.employee.id,
@@ -457,24 +459,6 @@ Future<bool> _payDialog(BuildContext context, GajiController c, Slip s) async {
   );
   return ok == true;
 }
-
-Future<bool> _confirm(BuildContext context, String title, String message) async =>
-    await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(title),
-        content: Text(message),
-        actions: [
-          OutlinedButton(onPressed: () => Navigator.pop(ctx), child: const Text('Tidak')),
-          FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: C.danger),
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Ya'),
-          ),
-        ],
-      ),
-    ) ==
-    true;
 
 // ------------------------------------------------------------------ karyawan
 
@@ -546,7 +530,4 @@ Future<void> _employeeDialog(BuildContext context, GajiController c, Employee? e
       ),
     ),
   );
-  for (final t in [name, base, meal]) {
-    t.dispose();
-  }
 }

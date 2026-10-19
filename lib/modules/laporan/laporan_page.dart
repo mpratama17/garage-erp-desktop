@@ -48,7 +48,7 @@ class _LaporanState extends State<_Laporan> {
             OutlinedButton(
               onPressed: () async {
                 final msg = await c.export();
-                if (msg != null && context.mounted) toast(context, msg);
+                if (msg != null && context.mounted) notify(context, msg);
               },
               child: const Text('Export Excel'),
             ),

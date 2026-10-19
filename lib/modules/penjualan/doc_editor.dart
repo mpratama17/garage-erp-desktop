@@ -145,7 +145,7 @@ class _DocEditorState extends State<_DocEditor> {
                 );
                 if (ctx.mounted) Navigator.pop(ctx, id);
               } on ArgumentError catch (e) {
-                if (ctx.mounted) toast(ctx, '${e.message}');
+                if (ctx.mounted) warn(ctx, '${e.message}');
               }
             },
             child: const Text('Simpan'),
@@ -153,8 +153,6 @@ class _DocEditorState extends State<_DocEditor> {
         ],
       ),
     );
-    name.dispose();
-    phone.dispose();
     if (id == null) return;
     final x = await (c.db.select(c.db.customers)..where((x) => x.id.equals(id))).getSingle();
     _pickCustomer(x);
@@ -162,11 +160,11 @@ class _DocEditorState extends State<_DocEditor> {
 
   Future<void> _save() async {
     if (rows.any((r) => r.item == null)) {
-      return toast(context, 'Pilih barang/jasa dari daftar di setiap baris (atau hapus barisnya)');
+      return warn(context, 'Pilih barang/jasa dari daftar di setiap baris (atau hapus barisnya)');
     }
-    if (payNow && accountId == null) return toast(context, 'Pilih rekening pembayaran');
+    if (payNow && accountId == null) return warn(context, 'Pilih rekening pembayaran');
     final amount = parseRupiah(payAmount.text.isEmpty && !isOrder ? rp(total) : payAmount.text);
-    try {
+    await runAction(context, () async {
       final id = await c.db.saveDoc(
         id: doc?.id,
         kind: widget.kind,
@@ -195,11 +193,7 @@ class _DocEditorState extends State<_DocEditor> {
         payNow: payNow && amount > 0 ? PaymentInput(accountId: accountId!, amount: amount, at: date) : null,
       );
       if (mounted) Navigator.pop(context, id);
-    } on ArgumentError catch (e) {
-      if (mounted) toast(context, '${e.message}');
-    } catch (e) {
-      if (mounted) toast(context, 'Gagal menyimpan: $e');
-    }
+    });
   }
 
   Future<void> _pickDate(bool isDue) async {
@@ -569,7 +563,7 @@ class _TechPicker extends StatelessWidget {
         minimumSize: const Size(0, 44),
       ),
       onPressed: () async {
-        if (c.technicians.isEmpty) return toast(context, 'Belum ada teknisi — tambahkan di menu Gaji');
+        if (c.technicians.isEmpty) return warn(context, 'Belum ada teknisi — tambahkan di menu Gaji');
         final picked = {?tech1, ?tech2};
         final result = await showDialog<Set<int>>(
           context: context,

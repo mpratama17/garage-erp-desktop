@@ -11,6 +11,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:get/get.dart' hide Value;
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:garage_erp_desktop/core/owner.dart';
+import 'package:garage_erp_desktop/core/ui.dart';
 import 'package:garage_erp_desktop/db/database.dart';
 import 'package:garage_erp_desktop/main.dart';
 import 'package:garage_erp_desktop/modules/biaya/biaya_repo.dart';
@@ -265,6 +266,22 @@ void main() {
     await tester.tap(find.text('Token listrik bengkel'));
     await settle();
     await shot('biaya-ubah');
+    // Hapus = konfirmasi dengan tombol merah berlabel jelas.
+    await tester.tap(find.widgetWithText(DangerButton, 'Hapus'));
+    await settle();
+    await shot('konfirmasi-hapus');
+    await tester.tap(find.text('Batal').last);
+    await settle();
+    // Simpan = notifikasi sukses.
+    await tester.tap(find.widgetWithText(FilledButton, 'Simpan').last);
+    await settle();
+    await shot('notif-sukses');
+    // Isian kurang = notifikasi "periksa lagi" (bukan error sistem).
+    await tester.tap(find.widgetWithText(FilledButton, 'Biaya'));
+    await settle();
+    await tester.tap(find.widgetWithText(FilledButton, 'Simpan').last);
+    await settle();
+    await shot('notif-peringatan');
     await tester.tap(find.text('Batal').last);
     await settle();
     await tester.tap(find.widgetWithText(OutlinedButton, 'Kategori'));

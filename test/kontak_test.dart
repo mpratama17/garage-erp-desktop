@@ -4,7 +4,9 @@ import 'package:excel/excel.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:garage_erp_desktop/core/format.dart';
 import 'package:garage_erp_desktop/db/database.dart';
+import 'package:garage_erp_desktop/modules/gudang/gudang_repo.dart';
 import 'package:garage_erp_desktop/modules/kontak/kontak_repo.dart';
+import 'package:garage_erp_desktop/modules/penjualan/penjualan_repo.dart';
 
 List<int> _xlsx(List<List<CellValue?>> rows) {
   final excel = Excel.createExcel();
@@ -129,5 +131,22 @@ void main() {
     // Import ulang file yang sama tidak menambah apa pun.
     expect((await db.applyCustomerImport(rows)).created, 0);
     expect(await db.watchCustomers().first, hasLength(all.length));
+  });
+
+  test('hapus customer: hanya yang belum bertransaksi', () async {
+    final db = AppDb(NativeDatabase.memory());
+    addTearDown(db.close);
+    final a = await db.saveCustomer(CustomersCompanion.insert(name: 'A'));
+    final b = await db.saveCustomer(CustomersCompanion.insert(name: 'B'));
+    final jasa = await db.saveProduct(ProductsCompanion.insert(name: 'Jasa', isService: const Value(true)));
+    await db.saveDoc(
+      kind: DocKind.order,
+      at: DateTime(2026, 10, 1),
+      customerId: a,
+      lines: [LineInput(productId: jasa, name: 'Jasa', qty: 1, price: 1)],
+    );
+    await expectLater(db.deleteCustomer(a), throwsArgumentError);
+    await db.deleteCustomer(b);
+    expect((await db.select(db.customers).get()).map((c) => c.name), ['A']);
   });
 }

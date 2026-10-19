@@ -29,7 +29,8 @@ class KasPage extends StatelessWidget {
           actions: [
             OutlinedButton(onPressed: () => _incomeDialog(context, c), child: const Text('Uang masuk lain')),
             OutlinedButton(onPressed: () => _transferDialog(context, c), child: const Text('Transfer')),
-            FilledButton.icon(
+            // Tambah rekening jarang dipakai (owner) → tombol sekunder, bukan aksi utama.
+            OutlinedButton.icon(
               onPressed: () async {
                 if (await owner.ensure(context) && context.mounted) await _accountDialog(context, c, null);
               },
@@ -265,26 +266,16 @@ class _RowActions extends StatelessWidget {
           tooltip: 'Hapus transaksi',
           onPressed: () async {
             if (!await Get.find<OwnerController>().ensure(context) || !context.mounted) return;
-            final ok = await showDialog<bool>(
-              context: context,
-              builder: (ctx) => AlertDialog(
-                title: const Text('Hapus transaksi ini?'),
-                content: Text(
-                  r.entry.kind == CashKind.transfer
-                      ? 'Transfer dihapus di kedua rekening.'
-                      : '${r.entry.description} · ${rupiah(r.entry.amount)}',
-                ),
-                actions: [
-                  OutlinedButton(onPressed: () => Navigator.pop(ctx), child: const Text('Batal')),
-                  FilledButton(
-                    style: FilledButton.styleFrom(backgroundColor: C.danger),
-                    onPressed: () => Navigator.pop(ctx, true),
-                    child: const Text('Hapus'),
-                  ),
-                ],
-              ),
+            final ok = await confirmAction(
+              context,
+              title: 'Hapus transaksi ini?',
+              message: r.entry.kind == CashKind.transfer
+                  ? 'Transfer dihapus di kedua rekening.'
+                  : '${r.entry.description} · ${rupiah(r.entry.amount)}',
+              confirmLabel: 'Hapus transaksi',
+              destructive: true,
             );
-            if (ok == true && context.mounted) {
+            if (ok && context.mounted) {
               await runAction(context, () => c.db.deleteManualEntry(r.entry.id), 'Transaksi dihapus');
             }
           },
@@ -410,7 +401,7 @@ class _Arus extends StatelessWidget {
 
 Future<void> _transferDialog(BuildContext context, KasController c) async {
   final accounts = c.activeAccounts;
-  if (accounts.length < 2) return toast(context, 'Butuh minimal 2 rekening aktif');
+  if (accounts.length < 2) return warn(context, 'Butuh minimal 2 rekening aktif');
   int? from = accounts.first.id, to = accounts[1].id;
   var date = DateTime.now();
   var proof = '';
@@ -465,7 +456,7 @@ Future<void> _transferDialog(BuildContext context, KasController c) async {
           OutlinedButton(onPressed: () => Navigator.pop(ctx), child: const Text('Batal')),
           FilledButton(
             onPressed: () async {
-              if (from == null || to == null) return toast(ctx, 'Pilih rekening');
+              if (from == null || to == null) return warn(ctx, 'Pilih rekening');
               await runAction(ctx, () async {
                 await c.db.transfer(
                   fromId: from!,
@@ -484,13 +475,11 @@ Future<void> _transferDialog(BuildContext context, KasController c) async {
       ),
     ),
   );
-  amount.dispose();
-  note.dispose();
 }
 
 Future<void> _incomeDialog(BuildContext context, KasController c) async {
   final accounts = c.activeAccounts;
-  if (accounts.isEmpty) return toast(context, 'Belum ada rekening aktif');
+  if (accounts.isEmpty) return warn(context, 'Belum ada rekening aktif');
   int? accountId = accounts.first.id;
   var kind = CashKind.capital;
   var date = DateTime.now();
@@ -546,7 +535,7 @@ Future<void> _incomeDialog(BuildContext context, KasController c) async {
           OutlinedButton(onPressed: () => Navigator.pop(ctx), child: const Text('Batal')),
           FilledButton(
             onPressed: () async {
-              if (accountId == null) return toast(ctx, 'Pilih rekening');
+              if (accountId == null) return warn(ctx, 'Pilih rekening');
               await runAction(ctx, () async {
                 await c.db.addIncome(
                   accountId: accountId!,
@@ -566,9 +555,6 @@ Future<void> _incomeDialog(BuildContext context, KasController c) async {
       ),
     ),
   );
-  for (final t in [amount, desc, note]) {
-    t.dispose();
-  }
 }
 
 /// Tambah ([a] null) / ubah rekening — owner.
@@ -630,7 +616,4 @@ Future<void> _accountDialog(BuildContext context, KasController c, Account? a) a
       ),
     ),
   );
-  for (final t in [name, opening, note]) {
-    t.dispose();
-  }
 }

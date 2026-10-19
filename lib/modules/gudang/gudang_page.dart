@@ -23,7 +23,7 @@ class GudangPage extends StatelessWidget {
     Future<void> ownerAction(Future<String?> Function() run) async {
       if (!await owner.ensure(context)) return;
       final msg = await run();
-      if (msg != null && context.mounted) toast(context, msg);
+      if (msg != null && context.mounted) notify(context, msg);
     }
 
     return Column(
@@ -36,7 +36,7 @@ class GudangPage extends StatelessWidget {
             OutlinedButton(
               onPressed: () async {
                 final msg = await c.downloadTemplate();
-                if (msg != null && context.mounted) toast(context, msg);
+                if (msg != null && context.mounted) notify(context, msg);
               },
               child: const Text('Template'),
             ),
@@ -258,15 +258,10 @@ class _ProductPanelState extends State<ProductPanel> {
       incentive: Value(parseRupiah(incentive.text)),
       active: Value(active),
     );
-    try {
+    await runAction(context, () async {
       final id = await widget.controller.db.saveProduct(data, openingStock: parseRupiah(opening.text));
       widget.controller.panelId.value = id;
-      if (mounted) toast(context, 'Produk tersimpan');
-    } on ArgumentError catch (e) {
-      if (mounted) toast(context, '${e.message}');
-    } catch (e) {
-      if (mounted) toast(context, 'Gagal menyimpan: $e');
-    }
+    }, 'Produk tersimpan');
   }
 
   @override
@@ -433,7 +428,7 @@ class _StockHistory extends StatelessWidget {
           onPressed: () async {
             if (!await Get.find<OwnerController>().ensure(context)) return;
             if (context.mounted && await showAdjustDialog(context, controller.db, item) == true && context.mounted) {
-              toast(context, 'Stok disesuaikan');
+              notify(context, 'Stok disesuaikan');
             }
           },
           child: const Text('Stok opname'),

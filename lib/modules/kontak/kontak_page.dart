@@ -24,7 +24,7 @@ class KontakPage extends StatelessWidget {
     Future<void> ownerAction(Future<String?> Function() run) async {
       if (!await owner.ensure(context)) return;
       final msg = await run();
-      if (msg != null && context.mounted) toast(context, msg);
+      if (msg != null && context.mounted) notify(context, msg);
     }
 
     return Column(
@@ -38,7 +38,7 @@ class KontakPage extends StatelessWidget {
               OutlinedButton(
                 onPressed: () async {
                   final msg = await c.downloadTemplate();
-                  if (msg != null && context.mounted) toast(context, msg);
+                  if (msg != null && context.mounted) notify(context, msg);
                 },
                 child: const Text('Template'),
               ),
@@ -153,7 +153,7 @@ class _CustomerPanelState extends State<_CustomerPanel> {
   }
 
   Future<void> _save() async {
-    try {
+    await runAction(context, () async {
       final id = await widget.c.db.saveCustomer(
         CustomersCompanion(
           id: x == null ? const Value.absent() : Value(x!.id),
@@ -165,34 +165,22 @@ class _CustomerPanelState extends State<_CustomerPanel> {
         ),
       );
       widget.c.panelId.value = id;
-      if (mounted) toast(context, 'Customer tersimpan');
-    } on ArgumentError catch (e) {
-      if (mounted) toast(context, '${e.message}');
-    } catch (e) {
-      if (mounted) toast(context, 'Gagal menyimpan: $e');
-    }
+    }, 'Customer tersimpan');
   }
 
   Future<void> _delete() async {
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text('Hapus ${x!.name}?'),
-        content: const Text('Data customer ini dihapus permanen.'),
-        actions: [
-          OutlinedButton(onPressed: () => Navigator.pop(ctx), child: const Text('Batal')),
-          FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: C.danger),
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Hapus'),
-          ),
-        ],
-      ),
+    final ok = await confirmAction(
+      context,
+      title: 'Hapus ${x!.name}?',
+      message: 'Data customer dihapus permanen. Customer yang sudah punya transaksi tidak bisa dihapus.',
+      confirmLabel: 'Hapus customer',
+      destructive: true,
     );
-    if (ok != true) return;
-    await widget.c.db.deleteCustomer(x!.id);
-    widget.c.panelId.value = null;
-    if (mounted) toast(context, 'Customer dihapus');
+    if (!ok || !mounted) return;
+    await runAction(context, () async {
+      await widget.c.db.deleteCustomer(x!.id);
+      widget.c.panelId.value = null;
+    }, 'Customer dihapus');
   }
 
   @override
@@ -259,12 +247,7 @@ class _CustomerPanelState extends State<_CustomerPanel> {
                 gap(),
                 Row(
                   children: [
-                    if (x != null)
-                      TextButton(
-                        onPressed: _delete,
-                        style: TextButton.styleFrom(foregroundColor: C.danger),
-                        child: const Text('Hapus'),
-                      ),
+                    if (x != null) DangerButton(label: 'Hapus', onPressed: _delete),
                     const Spacer(),
                     OutlinedButton(onPressed: () => widget.c.panelId.value = null, child: const Text('Batal')),
                     const SizedBox(width: S.sm),

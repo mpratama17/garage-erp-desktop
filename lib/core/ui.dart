@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart' hide Value;
@@ -145,8 +147,172 @@ class EmptyState extends StatelessWidget {
   );
 }
 
-void toast(BuildContext context, String message) =>
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+/// Jenis pesan hasil aksi (design.md §6 Notifikasi). Bentuk & warna beda, bukan hanya teks.
+enum Notice {
+  success('Berhasil', Icons.check_circle_rounded, Tone.success, Duration(seconds: 3)),
+  warning('Periksa lagi', Icons.info_rounded, Tone.warning, Duration(seconds: 5)),
+  error('Gagal', Icons.error_rounded, Tone.danger, Duration(seconds: 8)),
+  info('Info', Icons.info_outline_rounded, Tone.info, Duration(seconds: 4));
+
+  const Notice(this.title, this.icon, this.tone, this.duration);
+  final String title;
+  final IconData icon;
+  final Tone tone;
+  final Duration duration;
+}
+
+/// Tampilkan hasil aksi: kartu kecil di bawah tengah layar dengan ikon & warna sesuai [kind], bisa ditutup.
+/// success = aksi berhasil; warning = isian/aturan perlu diperbaiki user; error = gagal karena sistem.
+/// Dipasang di overlay paling atas → tetap terang & terbaca walau ada dialog terbuka.
+void notify(BuildContext context, String message, {Notice kind = Notice.success, String? title}) {
+  _notice?.remove();
+  _noticeTimer?.cancel();
+  late final OverlayEntry entry;
+  void close() {
+    if (_notice != entry) return;
+    entry.remove();
+    _notice = null;
+    _noticeTimer?.cancel();
+  }
+
+  entry = OverlayEntry(
+    builder: (_) => Positioned(
+      left: 0,
+      right: 0,
+      bottom: S.xl,
+      child: Center(
+        child: _NoticeCard(kind: kind, title: title ?? kind.title, message: message, onClose: close),
+      ),
+    ),
+  );
+  Overlay.of(context, rootOverlay: true).insert(entry);
+  _notice = entry;
+  _noticeTimer = Timer(kind.duration, close);
+}
+
+OverlayEntry? _notice;
+Timer? _noticeTimer;
+
+class _NoticeCard extends StatelessWidget {
+  const _NoticeCard({required this.kind, required this.title, required this.message, required this.onClose});
+  final Notice kind;
+  final String title, message;
+  final VoidCallback onClose;
+
+  @override
+  Widget build(BuildContext context) => TweenAnimationBuilder<double>(
+    tween: Tween(begin: 0, end: 1),
+    duration: const Duration(milliseconds: 150),
+    builder: (_, t, child) => Opacity(
+      opacity: t,
+      child: Transform.translate(offset: Offset(0, 8 * (1 - t)), child: child),
+    ),
+    child: Material(
+      color: C.surface,
+      elevation: 8,
+      shadowColor: const Color(0x33101828),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(S.rCard),
+        side: BorderSide(color: kind.tone.fg.withValues(alpha: 0.35)),
+      ),
+      child: SizedBox(
+        width: 440,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(S.md, S.md, S.xs, S.md),
+          child: Row(
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(color: kind.tone.bg, shape: BoxShape.circle),
+                child: Icon(kind.icon, color: kind.tone.fg, size: 22),
+              ),
+              const SizedBox(width: S.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(title, style: T.fieldLabel.copyWith(color: kind.tone.fg)),
+                    const SizedBox(height: 2),
+                    Text(message, style: T.body),
+                  ],
+                ),
+              ),
+              IconButton(
+                tooltip: 'Tutup',
+                onPressed: onClose,
+                icon: const Icon(Icons.close, size: 18, color: C.inkMuted),
+              ),
+            ],
+          ),
+        ),
+      ),
+    ),
+  );
+}
+
+/// Isian/aturan yang perlu diperbaiki user (bukan error sistem).
+void warn(BuildContext context, String message) => notify(context, message, kind: Notice.warning);
+
+/// Konfirmasi sebelum aksi penting. Tombol memakai kata kerja jelas ([confirmLabel]), bukan "Ya/Tidak".
+/// [destructive] = aksi yang menghapus/membatalkan: ikon peringatan & tombol merah.
+Future<bool> confirmAction(
+  BuildContext context, {
+  required String title,
+  required String message,
+  required String confirmLabel,
+  bool destructive = false,
+}) async =>
+    await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        icon: Icon(
+          destructive ? Icons.warning_amber_rounded : Icons.help_outline_rounded,
+          color: destructive ? C.danger : C.primary,
+          size: 32,
+        ),
+        title: Text(title, textAlign: TextAlign.center),
+        content: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 400),
+          child: Text(
+            message,
+            textAlign: TextAlign.center,
+            style: T.body.copyWith(color: C.inkMuted),
+          ),
+        ),
+        actionsAlignment: MainAxisAlignment.center,
+        actions: [
+          OutlinedButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Batal')),
+          FilledButton(
+            style: destructive ? FilledButton.styleFrom(backgroundColor: C.danger) : null,
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(confirmLabel),
+          ),
+        ],
+      ),
+    ) ==
+    true;
+
+/// Tombol aksi destruktif di form/panel (hapus, batalkan): garis merah, ditaruh terpisah di kiri
+/// — tidak bersebelahan dengan Simpan, dan selalu didahului [confirmAction].
+class DangerButton extends StatelessWidget {
+  const DangerButton({super.key, required this.label, required this.onPressed, this.icon = Icons.delete_outline});
+  final String label;
+  final IconData icon;
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) => OutlinedButton.icon(
+    style: OutlinedButton.styleFrom(
+      foregroundColor: C.danger,
+      side: BorderSide(color: C.danger.withValues(alpha: 0.4)),
+    ),
+    onPressed: onPressed,
+    icon: Icon(icon, size: 18),
+    label: Text(label),
+  );
+}
 
 /// Format angka saat diketik: 2250000 -> 2.250.000 (design.md §6, input Rupiah).
 class ThousandsFormatter extends TextInputFormatter {
@@ -203,16 +369,28 @@ class MoneyField extends StatelessWidget {
 
 // ------------------------------------------------------------------ form & aksi
 
-/// Jalankan aksi repo: [ArgumentError] = pesan aturan untuk user, error lain = "Gagal".
-Future<void> runAction(BuildContext context, Future<void> Function() action, [String? done]) async {
+/// Jalankan aksi repo dan tampilkan hasilnya:
+/// berhasil → [done] (sukses); [ArgumentError] = aturan bisnis → pesan untuk diperbaiki user;
+/// error lain = masalah sistem → pesan ramah + detail teknis dicatat di log (bukan ditampilkan mentah).
+Future<bool> runAction(
+  BuildContext context,
+  Future<void> Function() action, [
+  String? done,
+  String failed = 'Data belum tersimpan. Coba sekali lagi; bila tetap gagal, kirim file log ke admin.',
+]) async {
   try {
     await action();
-    if (done != null && context.mounted) toast(context, done);
+    if (done != null && context.mounted) notify(context, done);
+    return true;
   } on ArgumentError catch (e) {
-    if (context.mounted) toast(context, '${e.message}');
-  } catch (e) {
-    if (context.mounted) toast(context, 'Gagal: $e');
+    if (context.mounted) warn(context, '${e.message}');
+  } catch (e, st) {
+    FlutterError.reportError(FlutterErrorDetails(exception: e, stack: st, library: 'runAction'));
+    if (context.mounted) {
+      notify(context, failed, kind: Notice.error);
+    }
   }
+  return false;
 }
 
 Widget dateField(BuildContext ctx, DateTime value, ValueChanged<DateTime> onPick) => InkWell(
@@ -375,3 +553,15 @@ class KpiRow extends StatelessWidget {
     ),
   );
 }
+
+/// Tombol dialog (design.md §6): aksi destruktif di KIRI terpisah, Batal + aksi utama di kanan
+/// (aksi utama paling kanan). Pakai bersama `actionsAlignment: MainAxisAlignment.spaceBetween`.
+List<Widget> dialogActions({Widget? danger, required List<Widget> children}) => [
+  danger ?? const SizedBox.shrink(),
+  Row(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      for (final (i, w) in children.indexed) ...[if (i > 0) const SizedBox(width: S.sm), w],
+    ],
+  ),
+];

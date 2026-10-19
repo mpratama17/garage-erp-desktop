@@ -111,7 +111,19 @@ extension KontakRepo on AppDb {
   }
 
   // ponytail: hapus langsung; saat modul Penjualan ada, customer yang punya invoice ditolak oleh FK.
-  Future<void> deleteCustomer(int id) => (delete(customers)..where((x) => x.id.equals(id))).go();
+  /// Hapus customer yang belum pernah bertransaksi. Yang punya invoice/pemesanan tidak bisa dihapus
+  /// (riwayat & laporan tetap utuh) — ubah datanya saja.
+  Future<void> deleteCustomer(int id) => transaction(() async {
+    final used =
+        await (select(invoices)
+              ..where((i) => i.customerId.equals(id))
+              ..limit(1))
+            .getSingleOrNull();
+    if (used != null) {
+      throw ArgumentError('Customer ini sudah punya transaksi, jadi tidak bisa dihapus. Ubah datanya saja.');
+    }
+    await (delete(customers)..where((x) => x.id.equals(id))).go();
+  });
 
   /// Aturan pencocokan (satu no. HP = satu orang; nama saja tidak cukup untuk menyamakan dua orang):
   /// - baris ber-HP  -> customer dengan HP itu; bila belum ada, customer TANPA HP dengan nama sama (HP-nya diisi).

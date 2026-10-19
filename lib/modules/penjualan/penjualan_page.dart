@@ -29,6 +29,49 @@ Widget statusPill(DocSummary s) {
   };
 }
 
+/// Setelah dokumen baru tersimpan: konfirmasi jelas + langkah berikutnya (PDF, WA), bukan sekadar toast.
+Future<void> _savedDialog(BuildContext context, PenjualanController c, int id) async {
+  final s = await c.db.docSummary(id);
+  if (!context.mounted) return;
+  final hasPhone = (s.customerPhone ?? '').isNotEmpty;
+  await showDialog<void>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      icon: Container(
+        width: 56,
+        height: 56,
+        decoration: BoxDecoration(color: Tone.success.bg, shape: BoxShape.circle),
+        child: Icon(Icons.check_rounded, color: Tone.success.fg, size: 32),
+      ),
+      title: Text('${s.doc.no} tersimpan', textAlign: TextAlign.center),
+      content: Text(
+        [
+          s.customerName ?? 'UMUM',
+          'Total ${rupiah(s.total)}',
+          if (s.paid > 0) s.remaining > 0 ? 'Dibayar ${rupiah(s.paid)}' : 'Lunas',
+        ].join(' · '),
+        textAlign: TextAlign.center,
+        style: T.body.copyWith(color: C.inkMuted),
+      ),
+      actionsAlignment: MainAxisAlignment.center,
+      actions: [
+        OutlinedButton.icon(
+          onPressed: () => runAction(ctx, () => c.openPdf(id)),
+          icon: const Icon(Icons.picture_as_pdf_outlined, size: 18),
+          label: const Text('Buka PDF'),
+        ),
+        if (hasPhone)
+          OutlinedButton.icon(
+            onPressed: () => runAction(ctx, () => c.sendWa(id)),
+            icon: const Icon(Icons.chat_outlined, size: 18),
+            label: const Text('Kirim WA'),
+          ),
+        FilledButton(onPressed: () => Navigator.pop(ctx), child: const Text('Selesai')),
+      ],
+    ),
+  );
+}
+
 class PenjualanPage extends StatelessWidget {
   const PenjualanPage({super.key});
 
@@ -99,7 +142,7 @@ class PenjualanPage extends StatelessWidget {
       if (id == null) return;
       c.kind.value = kind;
       c.panelId.value = id;
-      if (context.mounted) toast(context, 'Tersimpan');
+      if (context.mounted) await _savedDialog(context, c, id);
     }
 
     return Column(
@@ -250,17 +293,6 @@ class _DocPanel extends StatelessWidget {
 
   bool get editable => !s.doc.isVoid && s.status != PayStatus.invoiced;
 
-  Future<void> _run(BuildContext context, Future<void> Function() action, [String? done]) async {
-    try {
-      await action();
-      if (done != null && context.mounted) toast(context, done);
-    } on ArgumentError catch (e) {
-      if (context.mounted) toast(context, '${e.message}');
-    } catch (e) {
-      if (context.mounted) toast(context, 'Gagal: $e');
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final owner = Get.find<OwnerController>();
@@ -301,12 +333,12 @@ class _DocPanel extends StatelessWidget {
                   runSpacing: S.sm,
                   children: [
                     OutlinedButton.icon(
-                      onPressed: () => _run(context, () => c.openPdf(d.id)),
+                      onPressed: () => runAction(context, () => c.openPdf(d.id)),
                       icon: const Icon(Icons.picture_as_pdf_outlined, size: 18),
                       label: const Text('PDF / Cetak'),
                     ),
                     OutlinedButton.icon(
-                      onPressed: () => _run(context, () => c.sendWa(d.id)),
+                      onPressed: () => runAction(context, () => c.sendWa(d.id)),
                       icon: const Icon(Icons.chat_outlined, size: 18),
                       label: const Text('Kirim WA'),
                     ),
@@ -317,7 +349,7 @@ class _DocPanel extends StatelessWidget {
                       ),
                     if (s.isOrder && editable)
                       FilledButton(
-                        onPressed: () => _run(context, () async {
+                        onPressed: () => runAction(context, () async {
                           final id = await c.db.invoiceFromOrder(d.id);
                           c.kind.value = DocKind.invoice;
                           c.panelId.value = id;
@@ -331,18 +363,17 @@ class _DocPanel extends StatelessWidget {
                           if (s.paid > 0 && !await owner.ensure(context)) return;
                           if (!context.mounted) return;
                           final id = await showDocEditor(context, c, kind: d.kind, existing: s);
-                          if (id != null && context.mounted) toast(context, 'Perubahan tersimpan');
+                          if (id != null && context.mounted) notify(context, 'Perubahan tersimpan');
                         },
                         child: const Text('Ubah'),
                       ),
                     if (editable)
-                      TextButton(
-                        style: TextButton.styleFrom(foregroundColor: C.danger),
+                      DangerButton(
+                        label: 'Batalkan',
                         onPressed: () async {
                           if (!await owner.ensure(context)) return;
                           if (context.mounted) await _voidDialog(context);
                         },
-                        child: const Text('Batalkan'),
                       ),
                   ],
                 ),
@@ -385,7 +416,7 @@ class _DocPanel extends StatelessWidget {
                                 if (p.proofPath.isNotEmpty)
                                   IconButton(
                                     tooltip: 'Buka bukti',
-                                    onPressed: () => _run(context, () => launchUrl(Uri.file(p.proofPath))),
+                                    onPressed: () => runAction(context, () => launchUrl(Uri.file(p.proofPath))),
                                     icon: const Icon(Icons.attach_file, size: 18),
                                   ),
                                 Text(rp(p.amount), style: T.money.copyWith(color: p.amount < 0 ? C.danger : null)),
@@ -511,7 +542,7 @@ class _DocPanel extends StatelessWidget {
             OutlinedButton(onPressed: () => Navigator.pop(ctx), child: const Text('Batal')),
             FilledButton(
               onPressed: () async {
-                if (accountId == null) return toast(ctx, 'Pilih rekening');
+                if (accountId == null) return warn(ctx, 'Pilih rekening');
                 try {
                   await c.db.addPayment(
                     s.doc.id,
@@ -525,7 +556,7 @@ class _DocPanel extends StatelessWidget {
                   );
                   if (ctx.mounted) Navigator.pop(ctx);
                 } on ArgumentError catch (e) {
-                  if (ctx.mounted) toast(ctx, '${e.message}');
+                  if (ctx.mounted) warn(ctx, '${e.message}');
                 }
               },
               child: const Text('Simpan'),
@@ -534,8 +565,6 @@ class _DocPanel extends StatelessWidget {
         ),
       ),
     );
-    amount.dispose();
-    note.dispose();
   }
 
   Future<void> _voidDialog(BuildContext context) async {
@@ -543,6 +572,7 @@ class _DocPanel extends StatelessWidget {
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
+        icon: const Icon(Icons.warning_amber_rounded, color: C.danger, size: 32),
         title: Text('Batalkan ${s.doc.no}?'),
         content: SizedBox(
           width: 400,
@@ -573,9 +603,8 @@ class _DocPanel extends StatelessWidget {
       ),
     );
     if (ok == true && context.mounted) {
-      await _run(context, () => c.db.voidDoc(s.doc.id, reason.text), '${s.doc.no} dibatalkan');
+      await runAction(context, () => c.db.voidDoc(s.doc.id, reason.text), '${s.doc.no} dibatalkan');
     }
-    reason.dispose();
   }
 }
 
@@ -649,6 +678,5 @@ class _LineTile extends StatelessWidget {
       ),
     );
     if (saved == true) await c.db.setLineCost(l.id, ctrl.text.trim().isEmpty ? null : parseRupiah(ctrl.text));
-    ctrl.dispose();
   }
 }

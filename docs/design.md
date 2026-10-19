@@ -113,8 +113,20 @@ Ukuran minimum teks 12. Tidak ada huruf kapital semua kecuali kode (SKU, nomor p
 ### Dialog
 - Hanya untuk konfirmasi & PIN. Aksi berbahaya (void, hapus) memakai tombol warna bahaya dan menyebut objeknya ("Batalkan INV/00247?"), plus kolom alasan.
 
-### Notifikasi
-- Snackbar di bawah tengah, 4 detik, untuk hasil aksi ("INV/00247 tersimpan · Buka PDF").
+### Notifikasi (`notify` / `warn` / `runAction`)
+- Kartu kecil di bawah tengah, di **overlay paling atas** (tetap terang walau dialog terbuka), dengan ikon + warna + judul:
+  **Berhasil** (hijau, 3 dtk) · **Periksa lagi** (kuning, 5 dtk — isian/aturan yang bisa diperbaiki user) ·
+  **Gagal** (merah, 8 dtk — masalah sistem; pesan ramah, detail teknis ke log, bukan ditampilkan mentah) · **Info** (biru).
+  Selalu bisa ditutup (✕).
+- Aksi penting yang selesai (invoice/pemesanan baru) memakai **dialog sukses** berisi langkah berikutnya (Buka PDF, Kirim WA, Selesai).
+
+### Tombol
+- **Utama** (`FilledButton` oranye): maks. **satu per layar/dialog**, untuk aksi paling sering (Simpan, Kasir/Invoice, Bayar). Paling kanan.
+- **Sekunder** (`OutlinedButton` netral): aksi lain, termasuk aksi owner yang jarang (+ Rekening, Backup sekarang, Export).
+- **Tersier** (`TextButton` oranye): tautan ringan (Lihat semua, Tambah baris).
+- **Destruktif** (`DangerButton`, garis merah): di **kiri, terpisah** dari Batal/Simpan (`dialogActions`), selalu lewat `confirmAction`.
+  Di konfirmasi: tombol merah penuh dengan **kata kerja + objek** ("Hapus biaya", "Batalkan pembayaran"), bukan "Ya/Tidak".
+- Controller teks lokal di dialog **tidak di-dispose manual** setelah `showDialog`: dialog masih beranimasi menutup dan bisa dibangun ulang.
 
 ## 7. Data owner-only
 

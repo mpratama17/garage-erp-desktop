@@ -222,7 +222,8 @@ class _FormState extends State<_Form> {
                       child: FilledButton(
                         onPressed: () async {
                           final err = await c.save();
-                          if (context.mounted) toast(context, err ?? 'Pengaturan tersimpan');
+                          if (!context.mounted) return;
+                          err == null ? notify(context, 'Pengaturan tersimpan') : warn(context, err);
                         },
                         child: const Text('Simpan'),
                       ),
@@ -281,16 +282,19 @@ class _FormState extends State<_Form> {
                         children: [
                           OutlinedButton(onPressed: c.pickBackupDir, child: const Text('Ganti folder')),
                           const SizedBox(width: S.sm),
-                          FilledButton(
+                          OutlinedButton.icon(
                             onPressed: () async {
-                              try {
-                                final name = await c.backupNow();
-                                if (context.mounted) toast(context, 'Backup tersimpan: $name');
-                              } catch (e) {
-                                if (context.mounted) toast(context, 'Backup gagal: $e');
-                              }
+                              var name = '';
+                              await runAction(
+                                context,
+                                () async => name = await c.backupNow(),
+                                null,
+                                'Backup gagal. Pastikan folder backup tersedia (mis. flashdisk tercolok), lalu coba lagi.',
+                              );
+                              if (name.isNotEmpty && context.mounted) notify(context, 'Backup tersimpan: $name');
                             },
-                            child: const Text('Backup sekarang'),
+                            icon: const Icon(Icons.backup_outlined, size: 18),
+                            label: const Text('Backup sekarang'),
                           ),
                         ],
                       ),
@@ -342,11 +346,11 @@ class _FormState extends State<_Form> {
     );
     if (pin == null) return;
     if (pin.length < 4) {
-      if (context.mounted) toast(context, 'PIN minimal 4 digit dan kedua isian harus sama');
+      if (context.mounted) warn(context, 'PIN minimal 4 digit dan kedua isian harus sama');
       return;
     }
     await db.setPin(pin);
-    if (context.mounted) toast(context, 'PIN diganti');
+    if (context.mounted) notify(context, 'PIN diganti');
   }
 }
 

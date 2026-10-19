@@ -134,7 +134,7 @@ Future<void> _expenseDialog(BuildContext context, BiayaController c, ExpenseRow?
       if (k.active || k.id == e?.refId) k,
   ];
   if (!context.mounted) return;
-  if (accounts.isEmpty) return toast(context, 'Belum ada rekening aktif');
+  if (accounts.isEmpty) return warn(context, 'Belum ada rekening aktif');
   int? accountId = e?.accountId ?? accounts.first.id;
   int? categoryId = e?.refId;
   var date = e?.at ?? DateTime.now();
@@ -192,62 +192,55 @@ Future<void> _expenseDialog(BuildContext context, BiayaController c, ExpenseRow?
             ],
           ),
         ),
-        actions: [
-          if (r != null)
-            TextButton(
-              style: TextButton.styleFrom(foregroundColor: C.danger),
+        actionsAlignment: MainAxisAlignment.spaceBetween,
+        actions: dialogActions(
+          danger: r == null
+              ? null
+              : DangerButton(
+                  label: 'Hapus',
+                  onPressed: () async {
+                    final ok = await confirmAction(
+                      ctx,
+                      title: 'Hapus biaya ini?',
+                      message:
+                          '${r.entry.description} · ${rupiah(r.amount)}\nSaldo ${r.accountName} bertambah kembali.',
+                      confirmLabel: 'Hapus biaya',
+                      destructive: true,
+                    );
+                    if (!ok || !ctx.mounted) return;
+                    await runAction(ctx, () async {
+                      await c.db.deleteExpense(r.entry.id);
+                      if (ctx.mounted) Navigator.pop(ctx);
+                    }, 'Biaya dihapus');
+                  },
+                ),
+          children: [
+            OutlinedButton(onPressed: () => Navigator.pop(ctx), child: const Text('Batal')),
+            FilledButton(
               onPressed: () async {
-                final ok = await showDialog<bool>(
-                  context: ctx,
-                  builder: (d) => AlertDialog(
-                    title: const Text('Hapus biaya ini?'),
-                    content: Text('${r.entry.description} · ${rupiah(r.amount)}. Saldo ${r.accountName} kembali.'),
-                    actions: [
-                      OutlinedButton(onPressed: () => Navigator.pop(d), child: const Text('Batal')),
-                      FilledButton(
-                        style: FilledButton.styleFrom(backgroundColor: C.danger),
-                        onPressed: () => Navigator.pop(d, true),
-                        child: const Text('Hapus'),
-                      ),
-                    ],
-                  ),
-                );
-                if (ok != true || !ctx.mounted) return;
+                if (categoryId == null) return warn(ctx, 'Pilih kategori');
+                if (accountId == null) return warn(ctx, 'Pilih rekening');
                 await runAction(ctx, () async {
-                  await c.db.deleteExpense(r.entry.id);
+                  await c.db.saveExpense(
+                    id: e?.id,
+                    at: date,
+                    accountId: accountId!,
+                    categoryId: categoryId!,
+                    description: name.text,
+                    amount: parseRupiah(amount.text),
+                    note: note.text,
+                    proofPath: proof,
+                  );
                   if (ctx.mounted) Navigator.pop(ctx);
-                }, 'Biaya dihapus');
+                }, 'Biaya tersimpan');
               },
-              child: const Text('Hapus'),
+              child: const Text('Simpan'),
             ),
-          OutlinedButton(onPressed: () => Navigator.pop(ctx), child: const Text('Batal')),
-          FilledButton(
-            onPressed: () async {
-              if (categoryId == null) return toast(ctx, 'Pilih kategori');
-              if (accountId == null) return toast(ctx, 'Pilih rekening');
-              await runAction(ctx, () async {
-                await c.db.saveExpense(
-                  id: e?.id,
-                  at: date,
-                  accountId: accountId!,
-                  categoryId: categoryId!,
-                  description: name.text,
-                  amount: parseRupiah(amount.text),
-                  note: note.text,
-                  proofPath: proof,
-                );
-                if (ctx.mounted) Navigator.pop(ctx);
-              }, 'Biaya tersimpan');
-            },
-            child: const Text('Simpan'),
-          ),
-        ],
+          ],
+        ),
       ),
     ),
   );
-  for (final t in [name, amount, note]) {
-    t.dispose();
-  }
 }
 
 /// Kelola kategori (owner): tambah, ubah nama, tandai pribadi, nonaktifkan.
@@ -334,5 +327,4 @@ Future<void> _categoryDialog(BuildContext context, BiayaController c, ExpenseCat
       ),
     ),
   );
-  name.dispose();
 }

@@ -59,12 +59,12 @@ Future<bool?> showAdjustDialog(BuildContext context, AppDb db, StockedProduct it
         FilledButton(
           onPressed: () async {
             final n = int.tryParse(actual.text.trim());
-            if (n == null) return toast(ctx, 'Stok sebenarnya harus angka');
+            if (n == null) return warn(ctx, 'Stok sebenarnya harus angka');
             try {
               await db.adjustStock(item.product.id, n, note.text);
               if (ctx.mounted) Navigator.pop(ctx, true);
             } on ArgumentError catch (e) {
-              if (ctx.mounted) toast(ctx, '${e.message}');
+              if (ctx.mounted) warn(ctx, '${e.message}');
             }
           },
           child: const Text('Simpan'),
@@ -72,8 +72,6 @@ Future<bool?> showAdjustDialog(BuildContext context, AppDb db, StockedProduct it
       ],
     ),
   );
-  actual.dispose();
-  note.dispose();
   return ok;
 }
 
@@ -89,7 +87,7 @@ Future<bool?> showPurchaseDialog(BuildContext context, GudangController c) async
   final accounts = await (c.db.select(c.db.accounts)..where((a) => a.active.equals(true))).get();
   if (!context.mounted) return null;
   if (accounts.isEmpty) {
-    toast(context, 'Belum ada rekening aktif');
+    warn(context, 'Belum ada rekening aktif');
     return null;
   }
   return showDialog<bool>(context: context, builder: (_) => _PurchaseDialog(c, accounts));
@@ -127,7 +125,7 @@ class _PurchaseDialogState extends State<_PurchaseDialog> {
   Future<void> _save() async {
     final valid = lines.where((l) => l.item != null).toList();
     if (valid.length != lines.length) {
-      return toast(context, 'Pilih barang dari daftar di setiap baris (atau hapus barisnya)');
+      return warn(context, 'Pilih barang dari daftar di setiap baris (atau hapus barisnya)');
     }
     try {
       await widget.c.db.recordPurchase(
@@ -146,7 +144,7 @@ class _PurchaseDialogState extends State<_PurchaseDialog> {
       );
       if (mounted) Navigator.pop(context, true);
     } on ArgumentError catch (e) {
-      if (mounted) toast(context, '${e.message}');
+      if (mounted) warn(context, '${e.message}');
     }
   }
 
