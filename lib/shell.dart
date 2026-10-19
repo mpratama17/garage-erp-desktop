@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:sidebarx/sidebarx.dart';
 import 'package:intl/intl.dart';
 
 import 'core/format.dart';
@@ -55,6 +56,20 @@ enum AppPage {
 /// Halaman aktif; dipakai sidebar dan cari global (buka halaman + record).
 class Nav extends GetxController {
   final page = AppPage.dashboard.obs;
+  // Indeks controller = indeks AppPage (Pengaturan = item footer, indeks terakhir).
+  final sidebar = SidebarXController(selectedIndex: AppPage.dashboard.index, extended: true);
+
+  @override
+  void onInit() {
+    super.onInit();
+    ever(page, (AppPage p) => sidebar.selectIndex(p.index));
+  }
+
+  @override
+  void onClose() {
+    sidebar.dispose();
+    super.onClose();
+  }
 }
 
 class Shell extends StatelessWidget {
@@ -66,7 +81,7 @@ class Shell extends StatelessWidget {
     return Scaffold(
       body: Row(
         children: [
-          Obx(() => _Sidebar(selected: nav.page.value, onSelect: (p) => nav.page.value = p)),
+          const _Sidebar(),
           const VerticalDivider(width: 1),
           Expanded(
             child: Column(
@@ -97,107 +112,134 @@ final _settings = () {
 
 // ------------------------------------------------------------------ sidebar
 
+/// Rail ikon + panel menu (paket `sidebarx`). Panel bisa diciutkan/diperlebar lewat tombol di bawah.
+final _sidebarTheme = SidebarXTheme(
+  width: 72,
+  padding: const EdgeInsets.all(S.sm),
+  decoration: const BoxDecoration(color: C.surface),
+  iconTheme: const IconThemeData(color: C.inkMuted, size: 20),
+  selectedIconTheme: const IconThemeData(color: C.surface, size: 20),
+  textStyle: T.body.copyWith(fontWeight: FontWeight.w500),
+  selectedTextStyle: T.body.copyWith(color: C.surface, fontWeight: FontWeight.w600),
+  itemDecoration: BoxDecoration(borderRadius: BorderRadius.circular(10)),
+  selectedItemDecoration: BoxDecoration(color: C.primary, borderRadius: BorderRadius.circular(10)),
+  hoverColor: C.primarySoft,
+  itemPadding: const EdgeInsets.symmetric(horizontal: S.md, vertical: S.xs + 2),
+  selectedItemPadding: const EdgeInsets.symmetric(horizontal: S.md, vertical: S.xs + 2),
+  itemTextPadding: const EdgeInsets.only(left: S.md),
+  selectedItemTextPadding: const EdgeInsets.only(left: S.md),
+  itemMargin: EdgeInsets.zero,
+  selectedItemMargin: EdgeInsets.zero,
+);
+
+final _sidebarExtended = const SidebarXTheme(width: 240);
+
 class _Sidebar extends StatelessWidget {
-  const _Sidebar({required this.selected, required this.onSelect});
-  final AppPage selected;
-  final ValueChanged<AppPage> onSelect;
+  const _Sidebar();
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: S.sidebar,
-      color: C.surface,
-      padding: const EdgeInsets.all(S.md),
-      child: StreamBuilder<Map<String, String>>(
-        stream: _settings,
-        builder: (context, snap) {
-          final s = snap.data ?? settingDefaults;
-          final icon = s['logo_icon_path']!;
-          final lastBackup = DateTime.tryParse(s['last_backup_at']!);
-          final backupOff = s['backup_schedule'] == 'off';
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(S.sm, S.sm, S.sm, S.xl),
-                child: Row(
-                  children: [
-                    icon.isNotEmpty && File(icon).existsSync()
-                        ? Image.file(File(icon), width: 40, height: 40, fit: BoxFit.contain)
-                        : Container(
-                            width: 40,
-                            height: 40,
-                            decoration: BoxDecoration(color: C.primary, borderRadius: BorderRadius.circular(10)),
-                            child: const Icon(Icons.build_outlined, color: C.surface, size: 20),
-                          ),
-                    const SizedBox(width: S.md),
-                    Expanded(
-                      child: Text(s['shop_name']!, style: T.section, maxLines: 2, overflow: TextOverflow.ellipsis),
-                    ),
-                  ],
-                ),
-              ),
-              for (final p in AppPage.values)
-                if (p != AppPage.pengaturan) _Item(p, selected == p, () => onSelect(p)),
-              const Spacer(),
-              _Item(AppPage.pengaturan, selected == AppPage.pengaturan, () => onSelect(AppPage.pengaturan)),
-              Padding(
-                padding: const EdgeInsets.all(S.sm),
-                child: Text(
-                  [
-                    if (lastBackup == null)
-                      'Belum ada backup'
-                    else
-                      'Backup ${tgl(lastBackup)} ${DateFormat.Hm().format(lastBackup)}',
-                    if (backupOff) 'otomatis mati',
-                  ].join(' · '),
-                  style: T.label.copyWith(color: lastBackup == null || backupOff ? C.danger : C.inkMuted),
-                ),
-              ),
-            ],
+    final nav = Get.find<Nav>();
+    return StreamBuilder<Map<String, String>>(
+      stream: _settings,
+      builder: (context, snap) {
+        final s = snap.data ?? settingDefaults;
+        return SidebarX(
+          controller: nav.sidebar,
+          theme: _sidebarTheme,
+          extendedTheme: _sidebarExtended,
+          headerBuilder: (_, extended) => _SidebarHeader(s, extended),
+          separatorBuilder: (_, _) => const SizedBox(height: 2),
+          footerBuilder: (_, extended) => extended ? _BackupCard(s) : const SizedBox.shrink(),
+          items: [
+            for (final p in AppPage.values)
+              if (p != AppPage.pengaturan) SidebarXItem(label: p.label, icon: p.icon, onTap: () => nav.page.value = p),
+          ],
+          footerItems: [
+            SidebarXItem(
+              label: AppPage.pengaturan.label,
+              icon: AppPage.pengaturan.icon,
+              onTap: () => nav.page.value = AppPage.pengaturan,
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _SidebarHeader extends StatelessWidget {
+  const _SidebarHeader(this.s, this.extended);
+  final Map<String, String> s;
+  final bool extended;
+
+  @override
+  Widget build(BuildContext context) {
+    final icon = s['logo_icon_path']!;
+    final logo = icon.isNotEmpty && File(icon).existsSync()
+        ? Image.file(File(icon), width: 40, height: 40, fit: BoxFit.contain)
+        : Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(color: C.primary, borderRadius: BorderRadius.circular(10)),
+            child: const Icon(Icons.build_outlined, color: C.surface, size: 20),
           );
-        },
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(S.xs, S.sm, S.xs, S.lg),
+      child: Row(
+        mainAxisAlignment: extended ? MainAxisAlignment.start : MainAxisAlignment.center,
+        children: [
+          logo,
+          // Gap di dalam Expanded: tidak overflow saat lebar panel sedang dianimasikan.
+          if (extended)
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.only(left: S.md),
+                child: Text(s['shop_name']!, style: T.section, maxLines: 2, overflow: TextOverflow.ellipsis),
+              ),
+            ),
+        ],
       ),
     );
   }
 }
 
-class _Item extends StatelessWidget {
-  const _Item(this.page, this.active, this.onTap);
-  final AppPage page;
-  final bool active;
-  final VoidCallback onTap;
+/// Status backup di bawah menu (hanya saat panel terbuka).
+class _BackupCard extends StatelessWidget {
+  const _BackupCard(this.s);
+  final Map<String, String> s;
 
   @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.only(bottom: S.xs),
-    child: Material(
-      color: active ? C.primary : Colors.transparent,
-      borderRadius: BorderRadius.circular(10),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(10),
-        onTap: onTap,
-        hoverColor: C.primarySoft,
-        child: SizedBox(
-          height: 42,
-          child: Row(
-            children: [
-              const SizedBox(width: S.md),
-              Icon(page.icon, size: 20, color: active ? C.surface : C.inkMuted),
-              const SizedBox(width: S.md),
-              Text(
-                page.label,
-                style: T.body.copyWith(
-                  color: active ? C.surface : C.ink,
-                  fontWeight: active ? FontWeight.w600 : FontWeight.w500,
-                ),
+  Widget build(BuildContext context) {
+    final lastBackup = DateTime.tryParse(s['last_backup_at']!);
+    final off = s['backup_schedule'] == 'off';
+    final bad = lastBackup == null || off;
+    final text = [
+      if (lastBackup == null)
+        'Belum pernah dibackup'
+      else
+        'Backup ${tgl(lastBackup)} ${DateFormat.Hm().format(lastBackup)}',
+      if (off) 'otomatis mati',
+    ].join(' · ');
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(S.xs, S.sm, S.xs, S.xs),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: S.md, vertical: S.sm),
+        decoration: BoxDecoration(color: C.field, borderRadius: BorderRadius.circular(S.rInput)),
+        child: Row(
+          children: [
+            Icon(Icons.cloud_done_outlined, size: 18, color: bad ? Tone.danger.fg : Tone.success.fg),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.only(left: S.sm),
+                child: Text(text, style: T.label.copyWith(color: bad ? Tone.danger.fg : C.inkMuted)),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
-    ),
-  );
+    );
+  }
 }
 
 // ------------------------------------------------------------------ topbar

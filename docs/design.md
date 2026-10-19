@@ -83,7 +83,8 @@ Ukuran minimum teks 12. Tidak ada huruf kapital semua kecuali kode (SKU, nomor p
 └────────────┴─────────────────────────────────────────────────────┘
 ```
 
-- **Sidebar** 232 px, putih: ikon logo (`logo_icon_path`, PNG tanpa latar) + nama bengkel di atas, menu modul, lalu Pengaturan + status backup di bawah. Item aktif = **blok `primary` solid, teks & ikon putih**; hover = `primarySoft`. Urutan menu = urutan pemakaian harian.
+- **Sidebar** = paket `sidebarx` (mode rail + panel). **Rail** ikon 72 px selalu terlihat; **panel** 240 px berisi header (ikon logo + nama bengkel), grup menu (ikon + label), kartu status backup, lalu Pengaturan di bawah. Tombol panah di bawah mengciutkan/melebarkan panel. Item aktif = **blok `primary` solid, teks & ikon putih**; hover = `primarySoft`. Urutan menu = urutan pemakaian harian.
+  Tidak ada notifikasi (sengaja, belum diminta). Cari global ada di topbar, bukan di sidebar.
 - **Logo**: versi gelap tanpa latar (putih → tinta, oranye tetap) agar terbaca di sidebar putih & nota PDF. Logo penuh = nota, ikon SG = sidebar.
 - **Header halaman**: judul + subjudul singkat di kiri, aksi di kanan. **Indikator mode owner** (🔒 terkunci / 🔓 owner) ada di topbar.
 - **Tab** di bawah header untuk sub-bagian (Gudang: Barang / Jasa / Ready Stock; Penjualan: Invoice / Pemesanan).
