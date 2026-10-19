@@ -206,8 +206,26 @@ const settingDefaults = {
   'sales_commission_pct': '3',
   'backup_dir': '',
   'last_backup_at': '',
+  'backup_schedule': 'close', // lihat backupSchedules
+  'export_dir': '', // kosong = ~/Documents/Garage ERP
   'pin_hash': '',
 };
+
+/// Jadwal backup otomatis: key setting -> label.
+const backupSchedules = {
+  'close': 'Harian + setiap app ditutup',
+  'daily': 'Harian',
+  'weekly': 'Mingguan',
+  'off': 'Nonaktif',
+};
+
+/// Apakah backup otomatis perlu dibuat sekarang. [closing] = app sedang ditutup.
+bool backupDue(String schedule, DateTime? last, DateTime now, {bool closing = false}) {
+  if (schedule == 'off') return false;
+  if (last == null || (closing && schedule == 'close')) return true;
+  final sameDay = last.year == now.year && last.month == now.month && last.day == now.day;
+  return schedule == 'weekly' ? now.difference(last).inDays >= 7 : !sameDay;
+}
 
 Future<File> dbFile() async => File(p.join((await getApplicationSupportDirectory()).path, 'garage_erp.sqlite'));
 
@@ -344,13 +362,19 @@ class AppDb extends _$AppDb {
     return p.join((await getApplicationDocumentsDirectory()).path, 'Garage ERP Backup');
   }
 
-  /// Backup otomatis: sekali sehari, dan setiap app ditutup ([force]).
-  Future<void> autoBackup({bool force = false}) async {
-    final dir = await backupDir();
+  /// Backup otomatis sesuai jadwal di Pengaturan (dipanggil saat app dibuka & ditutup).
+  Future<void> autoBackup({bool closing = false}) async {
     final last = DateTime.tryParse(await setting('last_backup_at'));
-    final today = DateTime.now();
-    final sameDay = last != null && last.year == today.year && last.month == today.month && last.day == today.day;
-    if (!force && sameDay) return;
-    await backupTo(dir);
+    if (!backupDue(await setting('backup_schedule'), last, DateTime.now(), closing: closing)) return;
+    await backupTo(await backupDir());
+  }
+
+  /// Folder hasil export & nota: pilihan owner, atau default ~/Documents/Garage ERP. [sub] = subfolder.
+  Future<String> exportDir([String sub = '']) async {
+    final dir = await setting('export_dir');
+    final base = dir.isNotEmpty ? dir : p.join((await getApplicationDocumentsDirectory()).path, 'Garage ERP');
+    final out = p.join(base, sub);
+    await Directory(out).create(recursive: true);
+    return out;
   }
 }

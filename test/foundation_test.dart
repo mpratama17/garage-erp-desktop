@@ -55,13 +55,31 @@ void main() {
     expect(await copy.setting('shop_name'), 'Bengkel Uji');
     expect(await db.setting('last_backup_at'), isNotEmpty);
 
-    // autoBackup: tidak backup dua kali di hari yang sama kecuali dipaksa.
+    // autoBackup (jadwal default): tidak dua kali di hari yang sama, kecuali saat app ditutup.
     await db.setSetting('backup_dir', dir.path);
     expect(await db.backupDir(), dir.path);
     await db.autoBackup();
     expect(dir.listSync().length, 1);
-    await db.autoBackup(force: true);
+    await db.autoBackup(closing: true);
     expect(dir.listSync().length, 2);
+    await db.setSetting('backup_schedule', 'off');
+    await db.autoBackup(closing: true);
+    expect(dir.listSync().length, 2);
+  });
+
+  test('jadwal backup otomatis', () {
+    final now = DateTime(2026, 10, 20, 9);
+    final today = DateTime(2026, 10, 20, 7),
+        yesterday = DateTime(2026, 10, 19, 23),
+        weekAgo = DateTime(2026, 10, 13, 9);
+    expect(backupDue('close', today, now), false);
+    expect(backupDue('close', today, now, closing: true), true);
+    expect(backupDue('daily', today, now, closing: true), false);
+    expect(backupDue('daily', yesterday, now), true);
+    expect(backupDue('weekly', yesterday, now, closing: true), false);
+    expect(backupDue('weekly', weekAgo, now), true);
+    expect(backupDue('off', null, now, closing: true), false);
+    expect(backupDue('daily', null, now), true);
   });
 
   test('DB lama (versi 1 tanpa tabel modul baru) mendapat tabel baru saat dibuka', () async {

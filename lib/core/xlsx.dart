@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:excel/excel.dart';
 import 'package:file_selector/file_selector.dart';
 
+import '../db/database.dart';
 import 'format.dart';
 
 /// Sheet pertama sebuah file .xlsx, dibaca per nama header (bukan posisi kolom).
@@ -89,9 +90,11 @@ List<int> buildXlsxSheets(List<XlsxSheet> sheets) {
   return excel.encode()!;
 }
 
-/// Dialog "Simpan sebagai" lalu tulis file. Path tujuan, atau null bila dibatalkan.
-Future<String?> saveXlsx(List<int> bytes, String suggestedName) async {
+/// Dialog "Simpan sebagai" (mulai di folder Export dari Pengaturan) lalu tulis file.
+/// Path tujuan, atau null bila dibatalkan.
+Future<String?> saveXlsx(AppDb db, List<int> bytes, String suggestedName) async {
   final loc = await getSaveLocation(
+    initialDirectory: await db.exportDir('Export'),
     suggestedName: suggestedName,
     acceptedTypeGroups: const [
       XTypeGroup(label: 'Excel', extensions: ['xlsx']),

@@ -33,7 +33,7 @@ class KontakController extends GetxController {
 
   static const _xlsx = XTypeGroup(label: 'Excel', extensions: ['xlsx']);
 
-  Future<String?> _save(List<int> bytes, String name) => saveXlsx(bytes, name);
+  Future<String?> _save(List<int> bytes, String name) => saveXlsx(db, bytes, name);
 
   Future<String?> downloadTemplate() async =>
       await _save(buildCustomersXlsx([]), 'template-customer.xlsx') == null ? null : 'Template tersimpan';

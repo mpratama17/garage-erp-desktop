@@ -140,7 +140,7 @@ class GajiController extends GetxController {
         ],
       ),
     ]);
-    final path = await saveXlsx(bytes, 'gaji-${tgl(p.$1).replaceAll('/', '-')}.xlsx');
+    final path = await saveXlsx(db, bytes, 'gaji-${tgl(p.$1).replaceAll('/', '-')}.xlsx');
     return path == null ? null : 'Export tersimpan';
   }
 }

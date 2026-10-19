@@ -175,7 +175,7 @@ class LaporanController extends GetxController {
         ],
       ),
     };
-    final path = await saveXlsx(buildXlsxSheets(sheets), '$file-${label.toLowerCase().replaceAll(' ', '-')}.xlsx');
+    final path = await saveXlsx(db, buildXlsxSheets(sheets), '$file-${label.toLowerCase().replaceAll(' ', '-')}.xlsx');
     return path == null ? null : 'Export tersimpan';
   }
 }

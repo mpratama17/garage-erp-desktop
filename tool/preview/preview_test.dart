@@ -32,6 +32,7 @@ Future<void> _loadFonts() async {
 Future<void> _seed(AppDb db) async {
   await db.setSetting('shop_name', 'Star Garage');
   await db.setSetting('backup_dir', '/Users/kasir/Documents/Garage ERP Backup'); // path_provider tidak ada di test
+  await db.setSetting('export_dir', Directory.systemTemp.createTempSync('export').path);
   final file = File('docs/GUDANG BARANG new.xlsx');
   if (file.existsSync()) await db.applyImport(parseProductsXlsx(file.readAsBytesSync()).rows);
   final items = await db.watchProducts().first;

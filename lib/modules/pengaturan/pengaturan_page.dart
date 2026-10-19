@@ -17,16 +17,16 @@ const _textFields = {
   'shop_address': 'Alamat',
   'shop_phone': 'Telepon',
   'shop_email': 'Email',
-  'invoice_note': 'Pesan di nota (rekening, syarat garansi)',
+  'invoice_note': 'Pesan di nota',
   'gmaps_review_url': 'Link review Google Maps',
 };
 
 /// Field angka: key -> (label, min, max).
 const _numFields = {
-  'next_invoice_no': ('Nomor invoice berikutnya (INV/…)', 1, 99999),
-  'next_so_no': ('Nomor pemesanan berikutnya (SO/…)', 1, 99999),
-  'payroll_start_day': ('Tanggal mulai periode gaji', 1, 28),
-  'sales_commission_pct': ('Tunjangan kerja sales (% omzet)', 0, 100),
+  'next_invoice_no': ('No. invoice berikutnya', 1, 99999),
+  'next_so_no': ('No. pemesanan berikutnya', 1, 99999),
+  'payroll_start_day': ('Tgl mulai periode gaji', 1, 28),
+  'sales_commission_pct': ('Komisi sales (%)', 0, 100),
 };
 
 class PengaturanController extends GetxController {
@@ -37,6 +37,8 @@ class PengaturanController extends GetxController {
   };
   final logoPath = ''.obs;
   final backupDir = ''.obs;
+  final backupSchedule = 'close'.obs;
+  final exportDir = ''.obs;
   final lastBackup = ''.obs;
 
   @override
@@ -52,6 +54,8 @@ class PengaturanController extends GetxController {
     }
     logoPath.value = s['logo_path']!;
     backupDir.value = await db.backupDir();
+    backupSchedule.value = s['backup_schedule']!;
+    exportDir.value = await db.exportDir();
     lastBackup.value = s['last_backup_at']!;
   }
 
@@ -101,6 +105,18 @@ class PengaturanController extends GetxController {
     backupDir.value = dir;
   }
 
+  Future<void> setBackupSchedule(String v) async {
+    await db.setSetting('backup_schedule', v);
+    backupSchedule.value = v;
+  }
+
+  Future<void> pickExportDir() async {
+    final dir = await getDirectoryPath(confirmButtonText: 'Pilih folder');
+    if (dir == null) return;
+    await db.setSetting('export_dir', dir);
+    exportDir.value = await db.exportDir();
+  }
+
   Future<String> backupNow() async {
     final f = await db.backupTo(backupDir.value);
     lastBackup.value = await db.setting('last_backup_at');
@@ -125,7 +141,7 @@ class PengaturanPage extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const PageHeader(title: 'Pengaturan', subtitle: 'Data bengkel, nota, gaji, backup, dan PIN owner.'),
+        const PageHeader(title: 'Pengaturan', subtitle: 'Data bengkel, nota, file, backup, PIN.'),
         Expanded(
           child: Obx(
             () => owner.isOwner.value
@@ -170,82 +186,133 @@ class _FormState extends State<_Form> {
       child: Align(
         alignment: Alignment.topLeft,
         child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: S.formMax),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+          constraints: const BoxConstraints(maxWidth: 1200),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _Card('Data bengkel (tampil di nota)', [
-                Row(
+              // Kiri: isian yang disimpan tombol Simpan. Kanan: pengaturan yang langsung tersimpan.
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Obx(
-                      () => Container(
-                        width: 72,
-                        height: 72,
-                        clipBehavior: Clip.antiAlias,
-                        decoration: BoxDecoration(
-                          color: C.bg,
-                          border: Border.all(color: C.border),
-                          borderRadius: BorderRadius.circular(S.rInput),
-                        ),
-                        child: c.logoPath.value.isNotEmpty && File(c.logoPath.value).existsSync()
-                            ? Image.file(File(c.logoPath.value), fit: BoxFit.contain)
-                            : const Icon(Icons.image_outlined, color: C.inkMuted),
+                    _Card('Data bengkel', [
+                      Row(
+                        children: [
+                          Obx(
+                            () => Container(
+                              width: 72,
+                              height: 72,
+                              clipBehavior: Clip.antiAlias,
+                              decoration: BoxDecoration(
+                                color: C.bg,
+                                border: Border.all(color: C.border),
+                                borderRadius: BorderRadius.circular(S.rInput),
+                              ),
+                              child: c.logoPath.value.isNotEmpty && File(c.logoPath.value).existsSync()
+                                  ? Image.file(File(c.logoPath.value), fit: BoxFit.contain)
+                                  : const Icon(Icons.image_outlined, color: C.inkMuted),
+                            ),
+                          ),
+                          const SizedBox(width: S.lg),
+                          OutlinedButton(onPressed: c.pickLogo, child: const Text('Pilih logo')),
+                        ],
+                      ),
+                      const SizedBox(height: S.lg),
+                      for (final e in _textFields.entries)
+                        field(e.key, e.value, lines: e.key == 'shop_address' || e.key == 'invoice_note' ? 4 : 1),
+                      Text('Tampil di nota PDF. Pesan nota: rekening & syarat garansi.', style: T.label),
+                    ]),
+                    _Card('Nomor nota & gaji', [for (final e in _numFields.entries) field(e.key, e.value.$1)]),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: FilledButton(
+                        onPressed: () async {
+                          final err = await c.save();
+                          if (context.mounted) toast(context, err ?? 'Pengaturan tersimpan');
+                        },
+                        child: const Text('Simpan'),
                       ),
                     ),
-                    const SizedBox(width: S.lg),
-                    OutlinedButton(onPressed: c.pickLogo, child: const Text('Pilih logo')),
                   ],
-                ),
-                const SizedBox(height: S.lg),
-                for (final e in _textFields.entries)
-                  field(e.key, e.value, lines: e.key == 'shop_address' || e.key == 'invoice_note' ? 4 : 1),
-              ]),
-              _Card('Nomor nota & gaji', [for (final e in _numFields.entries) field(e.key, e.value.$1)]),
-              Align(
-                alignment: Alignment.centerRight,
-                child: FilledButton(
-                  onPressed: () async {
-                    final err = await c.save();
-                    if (context.mounted) toast(context, err ?? 'Pengaturan tersimpan');
-                  },
-                  child: const Text('Simpan'),
                 ),
               ),
-              const SizedBox(height: S.xl),
-              _Card('Backup', [
-                const Text(
-                  'Backup otomatis dibuat sekali sehari dan setiap app ditutup (60 file terbaru disimpan). '
-                  'Folder bisa diganti, mis. ke flashdisk.',
-                ),
-                const SizedBox(height: S.lg),
-                Obx(() => SelectableText(c.backupDir.value, style: T.body)),
-                const SizedBox(height: S.md),
-                Row(
+              const SizedBox(width: S.lg),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    OutlinedButton(onPressed: c.pickBackupDir, child: const Text('Ganti folder')),
-                    const SizedBox(width: S.sm),
-                    FilledButton(
-                      onPressed: () async {
-                        try {
-                          final name = await c.backupNow();
-                          if (context.mounted) toast(context, 'Backup tersimpan: $name');
-                        } catch (e) {
-                          if (context.mounted) toast(context, 'Backup gagal: $e');
-                        }
-                      },
-                      child: const Text('Backup sekarang'),
-                    ),
+                    _Card('Folder file', [
+                      Obx(() => _PathRow(c.exportDir.value)),
+                      const SizedBox(height: S.sm),
+                      Text(
+                        'Nota PDF tersimpan di subfolder Nota; export Excel dimulai di subfolder Export.',
+                        style: T.label,
+                      ),
+                      const SizedBox(height: S.md),
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: OutlinedButton(onPressed: c.pickExportDir, child: const Text('Ganti folder')),
+                      ),
+                    ]),
+                    _Card('Backup', [
+                      Obx(
+                        () => Labeled(
+                          'Backup otomatis',
+                          DropdownButtonFormField<String>(
+                            isExpanded: true,
+                            initialValue: c.backupSchedule.value,
+                            items: [
+                              for (final e in backupSchedules.entries)
+                                DropdownMenuItem(value: e.key, child: Text(e.value)),
+                            ],
+                            onChanged: (v) => v == null ? null : c.setBackupSchedule(v),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: S.lg),
+                      Text('Folder backup', style: T.fieldLabel),
+                      const SizedBox(height: 6),
+                      Obx(() => _PathRow(c.backupDir.value)),
+                      const SizedBox(height: S.sm),
+                      Obx(
+                        () => Text(
+                          c.backupSchedule.value == 'off'
+                              ? 'Backup otomatis mati — data hanya aman bila Backup sekarang ditekan rutin.'
+                              : '60 file terbaru disimpan. Folder bisa di flashdisk.',
+                          style: T.label.copyWith(color: c.backupSchedule.value == 'off' ? C.danger : null),
+                        ),
+                      ),
+                      const SizedBox(height: S.md),
+                      Row(
+                        children: [
+                          OutlinedButton(onPressed: c.pickBackupDir, child: const Text('Ganti folder')),
+                          const SizedBox(width: S.sm),
+                          FilledButton(
+                            onPressed: () async {
+                              try {
+                                final name = await c.backupNow();
+                                if (context.mounted) toast(context, 'Backup tersimpan: $name');
+                              } catch (e) {
+                                if (context.mounted) toast(context, 'Backup gagal: $e');
+                              }
+                            },
+                            child: const Text('Backup sekarang'),
+                          ),
+                        ],
+                      ),
+                    ]),
+                    _Card('PIN owner', [
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: OutlinedButton(
+                          onPressed: () => _changePin(context, c.db),
+                          child: const Text('Ganti PIN'),
+                        ),
+                      ),
+                    ]),
                   ],
                 ),
-              ]),
-              _Card('PIN owner', [
-                const Text('Ganti PIN yang dipakai untuk membuka data owner.'),
-                const SizedBox(height: S.md),
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: OutlinedButton(onPressed: () => _changePin(context, c.db), child: const Text('Ganti PIN')),
-                ),
-              ]),
+              ),
             ],
           ),
         ),
@@ -309,6 +376,25 @@ class _Card extends StatelessWidget {
           ],
         ),
       ),
+    ),
+  );
+}
+
+/// Path folder dalam kotak abu (bisa diseleksi/disalin).
+class _PathRow extends StatelessWidget {
+  const _PathRow(this.path);
+  final String path;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: S.md, vertical: S.md),
+    decoration: BoxDecoration(color: C.field, borderRadius: BorderRadius.circular(S.rInput)),
+    child: Row(
+      children: [
+        const Icon(Icons.folder_outlined, size: 18, color: C.inkMuted),
+        const SizedBox(width: S.sm),
+        Expanded(child: SelectableText(path, style: T.body)),
+      ],
     ),
   );
 }

@@ -45,7 +45,7 @@ class GudangController extends GetxController {
 
   static const _xlsx = XTypeGroup(label: 'Excel', extensions: ['xlsx']);
 
-  Future<bool> _save(List<int> bytes, String name) async => await saveXlsx(bytes, name) != null;
+  Future<bool> _save(List<int> bytes, String name) async => await saveXlsx(db, bytes, name) != null;
 
   Future<String?> downloadTemplate() async =>
       await _save(buildProductsXlsx([]), 'template-produk.xlsx') ? 'Template tersimpan' : null;

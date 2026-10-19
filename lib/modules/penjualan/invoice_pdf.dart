@@ -3,7 +3,6 @@ import 'dart:typed_data';
 
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 
@@ -261,10 +260,10 @@ Future<Uint8List> buildInvoicePdf(AppDb db, int docId) async {
   return doc.save();
 }
 
-/// Simpan PDF ke ~/Documents/Garage ERP Nota/INV-00247.pdf dan kembalikan path-nya.
+/// Simpan PDF ke `folder export/Nota/INV-00247.pdf` dan kembalikan path-nya.
 Future<String> saveInvoicePdf(AppDb db, int docId, {String? dir}) async {
   final s = await db.docSummary(docId);
-  final folder = dir ?? p.join((await getApplicationDocumentsDirectory()).path, 'Garage ERP Nota');
+  final folder = dir ?? await db.exportDir('Nota');
   await Directory(folder).create(recursive: true);
   final file = File(p.join(folder, '${s.doc.no.replaceAll('/', '-')}.pdf'));
   await file.writeAsBytes(await buildInvoicePdf(db, docId));

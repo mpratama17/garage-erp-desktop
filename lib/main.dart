@@ -48,7 +48,7 @@ class _BackupOnClose extends WindowListener {
   Future<void> onWindowClose() async {
     try {
       // Folder Google Drive bisa lambat/offline: jangan sampai jendela tidak bisa ditutup.
-      await db.autoBackup(force: true).timeout(const Duration(seconds: 15));
+      await db.autoBackup(closing: true).timeout(const Duration(seconds: 15));
     } catch (e) {
       debugPrint('Backup saat tutup gagal: $e');
     } finally {

@@ -25,7 +25,7 @@ Total test saat ini: **52 lulus**. **Semua modul R1 selesai** — berikutnya: uj
 
 | # | Fitur | Asal | Catatan |
 |---|---|---|---|
-| B1 | Pilih lokasi simpan file nota/invoice (PDF) | Permintaan 19 Okt | Sekarang tetap `~/Documents/Garage ERP Nota/`. Rencana: setting folder di Pengaturan (mirip folder backup), dipakai `saveInvoicePdf`. |
+| B1 | ~~Pilih lokasi simpan file nota/invoice~~ ✅ | Permintaan 19 Okt | Selesai: Pengaturan → Folder file (nota PDF di `/Nota`, export Excel mulai di `/Export`) + jadwal backup otomatis (harian+tutup / harian / mingguan / nonaktif). |
 | B2 | Backup & bukti pembayaran ke Google Drive | Brief client, ditunda client | Sekarang lokal (`Garage ERP Backup/`, `Garage ERP Bukti/`). |
 | B3 | Error import Gudang saat testing manual | Testing 19 Okt | Belum tereproduksi (import ulang di salinan DB berhasil). Tunggu isi `~/Library/Logs/Garage ERP/app.log`. |
 
