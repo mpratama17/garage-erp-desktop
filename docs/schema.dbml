@@ -1,0 +1,94 @@
+// Star Garage POS — skema SQLite (sumber: lib/db.dart)
+// Paste ke https://dbdiagram.io
+// Uang = integer rupiah. Transaksi tidak pernah dihapus (void).
+
+Project star_garage_pos {
+  database_type: 'SQLite'
+}
+
+Table products {
+  id integer [pk, increment]
+  sku text [default: '']
+  name text [not null]
+  type integer [not null, note: '0=barang, 1=jasa, 2=paket']
+  sell_price integer [not null]
+  min_stock integer [default: 0, note: 'batas laporan stok menipis']
+  active boolean [default: true, note: 'nonaktif = disembunyikan, tidak dihapus']
+}
+
+Table bundle_items {
+  bundle_id integer [not null, note: 'produk bertipe paket']
+  product_id integer [not null, note: 'komponen (barang/jasa)']
+  qty integer [not null]
+
+  indexes {
+    (bundle_id, product_id) [pk]
+  }
+  Note: 'Jual 1 paket = stok tiap komponen barang berkurang qty'
+}
+
+Table stock_moves {
+  id integer [pk, increment]
+  product_id integer [not null]
+  qty integer [not null, note: '+ masuk, - keluar']
+  unit_cost integer [default: 0, note: 'harga modal, diisi saat purchase']
+  ref_type text [not null, note: 'purchase | sale | void | adjust']
+  ref_id integer [null, note: 'purchases.id atau invoices.id sesuai ref_type']
+  note text [default: '', note: 'alasan adjust/opname']
+  at datetime [default: `CURRENT_TIMESTAMP`]
+  Note: 'Buku stok. Stok produk = SUM(qty). Hanya produk tipe barang.'
+}
+
+Table purchases {
+  id integer [pk, increment]
+  supplier text [default: '']
+  at datetime [default: `CURRENT_TIMESTAMP`]
+  Note: 'Barang masuk; baris & harga modal ada di stock_moves (ref_type=purchase)'
+}
+
+Table customers {
+  id integer [pk, increment]
+  name text [not null]
+  phone text [unique, not null, note: 'dinormalisasi 08xxxx, kunci dedupe']
+}
+
+Table invoices {
+  id integer [pk, increment]
+  no text [unique, not null, note: 'INV/00247, lanjut dari nomor terakhir']
+  at datetime [default: `CURRENT_TIMESTAMP`]
+  customer_id integer [null, note: 'null = UMUM']
+  car text [default: '', note: 'mobil per transaksi']
+  plate text [default: '', note: 'plat, uppercase']
+  ppn boolean [default: false, note: 'PPN 11% opsional']
+  pay_method text [not null, note: 'Cash | Transfer | QRIS']
+  subtotal integer [not null]
+  total integer [not null, note: 'subtotal + PPN']
+  is_void boolean [default: false]
+  void_reason text [default: '']
+}
+
+Table invoice_lines {
+  id integer [pk, increment]
+  invoice_id integer [not null]
+  product_id integer [not null]
+  name text [not null, note: 'snapshot nama saat jual']
+  description text [default: '']
+  qty integer [not null]
+  price integer [not null, note: 'snapshot harga jual']
+  discount_pct integer [default: 0]
+  total integer [not null]
+  cost integer [not null, note: 'HPP per unit saat jual -> laba']
+}
+
+Table settings {
+  key text [pk]
+  value text [not null]
+  Note: 'shop_name, shop_address, shop_phone, shop_email, logo_path, invoice_note, pin_hash, backup_dir, last_invoice_no'
+}
+
+Ref: bundle_items.bundle_id > products.id
+Ref: bundle_items.product_id > products.id
+Ref: stock_moves.product_id > products.id
+Ref: invoices.customer_id > customers.id
+Ref: invoice_lines.invoice_id > invoices.id
+Ref: invoice_lines.product_id > products.id
