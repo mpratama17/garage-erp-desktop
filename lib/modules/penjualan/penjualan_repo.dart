@@ -281,8 +281,7 @@ extension PenjualanRepo on AppDb {
     if (s.hasInvoice) throw ArgumentError('${s.doc.no} sudah dibuatkan invoice — bayar di invoicenya');
     if (p.amount <= 0) throw ArgumentError('Nominal pembayaran harus lebih dari 0');
     if (p.amount > s.remaining) throw ArgumentError('Nominal melebihi sisa tagihan (${s.remaining})');
-    final acc = await (select(accounts)..where((a) => a.id.equals(p.accountId))).getSingleOrNull();
-    if (acc == null || !acc.active) throw ArgumentError('Rekening tidak ditemukan atau nonaktif');
+    await requireActiveAccount(p.accountId);
     await into(cashEntries).insert(
       CashEntriesCompanion.insert(
         at: p.at,

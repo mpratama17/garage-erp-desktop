@@ -213,8 +213,7 @@ extension GudangRepo on AppDb {
     }
     final total = lines.fold(0, (s, l) => s + l.qty * l.unitCost);
     return transaction(() async {
-      final acc = await (select(accounts)..where((a) => a.id.equals(accountId))).getSingleOrNull();
-      if (acc == null || !acc.active) throw ArgumentError('Rekening tidak ditemukan atau nonaktif');
+      await requireActiveAccount(accountId);
       final ids = lines.map((l) => l.productId).toSet();
       final items = await (select(products)..where((x) => x.id.isIn(ids))).get();
       if (items.length != ids.length || items.any((x) => x.isService)) {

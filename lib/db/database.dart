@@ -188,6 +188,13 @@ class AppDb extends _$AppDb {
     if (!ownerUnlocked) throw ArgumentError('Butuh PIN owner');
   }
 
+  /// Rekening untuk transaksi baru harus ada dan aktif.
+  Future<Account> requireActiveAccount(int id) async {
+    final a = await (select(accounts)..where((x) => x.id.equals(id))).getSingleOrNull();
+    if (a == null || !a.active) throw ArgumentError('Rekening tidak ditemukan atau nonaktif');
+    return a;
+  }
+
   // ponytail: tetap v1 sampai app terpasang di client; setelah itu tiap perubahan skema = migrasi.
   @override
   int get schemaVersion => 1;
@@ -255,11 +262,7 @@ class AppDb extends _$AppDb {
     await Directory(dir).create(recursive: true);
     await customStatement('VACUUM INTO ?', [out.path]);
     final old =
-        Directory(dir)
-            .listSync()
-            .whereType<File>()
-            .where((f) => p.basename(f.path).startsWith('garage_erp-'))
-            .toList()
+        Directory(dir).listSync().whereType<File>().where((f) => p.basename(f.path).startsWith('garage_erp-')).toList()
           ..sort((a, b) => b.path.compareTo(a.path));
     for (final f in old.skip(60)) {
       f.deleteSync();

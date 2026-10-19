@@ -13,6 +13,7 @@ import 'package:garage_erp_desktop/core/owner.dart';
 import 'package:garage_erp_desktop/db/database.dart';
 import 'package:garage_erp_desktop/main.dart';
 import 'package:garage_erp_desktop/modules/gudang/gudang_repo.dart';
+import 'package:garage_erp_desktop/modules/kas/kas_repo.dart';
 import 'package:garage_erp_desktop/modules/kontak/kontak_repo.dart';
 import 'package:garage_erp_desktop/modules/penjualan/penjualan_repo.dart';
 
@@ -113,6 +114,29 @@ Future<void> _seed(AppDb db) async {
     lines: [b(), j()],
     payNow: PaymentInput(accountId: bca, amount: jasa.sellPrice, at: now),
   );
+
+  // Kas contoh
+  final acc = {for (final a in await db.select(db.accounts).get()) a.name: a.id};
+  await (db.update(db.accounts)..where((a) => a.id.equals(acc['BCA']!))).write(
+    const AccountsCompanion(openingBalance: Value(15000000), note: Value('a.n. contoh')),
+  );
+  await (db.update(
+    db.accounts,
+  )..where((a) => a.id.equals(acc['Tunai']!))).write(const AccountsCompanion(openingBalance: Value(800000)));
+  await db.addIncome(
+    accountId: acc['Tunai']!,
+    amount: 2000000,
+    at: now.subtract(const Duration(days: 3)),
+    kind: CashKind.capital,
+    description: 'Modal dari owner',
+  );
+  await db.transfer(
+    fromId: acc['BCA']!,
+    toId: acc['ShopeePay']!,
+    amount: 500000,
+    at: now.subtract(const Duration(days: 1)),
+    note: 'top up belanja part',
+  );
 }
 
 void main() {
@@ -162,6 +186,16 @@ void main() {
     await shot('penjualan-kasir');
     await tester.tap(find.text('Batal').last);
     await settle();
+
+    await tester.tap(find.text('Kas & Bank'));
+    await settle();
+    await shot('kas');
+    await tester.tap(find.text('BCA').first);
+    await settle();
+    await shot('kas-bca');
+    await tester.tap(find.text('Arus kas'));
+    await settle();
+    await shot('kas-arus');
 
     await tester.tap(find.text('Kontak'));
     await settle();

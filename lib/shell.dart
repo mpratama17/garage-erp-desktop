@@ -8,6 +8,7 @@ import 'core/theme.dart';
 import 'core/ui.dart';
 import 'db/database.dart';
 import 'modules/gudang/gudang_page.dart';
+import 'modules/kas/kas_page.dart';
 import 'modules/kontak/kontak_page.dart';
 import 'modules/pengaturan/pengaturan_page.dart';
 import 'modules/penjualan/penjualan_page.dart';
@@ -23,7 +24,7 @@ final _menus = <_Menu>[
   const _Menu('Penjualan', Icons.receipt_long_outlined, PenjualanPage()),
   const _Menu('Gudang', Icons.inventory_2_outlined, GudangPage()),
   const _Menu('Kontak', Icons.people_outline, KontakPage()),
-  const _Menu('Kas & Bank', Icons.account_balance_wallet_outlined, _Soon('Kas & Bank')),
+  const _Menu('Kas & Bank', Icons.account_balance_wallet_outlined, KasPage()),
   const _Menu('Biaya', Icons.payments_outlined, _Soon('Biaya')),
   const _Menu('Gaji', Icons.badge_outlined, _Soon('Gaji')),
   const _Menu('Laporan', Icons.bar_chart_outlined, _Soon('Laporan')),

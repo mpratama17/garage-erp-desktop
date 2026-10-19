@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:path/path.dart' as path;
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/format.dart';
@@ -438,7 +439,7 @@ class _DocPanel extends StatelessWidget {
                     const SizedBox(width: S.sm),
                     Expanded(
                       child: Text(
-                        proof.isEmpty ? 'Belum ada bukti' : proof.split('/').last,
+                        proof.isEmpty ? 'Belum ada bukti' : path.basename(proof),
                         style: T.label,
                         overflow: TextOverflow.ellipsis,
                       ),

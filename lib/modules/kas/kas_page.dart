@@ -1,0 +1,698 @@
+import 'package:drift/drift.dart' show Value;
+import 'package:flutter/material.dart';
+import 'package:get/get.dart' hide Value;
+import 'package:path/path.dart' as path;
+import 'package:url_launcher/url_launcher.dart';
+
+import '../../core/format.dart';
+import '../../core/owner.dart';
+import '../../core/proof.dart';
+import '../../core/table.dart';
+import '../../core/theme.dart';
+import '../../core/ui.dart';
+import '../../db/database.dart';
+import 'kas_controller.dart';
+import 'kas_repo.dart';
+
+const _monthNames = [
+  'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', //
+  'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember',
+];
+
+Future<void> _run(BuildContext context, Future<void> Function() action, [String? done]) async {
+  try {
+    await action();
+    if (done != null && context.mounted) toast(context, done);
+  } on ArgumentError catch (e) {
+    if (context.mounted) toast(context, '${e.message}');
+  } catch (e) {
+    if (context.mounted) toast(context, 'Gagal: $e');
+  }
+}
+
+class KasPage extends StatelessWidget {
+  const KasPage({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final c = Get.put(KasController(Get.find<AppDb>()));
+    final owner = Get.find<OwnerController>();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        PageHeader(
+          title: 'Kas & Bank',
+          subtitle: 'Saldo rekening, mutasi, transfer, dan arus kas.',
+          actions: [
+            OutlinedButton(onPressed: () => _incomeDialog(context, c), child: const Text('Uang masuk lain')),
+            OutlinedButton(onPressed: () => _transferDialog(context, c), child: const Text('Transfer')),
+            FilledButton.icon(
+              onPressed: () async {
+                if (await owner.ensure(context) && context.mounted) await _accountDialog(context, c, null);
+              },
+              icon: const Icon(Icons.add, size: 18),
+              label: const Text('Rekening'),
+            ),
+          ],
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(S.xxl, 0, S.xxl, S.lg),
+          child: Obx(
+            () => Wrap(
+              spacing: S.md,
+              runSpacing: S.md,
+              children: [
+                _BalanceCard(
+                  label: 'Semua rekening',
+                  value: c.totalBalance,
+                  selected: c.accountId.value == null,
+                  onTap: () => c.accountId.value = null,
+                ),
+                for (final b in c.balances)
+                  _BalanceCard(
+                    label: b.account.active ? b.account.name : '${b.account.name} (nonaktif)',
+                    value: b.balance,
+                    note: b.account.note,
+                    selected: c.accountId.value == b.account.id,
+                    onTap: () => c.accountId.value = b.account.id,
+                    onEdit: () async {
+                      if (await owner.ensure(context) && context.mounted) await _accountDialog(context, c, b.account);
+                    },
+                  ),
+              ],
+            ),
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: S.xxl),
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: SizedBox(
+              width: 320,
+              child: Obx(
+                () => SegmentedButton<KasTab>(
+                  showSelectedIcon: false,
+                  segments: const [
+                    ButtonSegment(value: KasTab.mutasi, label: Text('Mutasi')),
+                    ButtonSegment(value: KasTab.arus, label: Text('Arus kas')),
+                  ],
+                  selected: {c.tab.value},
+                  onSelectionChanged: (s) => c.tab.value = s.first,
+                ),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: S.lg),
+        Expanded(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(S.xxl, 0, S.xxl, S.xl),
+            child: Obx(() => c.tab.value == KasTab.mutasi ? _Mutasi(c: c) : _Arus(c: c)),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _BalanceCard extends StatelessWidget {
+  const _BalanceCard({
+    required this.label,
+    required this.value,
+    required this.selected,
+    required this.onTap,
+    this.note = '',
+    this.onEdit,
+  });
+  final String label, note;
+  final int value;
+  final bool selected;
+  final VoidCallback onTap;
+  final VoidCallback? onEdit;
+
+  @override
+  Widget build(BuildContext context) => SizedBox(
+    width: 210,
+    child: Material(
+      color: selected ? C.primarySoft : C.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(S.rCard),
+        side: BorderSide(color: selected ? C.primary : C.border),
+      ),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(S.rCard),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(S.lg, S.md, S.xs, S.md),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(label, style: T.label, overflow: TextOverflow.ellipsis),
+                    const SizedBox(height: S.xs),
+                    Text(
+                      rupiah(value),
+                      style: T.section.copyWith(
+                        fontFeatures: T.money.fontFeatures,
+                        color: value < 0 ? C.danger : C.ink,
+                      ),
+                    ),
+                    if (note.isNotEmpty) Text(note, style: T.label, overflow: TextOverflow.ellipsis),
+                  ],
+                ),
+              ),
+              if (onEdit != null)
+                IconButton(
+                  tooltip: 'Ubah rekening',
+                  onPressed: onEdit,
+                  icon: const Icon(Icons.edit_outlined, size: 18),
+                ),
+            ],
+          ),
+        ),
+      ),
+    ),
+  );
+}
+
+class _Mutasi extends StatelessWidget {
+  const _Mutasi({required this.c});
+  final KasController c;
+
+  @override
+  Widget build(BuildContext context) => Obx(() => _build(context));
+
+  Widget _build(BuildContext context) {
+    final single = c.accountId.value != null;
+    final m = c.month.value;
+    final rows = c.entries.toList();
+    // Semua rekening: transfer internal bukan uang masuk/keluar usaha.
+    final counted = rows.where((r) => single || r.entry.kind != CashKind.transfer);
+    final income = counted.where((r) => r.entry.amount > 0).fold(0, (t, r) => t + r.entry.amount);
+    final expense = counted.where((r) => r.entry.amount < 0).fold(0, (t, r) => t - r.entry.amount);
+    return AppTable<EntryRow>(
+      rows: rows,
+      searchHint: 'Cari keterangan…',
+      searchText: (r) => '${r.entry.description} ${r.entry.note} ${r.accountName} ${cashKindLabel[r.entry.kind]}',
+      emptyMessage: 'Tidak ada transaksi di bulan ini.',
+      toolbar: [
+        Text('Masuk ${rp(income)} · Keluar ${rp(expense)}', style: T.label),
+        const SizedBox(width: S.lg),
+        IconButton(
+          tooltip: 'Bulan sebelumnya',
+          onPressed: () => c.shiftMonth(-1),
+          icon: const Icon(Icons.chevron_left),
+        ),
+        SizedBox(
+          width: 130,
+          child: Text('${_monthNames[m.month - 1]} ${m.year}', textAlign: TextAlign.center, style: T.section),
+        ),
+        IconButton(
+          tooltip: 'Bulan berikutnya',
+          onPressed: () => c.shiftMonth(1),
+          icon: const Icon(Icons.chevron_right),
+        ),
+      ],
+      columns: [
+        Col('Tanggal', (r) => Text(tgl(r.entry.at)), flex: 2),
+        if (!single) Col('Rekening', (r) => Text(r.accountName), flex: 2),
+        Col('Jenis', (r) => Pill(cashKindLabel[r.entry.kind] ?? r.entry.kind, _tone(r.entry.kind)), flex: 2),
+        Col(
+          'Keterangan',
+          (r) => Text([r.entry.description, if (r.entry.note.isNotEmpty) r.entry.note].join(' · ')),
+          flex: 6,
+        ),
+        Col(
+          'Masuk',
+          (r) => Text(r.entry.amount > 0 ? rp(r.entry.amount) : '', style: T.money.copyWith(color: Tone.success.fg)),
+          flex: 2,
+          numeric: true,
+        ),
+        Col(
+          'Keluar',
+          (r) => Text(r.entry.amount < 0 ? rp(-r.entry.amount) : '', style: T.money.copyWith(color: C.danger)),
+          flex: 2,
+          numeric: true,
+        ),
+        if (single)
+          Col(
+            'Saldo',
+            (r) => Text(r.balanceAfter == null ? '' : rp(r.balanceAfter!), style: T.money),
+            flex: 2,
+            numeric: true,
+          ),
+        Col('', (r) => _RowActions(r: r, c: c), flex: 1, numeric: true),
+      ],
+    );
+  }
+
+  static Tone _tone(String kind) => switch (kind) {
+    'payment' || 'capital' || 'income' => Tone.success,
+    'transfer' => Tone.info,
+    'refund' => Tone.warning,
+    _ => Tone.neutral,
+  };
+}
+
+class _RowActions extends StatelessWidget {
+  const _RowActions({required this.r, required this.c});
+  final EntryRow r;
+  final KasController c;
+
+  @override
+  Widget build(BuildContext context) => Row(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      if (r.entry.proofPath.isNotEmpty)
+        IconButton(
+          tooltip: 'Buka bukti',
+          onPressed: () => _run(context, () => launchUrl(Uri.file(r.entry.proofPath))),
+          icon: const Icon(Icons.attach_file, size: 18),
+        ),
+      if (CashKind.manual.contains(r.entry.kind))
+        IconButton(
+          tooltip: 'Hapus transaksi',
+          onPressed: () async {
+            if (!await Get.find<OwnerController>().ensure(context) || !context.mounted) return;
+            final ok = await showDialog<bool>(
+              context: context,
+              builder: (ctx) => AlertDialog(
+                title: const Text('Hapus transaksi ini?'),
+                content: Text(
+                  r.entry.kind == CashKind.transfer
+                      ? 'Transfer dihapus di kedua rekening.'
+                      : '${r.entry.description} · ${rupiah(r.entry.amount)}',
+                ),
+                actions: [
+                  OutlinedButton(onPressed: () => Navigator.pop(ctx), child: const Text('Batal')),
+                  FilledButton(
+                    style: FilledButton.styleFrom(backgroundColor: C.danger),
+                    onPressed: () => Navigator.pop(ctx, true),
+                    child: const Text('Hapus'),
+                  ),
+                ],
+              ),
+            );
+            if (ok == true && context.mounted) {
+              await _run(context, () => c.db.deleteManualEntry(r.entry.id), 'Transaksi dihapus');
+            }
+          },
+          icon: const Icon(Icons.delete_outline, size: 18),
+        ),
+    ],
+  );
+}
+
+class _Arus extends StatelessWidget {
+  const _Arus({required this.c});
+  final KasController c;
+
+  @override
+  Widget build(BuildContext context) => Obx(() => _build(context));
+
+  Widget _build(BuildContext context) {
+    final rows = c.flow.toList();
+    final income = rows.fold(0, (t, f) => t + f.income), expense = rows.fold(0, (t, f) => t + f.expense);
+    Widget cell(String t, {TextStyle? style, int flex = 2, bool right = true}) => Expanded(
+      flex: flex,
+      child: Text(t, textAlign: right ? TextAlign.right : TextAlign.left, style: style ?? T.money),
+    );
+    Widget row(FlowRow? f, {bool header = false}) => Container(
+      height: S.row,
+      padding: const EdgeInsets.symmetric(horizontal: S.lg),
+      decoration: BoxDecoration(
+        color: header ? C.bg : null,
+        border: const Border(bottom: BorderSide(color: C.border)),
+      ),
+      child: Row(
+        children: header
+            ? [
+                cell('Periode', style: T.label, flex: 3, right: false),
+                cell('Pemasukan', style: T.label),
+                cell('Pengeluaran', style: T.label),
+                cell('Arus kas bersih', style: T.label),
+              ]
+            : [
+                cell(f!.label, style: T.body, flex: 3, right: false),
+                cell(rp(f.income), style: T.money.copyWith(color: Tone.success.fg)),
+                cell(rp(f.expense), style: T.money.copyWith(color: C.danger)),
+                cell(
+                  rp(f.net),
+                  style: T.money.copyWith(fontWeight: FontWeight.w600, color: f.net < 0 ? C.danger : C.ink),
+                ),
+              ],
+      ),
+    );
+
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(S.md),
+            child: Row(
+              children: [
+                SegmentedButton<Period>(
+                  showSelectedIcon: false,
+                  segments: const [
+                    ButtonSegment(value: Period.daily, label: Text('Harian')),
+                    ButtonSegment(value: Period.monthly, label: Text('Bulanan')),
+                    ButtonSegment(value: Period.quarterly, label: Text('Kuartal')),
+                    ButtonSegment(value: Period.yearly, label: Text('Tahunan')),
+                  ],
+                  selected: {c.period.value},
+                  onSelectionChanged: (s) => c.period.value = s.first,
+                ),
+                const Spacer(),
+                if (c.period.value != Period.yearly) ...[
+                  IconButton(
+                    tooltip: 'Tahun sebelumnya',
+                    onPressed: () => c.year.value--,
+                    icon: const Icon(Icons.chevron_left),
+                  ),
+                  Text('${c.year.value}', style: T.section),
+                  IconButton(
+                    tooltip: 'Tahun berikutnya',
+                    onPressed: () => c.year.value++,
+                    icon: const Icon(Icons.chevron_right),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          row(null, header: true),
+          Expanded(
+            child: rows.isEmpty
+                ? Center(child: Text('Belum ada transaksi di periode ini.', style: T.pageSubtitle))
+                : ListView(children: [for (final f in rows.reversed) row(f)]),
+          ),
+          Container(
+            color: C.bg,
+            padding: const EdgeInsets.symmetric(horizontal: S.lg, vertical: S.md),
+            child: Row(
+              children: [
+                cell('Total', style: T.section, flex: 3, right: false),
+                cell(rp(income), style: T.money.copyWith(fontWeight: FontWeight.w600)),
+                cell(rp(expense), style: T.money.copyWith(fontWeight: FontWeight.w600)),
+                cell(
+                  rp(income - expense),
+                  style: T.money.copyWith(fontWeight: FontWeight.w700, color: income < expense ? C.danger : C.ink),
+                ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(S.lg, 0, S.lg, S.md),
+            child: Text(
+              'Transfer antar rekening tidak dihitung. Pembelian stok, biaya, gaji, dan pengembalian dana = pengeluaran.',
+              style: T.label,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ------------------------------------------------------------------ dialog
+
+Widget _dateField(BuildContext ctx, DateTime value, ValueChanged<DateTime> onPick) => InkWell(
+  onTap: () async {
+    final d = await showDatePicker(
+      context: ctx,
+      initialDate: value,
+      firstDate: DateTime(2020),
+      lastDate: DateTime.now(),
+    );
+    if (d != null) onPick(d);
+  },
+  child: InputDecorator(
+    decoration: const InputDecoration(labelText: 'Tanggal'),
+    child: Text(tgl(value)),
+  ),
+);
+
+Widget _proofRow(String proof, VoidCallback onPick) => Row(
+  children: [
+    OutlinedButton.icon(
+      onPressed: onPick,
+      icon: const Icon(Icons.attach_file, size: 18),
+      label: const Text('Lampirkan bukti'),
+    ),
+    const SizedBox(width: S.sm),
+    Expanded(
+      child: Text(
+        proof.isEmpty ? 'Belum ada bukti' : path.basename(proof),
+        style: T.label,
+        overflow: TextOverflow.ellipsis,
+      ),
+    ),
+  ],
+);
+
+DropdownButtonFormField<int> _accountField(
+  String label,
+  int? value,
+  List<Account> items,
+  ValueChanged<int?> onChanged,
+) => DropdownButtonFormField<int>(
+  isExpanded: true,
+  initialValue: value,
+  decoration: InputDecoration(labelText: label),
+  items: [for (final a in items) DropdownMenuItem(value: a.id, child: Text(a.name))],
+  onChanged: onChanged,
+);
+
+Future<void> _transferDialog(BuildContext context, KasController c) async {
+  final accounts = c.activeAccounts;
+  if (accounts.length < 2) return toast(context, 'Butuh minimal 2 rekening aktif');
+  int? from = accounts.first.id, to = accounts[1].id;
+  var date = DateTime.now();
+  var proof = '';
+  final amount = TextEditingController(), note = TextEditingController();
+  await showDialog<void>(
+    context: context,
+    builder: (ctx) => StatefulBuilder(
+      builder: (ctx, setState) => AlertDialog(
+        title: const Text('Transfer antar rekening'),
+        content: SizedBox(
+          width: 420,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                children: [
+                  Expanded(child: _accountField('Dari', from, accounts, (v) => from = v)),
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: S.sm),
+                    child: Icon(Icons.arrow_forward),
+                  ),
+                  Expanded(child: _accountField('Ke', to, accounts, (v) => to = v)),
+                ],
+              ),
+              const SizedBox(height: S.md),
+              Row(
+                children: [
+                  Expanded(
+                    child: MoneyField(controller: amount, label: 'Nominal *'),
+                  ),
+                  const SizedBox(width: S.md),
+                  SizedBox(width: 140, child: _dateField(ctx, date, (d) => setState(() => date = d))),
+                ],
+              ),
+              const SizedBox(height: S.md),
+              TextField(
+                controller: note,
+                decoration: const InputDecoration(labelText: 'Keterangan', hintText: 'mis. top up ShopeePay'),
+              ),
+              const SizedBox(height: S.md),
+              _proofRow(proof, () async {
+                final p = await pickProof('transfer');
+                if (p != null) setState(() => proof = p);
+              }),
+            ],
+          ),
+        ),
+        actions: [
+          OutlinedButton(onPressed: () => Navigator.pop(ctx), child: const Text('Batal')),
+          FilledButton(
+            onPressed: () async {
+              if (from == null || to == null) return toast(ctx, 'Pilih rekening');
+              await _run(ctx, () async {
+                await c.db.transfer(
+                  fromId: from!,
+                  toId: to!,
+                  amount: parseRupiah(amount.text),
+                  at: date,
+                  note: note.text,
+                  proofPath: proof,
+                );
+                if (ctx.mounted) Navigator.pop(ctx);
+              }, 'Transfer tersimpan');
+            },
+            child: const Text('Simpan'),
+          ),
+        ],
+      ),
+    ),
+  );
+  amount.dispose();
+  note.dispose();
+}
+
+Future<void> _incomeDialog(BuildContext context, KasController c) async {
+  final accounts = c.activeAccounts;
+  if (accounts.isEmpty) return toast(context, 'Belum ada rekening aktif');
+  int? accountId = accounts.first.id;
+  var kind = CashKind.capital;
+  var date = DateTime.now();
+  var proof = '';
+  final amount = TextEditingController(),
+      desc = TextEditingController(text: 'Modal dari owner'),
+      note = TextEditingController();
+  await showDialog<void>(
+    context: context,
+    builder: (ctx) => StatefulBuilder(
+      builder: (ctx, setState) => AlertDialog(
+        title: const Text('Uang masuk lain'),
+        content: SizedBox(
+          width: 420,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SegmentedButton<String>(
+                showSelectedIcon: false,
+                segments: const [
+                  ButtonSegment(value: CashKind.capital, label: Text('Modal masuk')),
+                  ButtonSegment(value: CashKind.income, label: Text('Pemasukan lain')),
+                ],
+                selected: {kind},
+                onSelectionChanged: (s) => setState(() {
+                  kind = s.first;
+                  if (desc.text == 'Modal dari owner' && kind == CashKind.income) desc.clear();
+                }),
+              ),
+              const SizedBox(height: S.md),
+              Row(
+                children: [
+                  Expanded(child: _accountField('Ke rekening', accountId, accounts, (v) => accountId = v)),
+                  const SizedBox(width: S.md),
+                  SizedBox(width: 140, child: _dateField(ctx, date, (d) => setState(() => date = d))),
+                ],
+              ),
+              const SizedBox(height: S.md),
+              MoneyField(controller: amount, label: 'Nominal *'),
+              const SizedBox(height: S.md),
+              TextField(
+                controller: desc,
+                decoration: const InputDecoration(labelText: 'Keterangan *'),
+              ),
+              const SizedBox(height: S.md),
+              TextField(
+                controller: note,
+                decoration: const InputDecoration(labelText: 'Catatan'),
+              ),
+              const SizedBox(height: S.md),
+              _proofRow(proof, () async {
+                final p = await pickProof('pemasukan');
+                if (p != null) setState(() => proof = p);
+              }),
+            ],
+          ),
+        ),
+        actions: [
+          OutlinedButton(onPressed: () => Navigator.pop(ctx), child: const Text('Batal')),
+          FilledButton(
+            onPressed: () async {
+              if (accountId == null) return toast(ctx, 'Pilih rekening');
+              await _run(ctx, () async {
+                await c.db.addIncome(
+                  accountId: accountId!,
+                  amount: parseRupiah(amount.text),
+                  at: date,
+                  kind: kind,
+                  description: desc.text,
+                  note: note.text,
+                  proofPath: proof,
+                );
+                if (ctx.mounted) Navigator.pop(ctx);
+              }, 'Tersimpan');
+            },
+            child: const Text('Simpan'),
+          ),
+        ],
+      ),
+    ),
+  );
+  for (final t in [amount, desc, note]) {
+    t.dispose();
+  }
+}
+
+/// Tambah ([a] null) / ubah rekening — owner.
+Future<void> _accountDialog(BuildContext context, KasController c, Account? a) async {
+  final name = TextEditingController(text: a?.name);
+  final opening = TextEditingController(text: a == null ? '' : rp(a.openingBalance));
+  final note = TextEditingController(text: a?.note);
+  var active = a?.active ?? true;
+  await showDialog<void>(
+    context: context,
+    builder: (ctx) => StatefulBuilder(
+      builder: (ctx, setState) => AlertDialog(
+        title: Text(a == null ? 'Rekening baru' : 'Ubah rekening ${a.name}'),
+        content: SizedBox(
+          width: 400,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: name,
+                autofocus: a == null,
+                decoration: const InputDecoration(labelText: 'Nama *'),
+              ),
+              const SizedBox(height: S.md),
+              MoneyField(controller: opening, label: 'Saldo awal (saat mulai pakai app)'),
+              const SizedBox(height: S.md),
+              TextField(
+                controller: note,
+                decoration: const InputDecoration(labelText: 'Keterangan', hintText: 'mis. no. rekening / atas nama'),
+              ),
+              if (a != null)
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Aktif'),
+                  subtitle: const Text('Rekening nonaktif tidak bisa dipilih untuk transaksi baru.'),
+                  value: active,
+                  onChanged: (v) => setState(() => active = v),
+                ),
+            ],
+          ),
+        ),
+        actions: [
+          OutlinedButton(onPressed: () => Navigator.pop(ctx), child: const Text('Batal')),
+          FilledButton(
+            onPressed: () => _run(ctx, () async {
+              await c.db.saveAccount(
+                AccountsCompanion(
+                  id: a == null ? const Value.absent() : Value(a.id),
+                  name: Value(name.text),
+                  openingBalance: Value(parseRupiah(opening.text)),
+                  note: Value(note.text),
+                  active: Value(active),
+                ),
+              );
+              if (ctx.mounted) Navigator.pop(ctx);
+            }, 'Rekening tersimpan'),
+            child: const Text('Simpan'),
+          ),
+        ],
+      ),
+    ),
+  );
+  for (final t in [name, opening, note]) {
+    t.dispose();
+  }
+}
