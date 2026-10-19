@@ -9,6 +9,7 @@ import 'core/theme.dart';
 import 'core/ui.dart';
 import 'db/database.dart';
 import 'modules/biaya/biaya_page.dart';
+import 'modules/dashboard/dashboard_page.dart';
 import 'modules/gaji/gaji_page.dart';
 import 'modules/gudang/gudang_controller.dart';
 import 'modules/gudang/gudang_page.dart';
@@ -23,6 +24,7 @@ import 'modules/search_repo.dart';
 
 /// Halaman di sidebar (urutan = urutan menu). Pengaturan ditaruh terpisah di bawah.
 enum AppPage {
+  dashboard('Dashboard', Icons.space_dashboard_outlined),
   penjualan('Penjualan', Icons.receipt_long_outlined),
   gudang('Gudang', Icons.inventory_2_outlined),
   kontak('Kontak', Icons.people_outline),
@@ -37,6 +39,7 @@ enum AppPage {
   final IconData icon;
 
   Widget get page => switch (this) {
+    dashboard => const DashboardPage(),
     penjualan => const PenjualanPage(),
     gudang => const GudangPage(),
     kontak => const KontakPage(),
@@ -50,7 +53,7 @@ enum AppPage {
 
 /// Halaman aktif; dipakai sidebar dan cari global (buka halaman + record).
 class Nav extends GetxController {
-  final page = AppPage.penjualan.obs;
+  final page = AppPage.dashboard.obs;
 }
 
 class Shell extends StatelessWidget {

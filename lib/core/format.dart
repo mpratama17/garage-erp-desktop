@@ -9,6 +9,21 @@ String rp(int v) => _rp.format(v);
 /// 2250000 -> "Rp 2.250.000"
 String rupiah(int v) => 'Rp ${rp(v)}';
 
+/// Ringkas untuk sumbu grafik: 12400000 -> "12,4 jt", 750000 -> "750 rb".
+String rpShort(int v) {
+  String f(double x, String unit) =>
+      '${x.toStringAsFixed(x < 10 && x != x.roundToDouble() ? 1 : 0).replaceAll('.', ',')} $unit';
+  final a = v.abs();
+  final s = a >= 1e9
+      ? f(a / 1e9, 'M')
+      : a >= 1e6
+      ? f(a / 1e6, 'jt')
+      : a >= 1e3
+      ? f(a / 1e3, 'rb')
+      : '$a';
+  return v < 0 ? '-$s' : s;
+}
+
 /// "Rp 2.250.000" / "2.250.000" / "2250000" -> 2250000. Kosong -> 0.
 int parseRupiah(String s) => int.tryParse(s.replaceAll(RegExp(r'[^0-9-]'), '')) ?? 0;
 

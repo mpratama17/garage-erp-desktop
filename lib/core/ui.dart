@@ -287,3 +287,62 @@ class OwnerGate extends StatelessWidget {
     );
   }
 }
+
+/// Kartu ringkasan angka (design.md §6): ikon di kotak pastel + label + angka besar + keterangan.
+/// [ownerOnly] = angka disembunyikan (••••) sampai PIN owner dimasukkan.
+class KpiCard extends StatelessWidget {
+  const KpiCard({
+    super.key,
+    required this.icon,
+    required this.tone,
+    required this.label,
+    required this.value,
+    this.hint,
+    this.hintColor,
+    this.ownerOnly = false,
+  });
+  final IconData icon;
+  final Tone tone;
+  final String label, value;
+  final String? hint;
+  final Color? hintColor;
+  final bool ownerOnly;
+
+  @override
+  Widget build(BuildContext context) {
+    final number = Text(value, style: T.kpi.copyWith(fontSize: 22), maxLines: 1, overflow: TextOverflow.ellipsis);
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(S.lg),
+        child: Row(
+          children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(color: tone.bg, borderRadius: BorderRadius.circular(12)),
+              child: Icon(icon, color: tone.fg, size: 22),
+            ),
+            const SizedBox(width: S.md),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(label, style: T.label, maxLines: 1, overflow: TextOverflow.ellipsis),
+                  const SizedBox(height: 2),
+                  ownerOnly ? OwnerOnly(child: number) : number,
+                  if (hint != null)
+                    Text(
+                      hint!,
+                      style: T.label.copyWith(color: hintColor, fontWeight: FontWeight.w500),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}

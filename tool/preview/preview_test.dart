@@ -201,7 +201,18 @@ void main() {
 
     await tester.pumpWidget(const App());
     await settle();
-    await shot('shell');
+    await shot('dashboard');
+    owner.isOwner.value = true;
+    await settle();
+    await shot('dashboard-owner');
+    owner.isOwner.value = false;
+    await settle();
+    // Ukuran jendela minimum (design.md §4).
+    tester.view.physicalSize = const Size(1280, 720);
+    await settle();
+    await shot('dashboard-1280');
+    tester.view.physicalSize = const Size(1440, 900);
+    await settle();
 
     // Cari global: ketik → hasil berkelompok → pilih customer = buka di Kontak.
     await tester.tap(find.byType(SearchBar));
