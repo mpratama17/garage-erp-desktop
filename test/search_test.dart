@@ -30,6 +30,9 @@ void main() {
     final byPlate = await db.search('n 1234');
     expect((byPlate.docs.single.customer, byPlate.customers.single.name), ('BUDI SANTOSO', 'BUDI SANTOSO'));
     expect((await db.search('0812-3456')).customers.length, 1);
+    expect((await db.search('4567890')).customers.length, 1); // potongan tengah/akhir no. HP
+    expect((await db.search('B_DI')).isEmpty, true); // _ bukan wildcard
+    expect((await db.search('%%')).isEmpty, true);
     expect((await db.search('+62 812 3456')).docs.length, 1);
     expect((await db.search('INV/00')).docs.single.doc.no, startsWith('INV/'));
     expect((await db.search('cb/0')).products.single.name, 'CANBUS LED');

@@ -68,7 +68,10 @@ class GudangPage extends StatelessWidget {
           final active = c.products.where((s) => s.product.active);
           final goods = active.where((s) => !s.isService).toList();
           final low = goods.where((s) => s.isLow).length;
-          final value = goods.fold<int>(0, (t, s) => t + (s.stock > 0 ? s.stock * s.product.buyPrice : 0));
+          // Dihitung hanya saat owner terbuka (harga beli = data owner).
+          final value = owner.isOwner.value
+              ? goods.fold<int>(0, (t, s) => t + (s.stock > 0 ? s.stock * s.product.buyPrice : 0))
+              : 0;
           return KpiRow([
             KpiCard(
               icon: Icons.inventory_2_outlined,

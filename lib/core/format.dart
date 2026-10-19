@@ -9,19 +9,19 @@ String rp(int v) => _rp.format(v);
 /// 2250000 -> "Rp 2.250.000"
 String rupiah(int v) => 'Rp ${rp(v)}';
 
-/// Ringkas untuk sumbu grafik: 12400000 -> "12,4 jt", 750000 -> "750 rb".
+/// Ringkas untuk sumbu grafik: 12400000 -> "12,4 jt", 750000 -> "750 rb", 999600 -> "1 jt".
 String rpShort(int v) {
-  String f(double x, String unit) =>
-      '${x.toStringAsFixed(x < 10 && x != x.roundToDouble() ? 1 : 0).replaceAll('.', ',')} $unit';
+  const units = [(1e3, 'rb'), (1e6, 'jt'), (1e9, 'M')];
   final a = v.abs();
-  final s = a >= 1e9
-      ? f(a / 1e9, 'M')
-      : a >= 1e6
-      ? f(a / 1e6, 'jt')
-      : a >= 1e3
-      ? f(a / 1e3, 'rb')
-      : '$a';
-  return v < 0 ? '-$s' : s;
+  var out = '$a';
+  for (var i = units.length - 1; i >= 0; i--) {
+    if (a < units[i].$1 * 0.9995) continue; // 999.600 dibulatkan jadi 1 jt, bukan "1000 rb"
+    final x = a / units[i].$1;
+    final r = x < 9.95 ? (x * 10).round() / 10 : x.roundToDouble();
+    out = '${r == r.roundToDouble() ? r.round() : r.toString().replaceAll('.', ',')} ${units[i].$2}';
+    break;
+  }
+  return v < 0 ? '-$out' : out;
 }
 
 /// "Rp 2.250.000" / "2.250.000" / "2250000" -> 2250000. Kosong -> 0.

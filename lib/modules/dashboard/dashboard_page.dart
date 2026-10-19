@@ -53,8 +53,8 @@ class _DashboardPageState extends State<DashboardPage> {
                     tone: Tone.success,
                     label: 'Omzet bulan ini',
                     value: rupiah(c.monthOmzet),
-                    hint: _delta(c.monthOmzet, c.lastMonthOmzet),
-                    hintColor: (c.lastMonthOmzet ?? 0) > c.monthOmzet ? C.danger : Tone.success.fg,
+                    hint: _delta(c.monthOmzet, c.lastMonthToDate.value),
+                    hintColor: (c.lastMonthToDate.value ?? 0) > c.monthOmzet ? C.danger : Tone.success.fg,
                   ),
                   KpiCard(
                     icon: Icons.receipt_long_outlined,
@@ -96,7 +96,7 @@ class _DashboardPageState extends State<DashboardPage> {
                               icon: Icons.account_balance_wallet_outlined,
                               tone: Tone.info,
                               label: 'Saldo semua rekening',
-                              value: rupiah(c.balance.value ?? 0),
+                              value: c.balance.value == null ? '—' : rupiah(c.balance.value!),
                               hint: 'Detail di Kas & Bank',
                               ownerOnly: true,
                             ),
@@ -169,7 +169,7 @@ class _DashboardPageState extends State<DashboardPage> {
   static String? _delta(int now, int? before) {
     if (before == null || before == 0) return null;
     final pct = ((now - before) * 100 / before).round();
-    return '${pct >= 0 ? '▲' : '▼'} ${pct.abs()}% dari bulan lalu';
+    return '${pct >= 0 ? '▲' : '▼'} ${pct.abs()}% vs periode sama bulan lalu';
   }
 }
 

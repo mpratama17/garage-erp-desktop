@@ -96,4 +96,16 @@ void main() {
     expect(await now.select(now.products).get(), isEmpty); // tidak "no such table"
     expect(await now.setting('shop_name'), 'Bengkel Lama'); // data lama utuh
   });
+
+  test('rpShort: satuan dipilih setelah pembulatan', () {
+    expect([999600, 9960000, 12400000, 750000, 1500, 999, -2500000].map(rpShort), [
+      '1 jt',
+      '10 jt',
+      '12 jt',
+      '750 rb',
+      '1,5 rb',
+      '999',
+      '-2,5 jt',
+    ]);
+  });
 }

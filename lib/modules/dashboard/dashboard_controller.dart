@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:drift/drift.dart' show TableUpdateQuery;
+import 'package:flutter/material.dart' show DateUtils;
 import 'package:get/get.dart';
 
 import '../../core/owner.dart';
@@ -23,7 +24,13 @@ class DashboardController extends GetxController {
   final balance = RxnInt(); // owner saja
   final profit = RxnInt(); // laba bersih usaha bulan ini, owner saja
 
+  final lastMonthToDate = RxnInt(); // omzet bulan lalu s/d tanggal yang sama (pembanding adil)
+
   final _subs = <StreamSubscription<Object?>>[];
+  StreamSubscription<Object?>? _balanceSub;
+  Worker? _ownerWorker;
+  Timer? _clock;
+  var _day = DateUtils.dateOnly(DateTime.now());
   var _seq = 0;
 
   OwnerController get _owner => Get.find<OwnerController>();
@@ -31,13 +38,13 @@ class DashboardController extends GetxController {
   @override
   void onInit() {
     super.onInit();
-    final today = DateTime.now();
     _subs
       ..add(
         db.watchDocs(DocKind.invoice).listen((docs) {
           final open = docs.where((d) => d.status == PayStatus.unpaid || d.status == PayStatus.partial).toList()
             ..sort((a, b) {
-              final o = (b.overdue(today) ? 1 : 0) - (a.overdue(today) ? 1 : 0);
+              final now = DateTime.now();
+              final o = (b.overdue(now) ? 1 : 0) - (a.overdue(now) ? 1 : 0);
               return o != 0 ? o : a.doc.at.compareTo(b.doc.at);
             });
           unpaid.assignAll(open);
@@ -50,13 +57,31 @@ class DashboardController extends GetxController {
           ),
         ),
       )
-      ..add(db.watchBalances().listen((b) => balance.value = b.fold<int>(0, (t, x) => t + x.balance)))
       ..add(
         db
             .tableUpdates(TableUpdateQuery.onAllTables([db.invoices, db.invoiceLines, db.cashEntries]))
             .listen((_) => _load()),
       );
-    ever(_owner.isOwner, (_) => _load());
+    _ownerWorker = ever(_owner.isOwner, (_) => _ownerChanged());
+    // App bisa terbuka semalaman: muat ulang saat tanggal berganti.
+    _clock = Timer.periodic(const Duration(minutes: 1), (_) {
+      final d = DateUtils.dateOnly(DateTime.now());
+      if (d != _day) {
+        _day = d;
+        _load();
+      }
+    });
+    _ownerChanged();
+  }
+
+  /// Saldo hanya dimuat saat owner terbuka (bukan sekadar disembunyikan di layar).
+  void _ownerChanged() {
+    _balanceSub?.cancel();
+    _balanceSub = null;
+    balance.value = null;
+    if (_owner.isOwner.value) {
+      _balanceSub = db.watchBalances().listen((b) => balance.value = b.fold<int>(0, (t, x) => t + x.balance));
+    }
     _load();
   }
 
@@ -65,6 +90,9 @@ class DashboardController extends GetxController {
     for (final s in _subs) {
       s.cancel();
     }
+    _balanceSub?.cancel();
+    _ownerWorker?.dispose();
+    _clock?.cancel();
     super.onClose();
   }
 
@@ -72,33 +100,38 @@ class DashboardController extends GetxController {
     final seq = ++_seq;
     final now = DateTime.now();
     final month = DateTime(now.year, now.month), next = DateTime(now.year, now.month + 1);
-    final d = await db.salesSeries(month, next);
-    final m = await db.salesSeries(DateTime(now.year, now.month - 11), next, monthly: true);
-    final t = await db.topItems(month, next);
+    // Pembanding: bulan lalu tgl 1 s/d tanggal yang sama (dibatasi akhir bulan lalu).
+    final prevEnd = DateTime(now.year, now.month - 1, now.day + 1);
+    final prevTo = prevEnd.isAfter(month) ? month : prevEnd;
     // Laba hanya dihitung saat owner terbuka — report() menolak tanpa PIN (aturan di repo).
-    int? p;
-    if (_owner.isOwner.value) {
+    Future<int?> profitOf() async {
+      if (!_owner.isOwner.value) return null;
       try {
-        p = (await db.report(month, next, Period.monthly)).pl.total.net;
+        return (await db.report(month, next, Period.monthly)).pl.total.net;
       } on ArgumentError {
-        p = null; // owner terkunci saat sedang memuat
+        return null; // owner terkunci saat sedang memuat
       }
     }
+
+    final (d, m, prev, t, p) = await (
+      db.salesSeries(month, next),
+      db.salesSeries(DateTime(now.year, now.month - 11), next, monthly: true),
+      db.salesSeries(DateTime(now.year, now.month - 1), prevTo),
+      db.topItems(month, next),
+      profitOf(),
+    ).wait;
     if (seq != _seq) return;
     days.assignAll(d);
     months.assignAll(m);
+    lastMonthToDate.value = prev.fold<int>(0, (s, x) => s + x.omzet);
     top.assignAll(t);
     profit.value = p;
   }
 
-  SalesPoint? get today {
-    final n = DateTime.now();
-    return days.firstWhereOrNull((p) => p.start.day == n.day);
-  }
+  SalesPoint? get today => days.firstWhereOrNull((p) => p.start == DateUtils.dateOnly(DateTime.now()));
 
   int get monthOmzet => days.fold(0, (t, p) => t + p.omzet);
   int get monthInvoices => days.fold(0, (t, p) => t + p.invoices);
-  int? get lastMonthOmzet => months.length < 2 ? null : months[months.length - 2].omzet;
   int get unpaidTotal => unpaid.fold(0, (t, d) => t + d.remaining);
   int get overdueCount => unpaid.where((d) => d.overdue(DateTime.now())).length;
 }

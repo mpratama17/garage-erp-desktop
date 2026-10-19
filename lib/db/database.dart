@@ -371,10 +371,19 @@ class AppDb extends _$AppDb {
   }
 
   /// Folder hasil export & nota: pilihan owner, atau default ~/Documents/Garage ERP. [sub] = subfolder.
+  /// Folder pilihan yang tidak bisa dipakai (mis. flashdisk dicabut) → kembali ke default.
   Future<String> exportDir([String sub = '']) async {
-    final dir = await setting('export_dir');
-    final base = dir.isNotEmpty ? dir : p.join((await getApplicationDocumentsDirectory()).path, 'Garage ERP');
-    final out = p.join(base, sub);
+    final chosen = await setting('export_dir');
+    if (chosen.isNotEmpty) {
+      try {
+        final out = p.join(chosen, sub);
+        await Directory(out).create(recursive: true);
+        return out;
+      } on FileSystemException {
+        // folder pilihan tidak bisa dipakai → default di bawah
+      }
+    }
+    final out = p.join((await getApplicationDocumentsDirectory()).path, 'Garage ERP', sub);
     await Directory(out).create(recursive: true);
     return out;
   }

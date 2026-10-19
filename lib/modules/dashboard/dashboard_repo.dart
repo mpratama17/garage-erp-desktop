@@ -18,7 +18,7 @@ extension DashboardRepo on AppDb {
     final rows = await customSelect(
       'SELECT i.at, SUM(l.qty * l.price - l.discount) AS total FROM invoices i '
       'JOIN invoice_lines l ON l.invoice_id = i.id '
-      "WHERE i.kind = 'invoice' AND i.is_void = 0 AND i.at >= ? AND i.at < ? GROUP BY i.id",
+      "WHERE i.kind = '${DocKind.invoice}' AND i.is_void = 0 AND i.at >= ? AND i.at < ? GROUP BY i.id",
       variables: [Variable.withDateTime(from), Variable.withDateTime(to)],
       readsFrom: {invoices, invoiceLines},
     ).get();

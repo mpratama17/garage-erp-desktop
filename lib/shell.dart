@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -218,12 +219,39 @@ class _TopBar extends StatelessWidget {
         const Spacer(),
         const Icon(Icons.calendar_today_outlined, size: 16, color: C.inkMuted),
         const SizedBox(width: S.sm),
-        Text(DateFormat('EEEE, d MMMM y', 'id').format(DateTime.now()), style: T.label),
+        const _Today(),
         const SizedBox(width: S.lg),
         const OwnerLockButton(),
       ],
     ),
   );
+}
+
+/// Tanggal hari ini; ikut berganti bila app terbuka melewati tengah malam.
+class _Today extends StatefulWidget {
+  const _Today();
+
+  @override
+  State<_Today> createState() => _TodayState();
+}
+
+class _TodayState extends State<_Today> {
+  late final _timer = Timer.periodic(const Duration(minutes: 1), (_) => setState(() {}));
+
+  @override
+  void initState() {
+    super.initState();
+    _timer; // mulai timer
+  }
+
+  @override
+  void dispose() {
+    _timer.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => Text(DateFormat('EEEE, d MMMM y', 'id').format(DateTime.now()), style: T.label);
 }
 
 /// Cari invoice/pemesanan, customer, produk dari mana saja; pilih hasil = buka di halamannya.

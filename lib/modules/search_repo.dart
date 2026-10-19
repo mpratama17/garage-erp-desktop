@@ -16,31 +16,26 @@ extension SearchRepo on AppDb {
   Future<SearchResults> search(String query, {int limit = 5}) async {
     final q = query.trim();
     if (q.length < 2) return SearchResults([], [], []);
-    final like = '%${q.toLowerCase()}%';
-    // No. HP disimpan polos 08…; "0812-3456" atau "+62 812" tetap ketemu.
-    final phone = RegExp(r'^[\d\s+\-]+$').hasMatch(q) ? normalizePhone(q) : '';
-    final phoneLike = phone.length >= 4 ? '%$phone%' : null;
+    String esc(String s) => s.replaceAllMapped(RegExp(r'[\\%_]'), (m) => '\\${m[0]}'); // % dan _ = huruf biasa
+    final like = '%${esc(q.toLowerCase())}%';
+    Expression<bool> has(Expression<String> col) => col.lower().like(like, escapeChar: '\\');
 
-    Expression<bool> has(Expression<String> col) => col.lower().like(like);
+    // No. HP disimpan polos 08…: cocokkan potongan angka ("4567") dan bentuk awalan ("+62 812", "0812-3456").
+    Expression<bool> phoneHas(Expression<String> col) {
+      if (!RegExp(r'^[\d\s+\-]+$').hasMatch(q)) return const Constant(false);
+      final digits = q.replaceAll(RegExp(r'\D'), ''), norm = normalizePhone(q);
+      if (digits.length < 4) return const Constant(false);
+      return col.like('%$digits%') | col.like('%$norm%');
+    }
 
     final docQ = select(invoices).join([leftOuterJoin(customers, customers.id.equalsExp(invoices.customerId))])
       ..where(
-        has(invoices.no) |
-            has(invoices.plate) |
-            has(invoices.car) |
-            has(customers.name) |
-            (phoneLike == null ? const Constant(false) : customers.phone.like(phoneLike)),
+        has(invoices.no) | has(invoices.plate) | has(invoices.car) | has(customers.name) | phoneHas(customers.phone),
       )
       ..orderBy([OrderingTerm.desc(invoices.at), OrderingTerm.desc(invoices.id)])
       ..limit(limit);
     final custQ = select(customers)
-      ..where(
-        (c) =>
-            has(c.name) |
-            has(c.plate) |
-            has(c.car) |
-            (phoneLike == null ? const Constant(false) : c.phone.like(phoneLike)),
-      )
+      ..where((c) => has(c.name) | has(c.plate) | has(c.car) | phoneHas(c.phone))
       ..orderBy([(c) => OrderingTerm.asc(c.name)])
       ..limit(limit);
     final prodQ = select(products)
