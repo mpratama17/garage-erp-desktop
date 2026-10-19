@@ -35,7 +35,8 @@ class PengaturanController extends GetxController {
   final ctrl = {
     for (final k in [..._textFields.keys, ..._numFields.keys]) k: TextEditingController(),
   };
-  final logoPath = ''.obs;
+  final logoPath = ''.obs; // logo penuh, untuk nota
+  final iconPath = ''.obs; // ikon kecil, untuk sidebar
   final backupDir = ''.obs;
   final backupSchedule = 'close'.obs;
   final exportDir = ''.obs;
@@ -53,6 +54,7 @@ class PengaturanController extends GetxController {
       e.value.text = s[e.key]!;
     }
     logoPath.value = s['logo_path']!;
+    iconPath.value = s['logo_icon_path']!;
     backupDir.value = await db.backupDir();
     backupSchedule.value = s['backup_schedule']!;
     exportDir.value = await db.exportDir();
@@ -75,7 +77,8 @@ class PengaturanController extends GetxController {
     return null;
   }
 
-  Future<void> pickLogo() async {
+  /// Pilih gambar untuk setting [key] (`logo_path` / `logo_icon_path`); [target] = nilai yang tampil.
+  Future<void> pickImage(String key, RxString target) async {
     final f = await openFile(
       acceptedTypeGroups: [
         const XTypeGroup(label: 'Gambar', extensions: ['png', 'jpg', 'jpeg']),
@@ -84,11 +87,14 @@ class PengaturanController extends GetxController {
     if (f == null) return;
     // Salin ke folder app (nama unik) supaya logo tetap ada walau file asli dipindah.
     final dir = (await getApplicationSupportDirectory()).path;
-    final dest = p.join(dir, 'logo-${DateTime.now().millisecondsSinceEpoch}${p.extension(f.path)}');
+    final dest = p.join(
+      dir,
+      '${key.replaceAll('_path', '')}-${DateTime.now().millisecondsSinceEpoch}${p.extension(f.path)}',
+    );
     await File(f.path).copy(dest);
-    final old = logoPath.value;
-    await db.setSetting('logo_path', dest);
-    logoPath.value = dest;
+    final old = target.value;
+    await db.setSetting(key, dest);
+    target.value = dest;
     if (old.isNotEmpty && p.isWithin(dir, old)) {
       try {
         await File(old).delete();
@@ -198,25 +204,13 @@ class _FormState extends State<_Form> {
                     _Card('Data bengkel', [
                       Row(
                         children: [
-                          Obx(
-                            () => Container(
-                              width: 72,
-                              height: 72,
-                              clipBehavior: Clip.antiAlias,
-                              decoration: BoxDecoration(
-                                color: C.bg,
-                                border: Border.all(color: C.border),
-                                borderRadius: BorderRadius.circular(S.rInput),
-                              ),
-                              child: c.logoPath.value.isNotEmpty && File(c.logoPath.value).existsSync()
-                                  ? Image.file(File(c.logoPath.value), fit: BoxFit.contain)
-                                  : const Icon(Icons.image_outlined, color: C.inkMuted),
-                            ),
-                          ),
-                          const SizedBox(width: S.lg),
-                          OutlinedButton(onPressed: c.pickLogo, child: const Text('Pilih logo')),
+                          _ImagePick('Logo nota', c.logoPath, () => c.pickImage('logo_path', c.logoPath)),
+                          const SizedBox(width: S.xl),
+                          _ImagePick('Ikon sidebar', c.iconPath, () => c.pickImage('logo_icon_path', c.iconPath)),
                         ],
                       ),
+                      const SizedBox(height: S.sm),
+                      Text('PNG tanpa latar paling rapi.', style: T.label),
                       const SizedBox(height: S.lg),
                       for (final e in _textFields.entries)
                         field(e.key, e.value, lines: e.key == 'shop_address' || e.key == 'invoice_note' ? 4 : 1),
@@ -396,5 +390,39 @@ class _PathRow extends StatelessWidget {
         Expanded(child: SelectableText(path, style: T.body)),
       ],
     ),
+  );
+}
+
+/// Pratinjau gambar + tombol ganti.
+class _ImagePick extends StatelessWidget {
+  const _ImagePick(this.label, this.path, this.onPick);
+  final String label;
+  final RxString path;
+  final VoidCallback onPick;
+
+  @override
+  Widget build(BuildContext context) => Row(
+    children: [
+      Obx(
+        () => Container(
+          width: 64,
+          height: 64,
+          padding: const EdgeInsets.all(S.xs),
+          decoration: BoxDecoration(color: C.field, borderRadius: BorderRadius.circular(S.rInput)),
+          child: path.value.isNotEmpty && File(path.value).existsSync()
+              ? Image.file(File(path.value), fit: BoxFit.contain)
+              : const Icon(Icons.image_outlined, color: C.inkMuted),
+        ),
+      ),
+      const SizedBox(width: S.md),
+      Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label, style: T.fieldLabel),
+          const SizedBox(height: S.xs),
+          OutlinedButton(onPressed: onPick, child: const Text('Pilih')),
+        ],
+      ),
+    ],
   );
 }

@@ -33,6 +33,11 @@ Future<void> _seed(AppDb db) async {
   await db.setSetting('shop_name', 'Star Garage');
   await db.setSetting('backup_dir', '/Users/kasir/Documents/Garage ERP Backup'); // path_provider tidak ada di test
   await db.setSetting('export_dir', Directory.systemTemp.createTempSync('export').path);
+  // Logo hasil olahan (docs/ di-gitignore — branding client).
+  if (File('docs/logo-star-garage-icon.png').existsSync()) {
+    await db.setSetting('logo_icon_path', File('docs/logo-star-garage-icon.png').absolute.path);
+    await db.setSetting('logo_path', File('docs/logo-star-garage.png').absolute.path);
+  }
   final file = File('docs/GUDANG BARANG new.xlsx');
   if (file.existsSync()) await db.applyImport(parseProductsXlsx(file.readAsBytesSync()).rows);
   final items = await db.watchProducts().first;
@@ -175,6 +180,8 @@ Future<void> _seed(AppDb db) async {
 
 void main() {
   testWidgets('layar', (tester) async {
+    // flutter_test menggambar bayangan sebagai garis hitam; tampilkan bayangan asli seperti di app.
+    debugDisableShadows = false;
     final db = Get.put((AppDb(NativeDatabase.memory())..ownerUnlocked = true));
     final owner = Get.put(OwnerController(db));
     await tester.runAsync(() async {
@@ -195,6 +202,16 @@ void main() {
     await tester.pumpWidget(const App());
     await settle();
     await shot('shell');
+
+    // Cari global: ketik → hasil berkelompok → pilih customer = buka di Kontak.
+    await tester.tap(find.byType(SearchBar));
+    await settle();
+    await tester.enterText(find.byType(TextField).last, 'budi');
+    await settle();
+    await shot('cari');
+    await tester.tap(find.text('BUDI SANTOSO').last);
+    await settle();
+    await shot('cari-buka');
 
     await tester.tap(find.text('Gudang'));
     await settle();
@@ -280,6 +297,7 @@ void main() {
     await shot('pengaturan');
 
     owner.lock(); // hentikan timer auto-lock
+    debugDisableShadows = true; // wajib dikembalikan sebelum test selesai
     await tester.runAsync(db.close);
   });
 }

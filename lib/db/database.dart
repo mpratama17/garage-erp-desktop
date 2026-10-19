@@ -206,6 +206,7 @@ const settingDefaults = {
   'sales_commission_pct': '3',
   'backup_dir': '',
   'last_backup_at': '',
+  'logo_icon_path': '', // ikon kecil di sidebar (logo penuh untuk nota = logo_path)
   'backup_schedule': 'close', // lihat backupSchedules
   'export_dir': '', // kosong = ~/Documents/Garage ERP
   'pin_hash': '',

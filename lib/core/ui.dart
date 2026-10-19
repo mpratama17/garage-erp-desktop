@@ -10,7 +10,7 @@ import 'format.dart';
 import 'owner.dart';
 import 'theme.dart';
 
-/// Judul halaman + subjudul di kiri, aksi di kanan (design.md §5).
+/// Judul halaman + subjudul di kiri, aksi di kanan (design.md §5). Tombol owner ada di topbar.
 class PageHeader extends StatelessWidget {
   const PageHeader({super.key, required this.title, this.subtitle, this.actions = const []});
   final String title;
@@ -37,10 +37,6 @@ class PageHeader extends StatelessWidget {
             padding: const EdgeInsets.only(left: S.sm),
             child: a,
           ),
-        const Padding(
-          padding: EdgeInsets.only(left: S.sm),
-          child: OwnerLockButton(),
-        ),
       ],
     ),
   );

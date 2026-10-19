@@ -81,8 +81,9 @@ Ukuran minimum teks 12. Tidak ada huruf kapital semua kecuali kode (SKU, nomor p
 └────────────┴─────────────────────────────────────────────────────┘
 ```
 
-- **Sidebar** 232 px, putih: logo + nama bengkel di atas, menu modul, lalu Pengaturan + status backup terakhir di bawah. Item aktif = latar `primarySoft`, teks & ikon `primary`. Urutan menu = urutan pemakaian harian (Penjualan dulu).
-- **Header halaman**: judul + subjudul di kiri; di kanan pemilih periode (hanya di layar yang punya data per tanggal) dan **indikator mode owner** (🔒 terkunci / 🔓 owner, klik = masukkan PIN).
+- **Sidebar** 232 px, putih: ikon logo (`logo_icon_path`, PNG tanpa latar) + nama bengkel di atas, menu modul, lalu Pengaturan + status backup di bawah. Item aktif = **blok `primary` solid, teks & ikon putih**; hover = `primarySoft`. Urutan menu = urutan pemakaian harian.
+- **Logo**: versi gelap tanpa latar (putih → tinta, oranye tetap) agar terbaca di sidebar putih & nota PDF. Logo penuh = nota, ikon SG = sidebar.
+- **Header halaman**: judul + subjudul singkat di kiri, aksi di kanan. **Indikator mode owner** (🔒 terkunci / 🔓 owner) ada di topbar.
 - **Tab** di bawah header untuk sub-bagian (Gudang: Barang / Jasa / Ready Stock; Penjualan: Invoice / Pemesanan).
 - **Aksi halaman** di kanan baris tab: aksi utama (`+ Invoice Baru`) satu-satunya tombol `primary`; aksi lain (Import, Export, Template) tombol garis.
 - **Topbar** di atas konten: cari global (invoice/pemesanan, customer, produk; maks. 5 hasil per kelompok), tanggal hari ini, tombol owner. Subjudul halaman maksimal satu kalimat pendek.

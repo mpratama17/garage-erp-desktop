@@ -22,8 +22,8 @@ void main() {
         'invoice_note',
         'REKENING BCA\n0000000000\nAN CONTOH NAMA\n"Barang yang sudah dibeli tidak dapat ditukar/dikembalikan kecuali ada perjanjian"\n"KLAIM GARANSI WAJIB BAWA NOTA"',
       ),
-      if (File('docs/logo-star-garage.jpeg').existsSync())
-        ('logo_path', File('docs/logo-star-garage.jpeg').absolute.path),
+      if (File('docs/logo-star-garage.png').existsSync())
+        ('logo_path', File('docs/logo-star-garage.png').absolute.path),
     ]) {
       await db.setSetting(k, v);
     }
