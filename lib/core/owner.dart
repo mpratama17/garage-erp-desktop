@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 
 import '../db/database.dart';
+import 'ui.dart';
 
 /// Mode owner: membuka harga modal, laba, gaji, pembelian stok, void.
 /// Terkunci lagi saat app ditutup atau 15 menit tanpa aktivitas.
@@ -105,22 +106,26 @@ class _PinDialogState extends State<_PinDialog> {
               padding: EdgeInsets.only(bottom: 12),
               child: Text('PIN ini dipakai untuk membuka harga modal, laba, gaji, dan aksi sensitif.'),
             ),
-          TextField(
-            controller: _pin,
-            autofocus: true,
-            obscureText: true,
-            keyboardType: TextInputType.number,
-            decoration: const InputDecoration(labelText: 'PIN'),
-            onSubmitted: (_) => _submit(),
+          Labeled(
+            'PIN',
+            TextField(
+              controller: _pin,
+              autofocus: true,
+              obscureText: true,
+              keyboardType: TextInputType.number,
+              onSubmitted: (_) => _submit(),
+            ),
           ),
           if (widget.create) ...[
             const SizedBox(height: 12),
-            TextField(
-              controller: _confirm,
-              obscureText: true,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(labelText: 'Ulangi PIN'),
-              onSubmitted: (_) => _submit(),
+            Labeled(
+              'Ulangi PIN',
+              TextField(
+                controller: _confirm,
+                obscureText: true,
+                keyboardType: TextInputType.number,
+                onSubmitted: (_) => _submit(),
+              ),
             ),
           ],
           if (_error != null)

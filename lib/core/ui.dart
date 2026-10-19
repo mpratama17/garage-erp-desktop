@@ -46,6 +46,26 @@ class PageHeader extends StatelessWidget {
   );
 }
 
+/// Label di atas field (design.md §3). Field-nya sendiri berlatar abu tanpa garis (tema).
+class Labeled extends StatelessWidget {
+  const Labeled(this.label, this.child, {super.key});
+  final String label;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => label.isEmpty
+      ? child // mis. sel tabel baris invoice: judul kolom sudah jadi labelnya
+      : Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(label, style: T.fieldLabel, maxLines: 1, overflow: TextOverflow.ellipsis),
+            const SizedBox(height: 6),
+            child,
+          ],
+        );
+}
+
 /// Label status berbentuk pil, selalu berisi teks (bukan warna saja).
 class Pill extends StatelessWidget {
   const Pill(this.text, this.tone, {super.key});
@@ -164,13 +184,16 @@ class MoneyField extends StatelessWidget {
   final ValueChanged<String>? onChanged;
 
   @override
-  Widget build(BuildContext context) => TextField(
-    controller: controller,
-    textAlign: TextAlign.right,
-    style: T.money,
-    inputFormatters: [ThousandsFormatter()],
-    onChanged: onChanged,
-    decoration: InputDecoration(labelText: label, prefixText: prefix.isEmpty ? null : prefix),
+  Widget build(BuildContext context) => Labeled(
+    label,
+    TextField(
+      controller: controller,
+      textAlign: TextAlign.right,
+      style: T.money,
+      inputFormatters: [ThousandsFormatter()],
+      onChanged: onChanged,
+      decoration: InputDecoration(prefixText: prefix.isEmpty ? null : prefix),
+    ),
   );
 }
 
@@ -198,10 +221,7 @@ Widget dateField(BuildContext ctx, DateTime value, ValueChanged<DateTime> onPick
     );
     if (d != null) onPick(d);
   },
-  child: InputDecorator(
-    decoration: const InputDecoration(labelText: 'Tanggal'),
-    child: Text(tgl(value)),
-  ),
+  child: Labeled('Tanggal', InputDecorator(decoration: const InputDecoration(), child: Text(tgl(value)))),
 );
 
 Widget proofRow(String proof, VoidCallback onPick) => Row(
@@ -222,17 +242,14 @@ Widget proofRow(String proof, VoidCallback onPick) => Row(
   ],
 );
 
-DropdownButtonFormField<int> accountField(
-  String label,
-  int? value,
-  List<Account> items,
-  ValueChanged<int?> onChanged,
-) => DropdownButtonFormField<int>(
-  isExpanded: true,
-  initialValue: value,
-  decoration: InputDecoration(labelText: label),
-  items: [for (final a in items) DropdownMenuItem(value: a.id, child: Text(a.name))],
-  onChanged: onChanged,
+Widget accountField(String label, int? value, List<Account> items, ValueChanged<int?> onChanged) => Labeled(
+  label,
+  DropdownButtonFormField<int>(
+    isExpanded: true,
+    initialValue: value,
+    items: [for (final a in items) DropdownMenuItem(value: a.id, child: Text(a.name))],
+    onChanged: onChanged,
+  ),
 );
 
 /// ‹ Oktober 2026 › — pindah bulan dengan [onShift](-1 / +1).

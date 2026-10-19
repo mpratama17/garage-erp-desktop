@@ -446,9 +446,12 @@ Future<void> _transferDialog(BuildContext context, KasController c) async {
                 ],
               ),
               const SizedBox(height: S.md),
-              TextField(
-                controller: note,
-                decoration: const InputDecoration(labelText: 'Keterangan', hintText: 'mis. top up ShopeePay'),
+              Labeled(
+                'Keterangan',
+                TextField(
+                  controller: note,
+                  decoration: const InputDecoration(hintText: 'mis. top up ShopeePay'),
+                ),
               ),
               const SizedBox(height: S.md),
               proofRow(proof, () async {
@@ -528,15 +531,9 @@ Future<void> _incomeDialog(BuildContext context, KasController c) async {
               const SizedBox(height: S.md),
               MoneyField(controller: amount, label: 'Nominal *'),
               const SizedBox(height: S.md),
-              TextField(
-                controller: desc,
-                decoration: const InputDecoration(labelText: 'Keterangan *'),
-              ),
+              Labeled('Keterangan *', TextField(controller: desc)),
               const SizedBox(height: S.md),
-              TextField(
-                controller: note,
-                decoration: const InputDecoration(labelText: 'Catatan'),
-              ),
+              Labeled('Catatan', TextField(controller: note)),
               const SizedBox(height: S.md),
               proofRow(proof, () async {
                 final p = await pickProof('pemasukan');
@@ -590,17 +587,16 @@ Future<void> _accountDialog(BuildContext context, KasController c, Account? a) a
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              TextField(
-                controller: name,
-                autofocus: a == null,
-                decoration: const InputDecoration(labelText: 'Nama *'),
-              ),
+              Labeled('Nama *', TextField(controller: name, autofocus: a == null)),
               const SizedBox(height: S.md),
               MoneyField(controller: opening, label: 'Saldo awal (saat mulai pakai app)'),
               const SizedBox(height: S.md),
-              TextField(
-                controller: note,
-                decoration: const InputDecoration(labelText: 'Keterangan', hintText: 'mis. no. rekening / atas nama'),
+              Labeled(
+                'Keterangan',
+                TextField(
+                  controller: note,
+                  decoration: const InputDecoration(hintText: 'mis. no. rekening / atas nama'),
+                ),
               ),
               if (a != null)
                 SwitchListTile(

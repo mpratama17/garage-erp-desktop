@@ -162,12 +162,7 @@ class _FormState extends State<_Form> {
   Widget build(BuildContext context) {
     Widget field(String key, String label, {int lines = 1}) => Padding(
       padding: const EdgeInsets.only(bottom: S.lg),
-      child: TextField(
-        controller: c.ctrl[key],
-        minLines: lines,
-        maxLines: lines,
-        decoration: InputDecoration(labelText: label),
-      ),
+      child: Labeled(label, TextField(controller: c.ctrl[key], minLines: lines, maxLines: lines)),
     );
 
     return SingleChildScrollView(
@@ -269,17 +264,9 @@ class _FormState extends State<_Form> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              TextField(
-                controller: a,
-                obscureText: true,
-                decoration: const InputDecoration(labelText: 'PIN baru'),
-              ),
+              Labeled('PIN baru', TextField(controller: a, obscureText: true)),
               const SizedBox(height: S.md),
-              TextField(
-                controller: b,
-                obscureText: true,
-                decoration: const InputDecoration(labelText: 'Ulangi PIN baru'),
-              ),
+              Labeled('Ulangi PIN baru', TextField(controller: b, obscureText: true)),
             ],
           ),
         ),

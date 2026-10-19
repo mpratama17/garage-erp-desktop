@@ -129,16 +129,9 @@ class _DocEditorState extends State<_DocEditor> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              TextField(
-                controller: name,
-                autofocus: true,
-                decoration: const InputDecoration(labelText: 'Nama *'),
-              ),
+              Labeled('Nama *', TextField(controller: name, autofocus: true)),
               const SizedBox(height: S.md),
-              TextField(
-                controller: phone,
-                decoration: const InputDecoration(labelText: 'No. HP'),
-              ),
+              Labeled('No. HP', TextField(controller: phone)),
             ],
           ),
         ),
@@ -228,10 +221,7 @@ class _DocEditorState extends State<_DocEditor> {
       width: 150,
       child: InkWell(
         onTap: onTap,
-        child: InputDecorator(
-          decoration: InputDecoration(labelText: l),
-          child: Text(v == null ? '—' : tgl(v)),
-        ),
+        child: Labeled(l, InputDecorator(decoration: const InputDecoration(), child: Text(v == null ? '—' : tgl(v)))),
       ),
     );
 
@@ -274,11 +264,11 @@ class _DocEditorState extends State<_DocEditor> {
                     if (widget.legacy)
                       SizedBox(
                         width: 150,
-                        child: TextField(
-                          controller: legacyNo,
-                          decoration: InputDecoration(
-                            labelText: 'Nomor *',
-                            hintText: isOrder ? 'SO/00010' : 'INV/00240',
+                        child: Labeled(
+                          'Nomor *',
+                          TextField(
+                            controller: legacyNo,
+                            decoration: InputDecoration(hintText: isOrder ? 'SO/00010' : 'INV/00240'),
                           ),
                         ),
                       ),
@@ -290,19 +280,12 @@ class _DocEditorState extends State<_DocEditor> {
                       icon: const Icon(Icons.person_add_alt, size: 18),
                       label: const Text('Customer baru'),
                     ),
-                    SizedBox(
-                      width: 200,
-                      child: TextField(
-                        controller: car,
-                        decoration: const InputDecoration(labelText: 'Mobil'),
-                      ),
-                    ),
+                    SizedBox(width: 200, child: Labeled('Mobil', TextField(controller: car))),
                     SizedBox(
                       width: 120,
-                      child: TextField(
-                        controller: plate,
-                        textCapitalization: TextCapitalization.characters,
-                        decoration: const InputDecoration(labelText: 'Plat'),
+                      child: Labeled(
+                        'Plat',
+                        TextField(controller: plate, textCapitalization: TextCapitalization.characters),
                       ),
                     ),
                   ],
@@ -322,13 +305,7 @@ class _DocEditorState extends State<_DocEditor> {
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Expanded(
-                      child: TextField(
-                        controller: note,
-                        maxLines: 3,
-                        decoration: const InputDecoration(labelText: 'Catatan'),
-                      ),
-                    ),
+                    Expanded(child: Labeled('Catatan', TextField(controller: note, maxLines: 3))),
                     const SizedBox(width: S.xxl),
                     SizedBox(width: 380, child: _totals()),
                   ],
@@ -359,13 +336,16 @@ class _DocEditorState extends State<_DocEditor> {
           [if (x.phone != null) displayPhone(x.phone!), x.car, x.plate].where((s) => s.isNotEmpty).join(' · '),
     ),
     onSelected: _pickCustomer,
-    fieldViewBuilder: (_, ctrl, focus, _) => TextField(
-      controller: ctrl,
-      focusNode: focus,
-      onChanged: (v) {
-        if (customer != null && v != customer!.name) setState(() => customer = null);
-      },
-      decoration: const InputDecoration(labelText: 'Customer (cari nama / HP / plat)', hintText: 'kosong = UMUM'),
+    fieldViewBuilder: (_, ctrl, focus, _) => Labeled(
+      'Customer (cari nama / HP / plat)',
+      TextField(
+        controller: ctrl,
+        focusNode: focus,
+        onChanged: (v) {
+          if (customer != null && v != customer!.name) setState(() => customer = null);
+        },
+        decoration: const InputDecoration(hintText: 'kosong = UMUM'),
+      ),
     ),
   );
 
@@ -514,12 +494,14 @@ class _DocEditorState extends State<_DocEditor> {
                 const SizedBox(width: S.sm),
                 SizedBox(
                   width: 140,
-                  child: DropdownButtonFormField<int>(
-                    isExpanded: true,
-                    initialValue: accountId,
-                    decoration: const InputDecoration(labelText: 'Ke rekening'),
-                    items: [for (final a in c.accounts) DropdownMenuItem(value: a.id, child: Text(a.name))],
-                    onChanged: (v) => setState(() => accountId = v),
+                  child: Labeled(
+                    'Ke rekening',
+                    DropdownButtonFormField<int>(
+                      isExpanded: true,
+                      initialValue: accountId,
+                      items: [for (final a in c.accounts) DropdownMenuItem(value: a.id, child: Text(a.name))],
+                      onChanged: (v) => setState(() => accountId = v),
+                    ),
                   ),
                 ),
               ],
@@ -574,9 +556,13 @@ class _TechPicker extends StatelessWidget {
   Widget build(BuildContext context) {
     final names = [tech1, tech2].whereType<int>().map(c.employeeName).where((n) => n.isNotEmpty).join(', ');
     return OutlinedButton(
+      // Tampil seperti field (latar abu, tanpa garis) agar sejajar dengan input lain di baris.
       style: OutlinedButton.styleFrom(
         alignment: Alignment.centerLeft,
-        padding: const EdgeInsets.symmetric(horizontal: S.sm),
+        padding: const EdgeInsets.symmetric(horizontal: S.md),
+        backgroundColor: C.field,
+        side: BorderSide.none,
+        minimumSize: const Size(0, 44),
       ),
       onPressed: () async {
         if (c.technicians.isEmpty) return toast(context, 'Belum ada teknisi — tambahkan di menu Gaji');

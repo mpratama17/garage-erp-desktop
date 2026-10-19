@@ -222,43 +222,40 @@ class _CustomerPanelState extends State<_CustomerPanel> {
             child: ListView(
               padding: const EdgeInsets.all(S.xl),
               children: [
-                TextField(
-                  controller: name,
-                  autofocus: x == null,
-                  decoration: const InputDecoration(labelText: 'Nama *'),
-                ),
+                Labeled('Nama *', TextField(controller: name, autofocus: x == null)),
                 gap(),
-                TextField(
-                  controller: phone,
-                  keyboardType: TextInputType.phone,
-                  decoration: const InputDecoration(labelText: 'No. HP', hintText: '08…'),
+                Labeled(
+                  'No. HP',
+                  TextField(
+                    controller: phone,
+                    keyboardType: TextInputType.phone,
+                    decoration: const InputDecoration(hintText: '08…'),
+                  ),
                 ),
                 gap(),
                 Row(
                   children: [
                     Expanded(
-                      child: TextField(
-                        controller: car,
-                        decoration: const InputDecoration(labelText: 'Mobil', hintText: 'mis. Toyota Innova'),
+                      child: Labeled(
+                        'Mobil',
+                        TextField(
+                          controller: car,
+                          decoration: const InputDecoration(hintText: 'mis. Toyota Innova'),
+                        ),
                       ),
                     ),
                     const SizedBox(width: S.md),
                     SizedBox(
                       width: 130,
-                      child: TextField(
-                        controller: plate,
-                        textCapitalization: TextCapitalization.characters,
-                        decoration: const InputDecoration(labelText: 'Plat'),
+                      child: Labeled(
+                        'Plat',
+                        TextField(controller: plate, textCapitalization: TextCapitalization.characters),
                       ),
                     ),
                   ],
                 ),
                 gap(),
-                TextField(
-                  controller: note,
-                  maxLines: 3,
-                  decoration: const InputDecoration(labelText: 'Catatan'),
-                ),
+                Labeled('Catatan', TextField(controller: note, maxLines: 3)),
                 gap(),
                 Row(
                   children: [

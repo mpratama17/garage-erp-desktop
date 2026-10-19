@@ -47,7 +47,8 @@ Status **tidak boleh dibedakan hanya dengan warna**: pill selalu berisi teks ("L
 | `pageSubtitle` | 14 / 400, `inkMuted` | Kalimat di bawah judul |
 | `section` | 16 / 600 | Judul kartu |
 | `body` | 14 / 400 | Isi tabel, form |
-| `label` | 12 / 600, `inkMuted` | Label input, header tabel |
+| `label` | 12 / 600, `inkMuted` | Header tabel, teks kecil |
+| `fieldLabel` | 13 / 600, `ink` | Label di atas input |
 | `kpi` | 28 / 700 | Angka besar di kartu ringkasan |
 
 Ukuran minimum teks 12. Tidak ada huruf kapital semua kecuali kode (SKU, nomor plat, `INV/00247`).
@@ -55,8 +56,8 @@ Ukuran minimum teks 12. Tidak ada huruf kapital semua kecuali kode (SKU, nomor p
 ## 4. Spasi, ukuran, bentuk
 
 - Grid **8 px**: jarak yang dipakai hanya 4, 8, 12, 16, 24, 32.
-- Radius: kartu & dialog **12**, input & tombol **8**, pill **999**.
-- Bayangan: tidak ada; pakai `border` 1 px. (Referensi memakai bayangan lembut, tapi garis lebih tajam di layar kantor yang murah.)
+- Radius: kartu & dialog **14**, input & tombol **8**, pill **999**.
+- Kartu: **bayangan lembut** (elevation 1, `#101828` 12%) + garis sangat tipis `#EEF0F3` — seperti referensi, tetap tegas di layar murah. Diatur di `cardTheme`; layar memakai `Card`, bukan `Container` berbayangan sendiri.
 - Target klik minimum **40 px** tinggi (tombol, baris menu, ikon aksi).
 - Jendela minimum **1280 × 720**; konten melebar penuh, form dibatasi lebar **720**.
 
@@ -84,7 +85,7 @@ Ukuran minimum teks 12. Tidak ada huruf kapital semua kecuali kode (SKU, nomor p
 - **Header halaman**: judul + subjudul di kiri; di kanan pemilih periode (hanya di layar yang punya data per tanggal) dan **indikator mode owner** (🔒 terkunci / 🔓 owner, klik = masukkan PIN).
 - **Tab** di bawah header untuk sub-bagian (Gudang: Barang / Jasa / Ready Stock; Penjualan: Invoice / Pemesanan).
 - **Aksi halaman** di kanan baris tab: aksi utama (`+ Invoice Baru`) satu-satunya tombol `primary`; aksi lain (Import, Export, Template) tombol garis.
-- Tidak ada pencarian global di header (referensi punya; volume data kecil, cukup cari per tabel).
+- **Topbar** di atas konten: cari global (invoice/pemesanan, customer, produk; maks. 5 hasil per kelompok), tanggal hari ini, tombol owner. Subjudul halaman maksimal satu kalimat pendek.
 
 ## 6. Komponen
 
@@ -101,7 +102,8 @@ Ukuran minimum teks 12. Tidak ada huruf kapital semua kecuali kode (SKU, nomor p
 - Maksimal 4 kartu per baris.
 
 ### Form
-- Label di atas input; wajib = tanda `*`. Error di bawah input, warna bahaya, kalimat jelas ("No. HP sudah dipakai BUDI").
+- **Label di atas input** (widget `Labeled`), field **latar abu `#F2F4F7` tanpa garis**; fokus = garis `primary` 1,5 px; error = garis bahaya. Tidak memakai label melayang Material. Wajib = tanda `*`.
+- Teks label & bantuan **singkat** (1–3 kata). Aturan penting yang mencegah salah input tetap ditampilkan, sebagai teks bantuan kecil di bawah field/kartu, bukan di label. Error di bawah input, warna bahaya, kalimat jelas ("No. HP sudah dipakai BUDI").
 - **Input Rupiah**: ketik angka polos, tampil `2.250.000` saat fokus hilang; prefix `Rp`. Input diskon menerima `10%` lalu dikonversi ke Rupiah.
 - Tanggal: pemilih tanggal format `dd/MM/yyyy`.
 - Tombol di kanan bawah: `Batal` (garis) lalu aksi utama (`primary`). Enter = simpan; Esc = batal.
@@ -140,10 +142,10 @@ Semua elemen bisa dijangkau `Tab`, dengan **cincin fokus 2 px `primary`** yang t
 
 ## 10. Grafik
 
-- Hanya di Laporan: garis (omzet/laba per waktu) dan batang (per kategori/rekening). Tidak ada pie/donut (referensi punya; batang lebih mudah dibandingkan).
+- Di Dashboard & Laporan: garis (omzet/laba per waktu) dan batang (per kategori/rekening). Tidak ada pie/donut (referensi punya; batang lebih mudah dibandingkan).
 - Warna seri: `brandOrange` (utama), `#1D4ED8` (pembanding). Sumbu & grid `border`; label `inkMuted`.
 - Setiap grafik punya tabel angka di bawahnya (bisa di-export).
 
 ## 11. Tidak dipakai (sengaja)
 
-Dark mode, foto/avatar produk & customer, gradien, bayangan, animasi selain transisi 150 ms, pencarian global, notifikasi lonceng, donut chart, ilustrasi empty state.
+Dark mode, foto/avatar produk & customer, gradien, animasi selain transisi 150 ms, notifikasi lonceng, donut chart, ilustrasi empty state.

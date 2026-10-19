@@ -253,10 +253,7 @@ Future<void> _slipDialog(BuildContext context, GajiController c, Slip s) async {
                     ),
                   ],
                   const SizedBox(height: S.md),
-                  TextField(
-                    controller: note,
-                    decoration: const InputDecoration(labelText: 'Catatan'),
-                  ),
+                  Labeled('Catatan', TextField(controller: note)),
                 ],
                 const Divider(height: S.xl),
                 row(s.paid ? 'Total dibayar' : 'Total', liveTotal(), bold: true),
@@ -465,11 +462,7 @@ Future<void> _employeeDialog(BuildContext context, GajiController c, Employee? e
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              TextField(
-                controller: name,
-                autofocus: e == null,
-                decoration: const InputDecoration(labelText: 'Nama *'),
-              ),
+              Labeled('Nama *', TextField(controller: name, autofocus: e == null)),
               const SizedBox(height: S.md),
               SegmentedButton<String>(
                 showSelectedIcon: false,

@@ -127,18 +127,23 @@ Future<void> _expenseDialog(BuildContext context, BiayaController c, ExpenseRow?
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              TextField(
-                controller: name,
-                autofocus: r == null,
-                decoration: const InputDecoration(labelText: 'Nama biaya *', hintText: 'mis. Token listrik bengkel'),
+              Labeled(
+                'Nama biaya *',
+                TextField(
+                  controller: name,
+                  autofocus: r == null,
+                  decoration: const InputDecoration(hintText: 'mis. Token listrik bengkel'),
+                ),
               ),
               const SizedBox(height: S.md),
-              DropdownButtonFormField<int>(
-                isExpanded: true,
-                initialValue: categoryId,
-                decoration: const InputDecoration(labelText: 'Kategori *'),
-                items: [for (final k in categories) DropdownMenuItem(value: k.id, child: Text(_categoryLabel(k)))],
-                onChanged: (v) => categoryId = v,
+              Labeled(
+                'Kategori *',
+                DropdownButtonFormField<int>(
+                  isExpanded: true,
+                  initialValue: categoryId,
+                  items: [for (final k in categories) DropdownMenuItem(value: k.id, child: Text(_categoryLabel(k)))],
+                  onChanged: (v) => categoryId = v,
+                ),
               ),
               const SizedBox(height: S.md),
               Row(
@@ -153,10 +158,7 @@ Future<void> _expenseDialog(BuildContext context, BiayaController c, ExpenseRow?
               const SizedBox(height: S.md),
               accountField('Dibayar dari rekening', accountId, accounts, (v) => accountId = v),
               const SizedBox(height: S.md),
-              TextField(
-                controller: note,
-                decoration: const InputDecoration(labelText: 'Keterangan'),
-              ),
+              Labeled('Keterangan', TextField(controller: note)),
               const SizedBox(height: S.md),
               proofRow(proof, () async {
                 final p = await pickProof('biaya');
@@ -266,11 +268,7 @@ Future<void> _categoryDialog(BuildContext context, BiayaController c, ExpenseCat
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              TextField(
-                controller: name,
-                autofocus: k == null,
-                decoration: const InputDecoration(labelText: 'Nama *'),
-              ),
+              Labeled('Nama *', TextField(controller: name, autofocus: k == null)),
               SwitchListTile(
                 contentPadding: EdgeInsets.zero,
                 title: const Text('Pengeluaran pribadi'),

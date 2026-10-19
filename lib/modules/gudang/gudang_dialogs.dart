@@ -45,17 +45,12 @@ Future<bool?> showAdjustDialog(BuildContext context, AppDb db, StockedProduct it
           children: [
             Text('Stok tercatat: ${item.stock}', style: T.body),
             const SizedBox(height: S.md),
-            TextField(
-              controller: actual,
-              autofocus: true,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(labelText: 'Stok sebenarnya *'),
+            Labeled(
+              'Stok sebenarnya *',
+              TextField(controller: actual, autofocus: true, keyboardType: TextInputType.number),
             ),
             const SizedBox(height: S.md),
-            TextField(
-              controller: note,
-              decoration: const InputDecoration(labelText: 'Alasan *'),
-            ),
+            Labeled('Alasan *', TextField(controller: note)),
           ],
         ),
       ),
@@ -180,28 +175,25 @@ class _PurchaseDialogState extends State<_PurchaseDialog> {
                         );
                         if (d != null) setState(() => date = d);
                       },
-                      child: InputDecorator(
-                        decoration: const InputDecoration(labelText: 'Tanggal'),
-                        child: Text(tgl(date)),
+                      child: Labeled(
+                        'Tanggal',
+                        InputDecorator(decoration: const InputDecoration(), child: Text(tgl(date))),
                       ),
                     ),
                   ),
                   const SizedBox(width: S.md),
-                  Expanded(
-                    child: TextField(
-                      controller: supplier,
-                      decoration: const InputDecoration(labelText: 'Supplier'),
-                    ),
-                  ),
+                  Expanded(child: Labeled('Supplier', TextField(controller: supplier))),
                   const SizedBox(width: S.md),
                   SizedBox(
                     width: 170,
-                    child: DropdownButtonFormField<int>(
-                      isExpanded: true,
-                      initialValue: accountId,
-                      decoration: const InputDecoration(labelText: 'Dibayar dari'),
-                      items: [for (final a in widget.accounts) DropdownMenuItem(value: a.id, child: Text(a.name))],
-                      onChanged: (v) => setState(() => accountId = v!),
+                    child: Labeled(
+                      'Dibayar dari',
+                      DropdownButtonFormField<int>(
+                        isExpanded: true,
+                        initialValue: accountId,
+                        items: [for (final a in widget.accounts) DropdownMenuItem(value: a.id, child: Text(a.name))],
+                        onChanged: (v) => setState(() => accountId = v!),
+                      ),
                     ),
                   ),
                 ],
@@ -224,16 +216,18 @@ class _PurchaseDialogState extends State<_PurchaseDialog> {
                             l.item = s;
                             l.cost.text = rp(s.product.buyPrice);
                           }),
-                          fieldViewBuilder: (_, ctrl, focus, _) => TextField(
-                            controller: ctrl,
-                            focusNode: focus,
-                            // Teks diubah tanpa memilih dari daftar = barang belum dipilih.
-                            onChanged: (v) {
-                              if (l.item != null && v != l.item!.product.name) setState(() => l.item = null);
-                            },
-                            decoration: InputDecoration(
-                              labelText: 'Barang',
-                              errorText: ctrl.text.isNotEmpty && l.item == null ? 'Pilih dari daftar' : null,
+                          fieldViewBuilder: (_, ctrl, focus, _) => Labeled(
+                            'Barang',
+                            TextField(
+                              controller: ctrl,
+                              focusNode: focus,
+                              // Teks diubah tanpa memilih dari daftar = barang belum dipilih.
+                              onChanged: (v) {
+                                if (l.item != null && v != l.item!.product.name) setState(() => l.item = null);
+                              },
+                              decoration: InputDecoration(
+                                errorText: ctrl.text.isNotEmpty && l.item == null ? 'Pilih dari daftar' : null,
+                              ),
                             ),
                           ),
                         ),
@@ -280,10 +274,7 @@ class _PurchaseDialogState extends State<_PurchaseDialog> {
                 ),
               ),
               const SizedBox(height: S.sm),
-              TextField(
-                controller: note,
-                decoration: const InputDecoration(labelText: 'Keterangan'),
-              ),
+              Labeled('Keterangan', TextField(controller: note)),
               const SizedBox(height: S.lg),
               Align(
                 alignment: Alignment.centerRight,

@@ -280,27 +280,13 @@ class _ProductPanelState extends State<ProductPanel> {
                 else
                   Align(alignment: Alignment.centerLeft, child: Pill(isService ? 'Jasa' : 'Barang', Tone.neutral)),
                 gap(),
-                TextField(
-                  controller: name,
-                  decoration: const InputDecoration(labelText: 'Nama *'),
-                ),
+                Labeled('Nama *', TextField(controller: name)),
                 gap(),
                 Row(
                   children: [
-                    Expanded(
-                      child: TextField(
-                        controller: sku,
-                        decoration: const InputDecoration(labelText: 'Kode / SKU'),
-                      ),
-                    ),
+                    Expanded(child: Labeled('Kode / SKU', TextField(controller: sku))),
                     const SizedBox(width: S.md),
-                    SizedBox(
-                      width: 100,
-                      child: TextField(
-                        controller: unit,
-                        decoration: const InputDecoration(labelText: 'Satuan'),
-                      ),
-                    ),
+                    SizedBox(width: 100, child: Labeled('Satuan', TextField(controller: unit))),
                   ],
                 ),
                 gap(),
@@ -309,11 +295,9 @@ class _ProductPanelState extends State<ProductPanel> {
                   optionsBuilder: (v) =>
                       widget.controller.categories.where((c) => c.toLowerCase().contains(v.text.toLowerCase())),
                   onSelected: (v) => category.text = v,
-                  fieldViewBuilder: (_, ctrl, focus, _) => TextField(
-                    controller: ctrl,
-                    focusNode: focus,
-                    onChanged: (v) => category.text = v,
-                    decoration: const InputDecoration(labelText: 'Kategori'),
+                  fieldViewBuilder: (_, ctrl, focus, _) => Labeled(
+                    'Kategori',
+                    TextField(controller: ctrl, focusNode: focus, onChanged: (v) => category.text = v),
                   ),
                 ),
                 gap(),
@@ -327,9 +311,12 @@ class _ProductPanelState extends State<ProductPanel> {
                       child: Obx(
                         () => owner.isOwner.value
                             ? MoneyField(controller: buy, label: 'Harga beli (owner)')
-                            : const InputDecorator(
-                                decoration: InputDecoration(labelText: 'Harga beli (owner)'),
-                                child: OwnerOnly(child: SizedBox()),
+                            : const Labeled(
+                                'Harga beli (owner)',
+                                InputDecorator(
+                                  decoration: InputDecoration(),
+                                  child: OwnerOnly(child: SizedBox()),
+                                ),
                               ),
                       ),
                     ),

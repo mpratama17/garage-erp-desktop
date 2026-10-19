@@ -391,12 +391,14 @@ class _DocPanel extends StatelessWidget {
                 Row(
                   children: [
                     Expanded(
-                      child: DropdownButtonFormField<int>(
-                        isExpanded: true,
-                        initialValue: accountId,
-                        decoration: const InputDecoration(labelText: 'Ke rekening *'),
-                        items: [for (final a in c.accounts) DropdownMenuItem(value: a.id, child: Text(a.name))],
-                        onChanged: (v) => accountId = v,
+                      child: Labeled(
+                        'Ke rekening *',
+                        DropdownButtonFormField<int>(
+                          isExpanded: true,
+                          initialValue: accountId,
+                          items: [for (final a in c.accounts) DropdownMenuItem(value: a.id, child: Text(a.name))],
+                          onChanged: (v) => accountId = v,
+                        ),
                       ),
                     ),
                     const SizedBox(width: S.md),
@@ -412,19 +414,16 @@ class _DocPanel extends StatelessWidget {
                           );
                           if (d != null) setState(() => date = d);
                         },
-                        child: InputDecorator(
-                          decoration: const InputDecoration(labelText: 'Tanggal'),
-                          child: Text(tgl(date)),
+                        child: Labeled(
+                          'Tanggal',
+                          InputDecorator(decoration: const InputDecoration(), child: Text(tgl(date))),
                         ),
                       ),
                     ),
                   ],
                 ),
                 const SizedBox(height: S.md),
-                TextField(
-                  controller: note,
-                  decoration: const InputDecoration(labelText: 'Keterangan'),
-                ),
+                Labeled('Keterangan', TextField(controller: note)),
                 const SizedBox(height: S.md),
                 Row(
                   children: [
@@ -500,11 +499,7 @@ class _DocPanel extends StatelessWidget {
                 ].join(' '),
               ),
               const SizedBox(height: S.md),
-              TextField(
-                controller: reason,
-                autofocus: true,
-                decoration: const InputDecoration(labelText: 'Alasan *'),
-              ),
+              Labeled('Alasan *', TextField(controller: reason, autofocus: true)),
             ],
           ),
         ),
