@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
+
+import 'format.dart';
 
 import 'owner.dart';
 import 'theme.dart';
@@ -125,3 +128,42 @@ class EmptyState extends StatelessWidget {
 
 void toast(BuildContext context, String message) =>
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+
+/// Format angka saat diketik: 2250000 -> 2.250.000 (design.md §6, input Rupiah).
+class ThousandsFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(TextEditingValue oldValue, TextEditingValue newValue) {
+    final digits = newValue.text.replaceAll(RegExp(r'\D'), '');
+    if (digits.isEmpty) return const TextEditingValue();
+    if (digits.length > 15) return oldValue; // di atas 999 triliun: tolak ketikan
+    final text = rp(int.parse(digits));
+    // Kursor tetap setelah jumlah digit yang sama, supaya edit di tengah angka tidak melompat.
+    final cursor = newValue.selection.end.clamp(0, newValue.text.length);
+    var digitsBefore = newValue.text.substring(0, cursor).replaceAll(RegExp(r'\D'), '').length;
+    var offset = 0;
+    while (offset < text.length && digitsBefore > 0) {
+      if (text[offset] != '.') digitsBefore--;
+      offset++;
+    }
+    return TextEditingValue(text: text, selection: TextSelection.collapsed(offset: offset));
+  }
+}
+
+/// Input angka/Rupiah. Baca nilainya dengan [parseRupiah].
+class MoneyField extends StatelessWidget {
+  const MoneyField({super.key, required this.controller, required this.label, this.prefix = 'Rp ', this.onChanged});
+  final TextEditingController controller;
+  final String label;
+  final String prefix;
+  final ValueChanged<String>? onChanged;
+
+  @override
+  Widget build(BuildContext context) => TextField(
+    controller: controller,
+    textAlign: TextAlign.right,
+    style: T.money,
+    inputFormatters: [ThousandsFormatter()],
+    onChanged: onChanged,
+    decoration: InputDecoration(labelText: label, prefixText: prefix.isEmpty ? null : prefix),
+  );
+}

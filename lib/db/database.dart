@@ -29,6 +29,57 @@ class Accounts extends Table {
 
 const defaultAccounts = ['BCA', 'Mandiri', 'ShopeePay', 'Tunai'];
 
+/// Buku kas: setiap uang masuk (+) / keluar (−) di satu rekening.
+/// Diisi oleh modul lain (pembelian stok, pembayaran invoice, biaya, gaji, transfer).
+class CashEntries extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  DateTimeColumn get at => dateTime()();
+  IntColumn get accountId => integer().references(Accounts, #id)();
+  IntColumn get amount => integer()();
+  TextColumn get kind => text()(); // purchase | payment | expense | salary | transfer | capital
+  IntColumn get refId => integer().nullable()();
+  TextColumn get description => text()();
+  TextColumn get note => text().withDefault(const Constant(''))();
+  TextColumn get proofPath => text().withDefault(const Constant(''))();
+}
+
+/// Barang & jasa. Stok tidak disimpan di sini: stok = SUM(stock_moves.qty).
+class Products extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  TextColumn get sku => text().nullable().unique()();
+  TextColumn get name => text()();
+  TextColumn get category => text().withDefault(const Constant(''))();
+  TextColumn get unit => text().withDefault(const Constant('PCS'))();
+  BoolColumn get isService => boolean().withDefault(const Constant(false))();
+  IntColumn get buyPrice => integer().withDefault(const Constant(0))(); // hanya owner
+  IntColumn get sellPrice => integer().withDefault(const Constant(0))();
+  IntColumn get minStock => integer().withDefault(const Constant(0))();
+  IntColumn get incentive => integer().withDefault(const Constant(0))(); // tarif insentif teknisi
+  BoolColumn get active => boolean().withDefault(const Constant(true))();
+}
+
+/// Buku stok (hanya barang). kind: opening | purchase | sale | void | adjust.
+class StockMoves extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  DateTimeColumn get at => dateTime()();
+  IntColumn get productId => integer().references(Products, #id)();
+  IntColumn get qty => integer()();
+  TextColumn get kind => text()();
+  IntColumn get refId => integer().nullable()();
+  IntColumn get unitCost => integer().nullable()(); // harga beli saat pembelian
+  TextColumn get note => text().withDefault(const Constant(''))();
+}
+
+/// Pembelian stok (owner). Baris & harga beli ada di stock_moves (kind=purchase, refId=id).
+class Purchases extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  DateTimeColumn get at => dateTime()();
+  TextColumn get supplier => text().withDefault(const Constant(''))();
+  IntColumn get accountId => integer().references(Accounts, #id)();
+  IntColumn get total => integer()();
+  TextColumn get note => text().withDefault(const Constant(''))();
+}
+
 /// Nilai awal pengaturan (dipakai bila key belum pernah disimpan).
 const settingDefaults = {
   'shop_name': 'Nama Bengkel',
@@ -47,10 +98,9 @@ const settingDefaults = {
   'pin_hash': '',
 };
 
-Future<File> dbFile() async =>
-    File(p.join((await getApplicationSupportDirectory()).path, 'workshop_erp.sqlite'));
+Future<File> dbFile() async => File(p.join((await getApplicationSupportDirectory()).path, 'workshop_erp.sqlite'));
 
-@DriftDatabase(tables: [Settings, Accounts])
+@DriftDatabase(tables: [Settings, Accounts, CashEntries, Products, StockMoves, Purchases])
 class AppDb extends _$AppDb {
   AppDb([QueryExecutor? e])
     : super(
@@ -73,7 +123,12 @@ class AppDb extends _$AppDb {
         await into(accounts).insert(AccountsCompanion.insert(name: name));
       }
     },
-    beforeOpen: (_) => customStatement('PRAGMA foreign_keys = ON'),
+    beforeOpen: (details) async {
+      await customStatement('PRAGMA foreign_keys = ON');
+      // Selama pengembangan (schemaVersion tetap 1): tabel modul baru dibuat di DB yang sudah ada.
+      // Aman diulang — drift memakai CREATE TABLE IF NOT EXISTS. Perubahan kolom tetap butuh migrasi.
+      if (!details.wasCreated) await Migrator(this).createAll();
+    },
   );
 
   // ---- settings ----
@@ -149,8 +204,7 @@ class AppDb extends _$AppDb {
     final dir = await backupDir();
     final last = DateTime.tryParse(await setting('last_backup_at'));
     final today = DateTime.now();
-    final sameDay =
-        last != null && last.year == today.year && last.month == today.month && last.day == today.day;
+    final sameDay = last != null && last.year == today.year && last.month == today.month && last.day == today.day;
     if (!force && sameDay) return;
     await backupTo(dir);
   }

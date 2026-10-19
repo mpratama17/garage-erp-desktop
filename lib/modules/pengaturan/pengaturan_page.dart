@@ -132,10 +132,7 @@ class PengaturanPage extends StatelessWidget {
                 ? const _Form()
                 : EmptyState(
                     message: 'Pengaturan hanya bisa dibuka owner.',
-                    action: FilledButton(
-                      onPressed: () => owner.ensure(context),
-                      child: const Text('Masukkan PIN'),
-                    ),
+                    action: FilledButton(onPressed: () => owner.ensure(context), child: const Text('Masukkan PIN')),
                   ),
           ),
         ),
@@ -251,10 +248,7 @@ class _FormState extends State<_Form> {
                 const SizedBox(height: S.md),
                 Align(
                   alignment: Alignment.centerLeft,
-                  child: OutlinedButton(
-                    onPressed: () => _changePin(context, c.db),
-                    child: const Text('Ganti PIN'),
-                  ),
+                  child: OutlinedButton(onPressed: () => _changePin(context, c.db), child: const Text('Ganti PIN')),
                 ),
               ]),
             ],

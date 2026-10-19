@@ -2,20 +2,33 @@
 
 Last updated: 2026-10-19.
 
-**Apa:** mini-ERP desktop **macOS** offline (Flutter + SQLite/drift + GetX) untuk Star Garage (bengkel modif lampu, member Yoong Motor Pasuruan), pengganti Kledo + Google Sheet. 7 modul + Pengaturan (lihat `docs/PRD.md` v2.3).
+**Apa:** mini-ERP desktop **macOS** offline (Flutter + SQLite/drift + GetX) untuk Star Garage (bengkel modif lampu, member Yoong Motor Pasuruan), pengganti Kledo + Google Sheet. 7 modul + Pengaturan (`docs/PRD.md` v2.3). Kasir: MacBook Air M1.
 
-**Metode:** vertical slice per modul (skema → logika + test → controller GetX → UI → analyze/test/run → review → commit).
+**Metode:** vertical slice per modul — skema → logika + test → controller GetX → UI → analyze/test/preview/run → code review → perbaikan → commit.
 
-| Modul | Status |
-|---|---|
-| 0. Fondasi (tema, shell/sidebar, Pengaturan, PIN owner, 4 rekening seed, nomor nota, backup lokal, rilis .dmg) | ✅ selesai — 5 test, analyze bersih, build rilis universal 23 MB diuji |
-| 1. Gudang | ⏭️ berikutnya |
-| 2. Kontak · 3. Penjualan · 4. Kas & Bank · 5. Biaya · 6. Gaji · 7. Laporan | belum |
+## Tracking modul
 
-**Struktur:** `lib/core/` (theme, format, owner/PIN, ui), `lib/db/database.dart` (drift, schemaVersion 1 sampai terpasang di client), `lib/modules/<modul>/`, `lib/shell.dart`. Preview UI ke PNG: `flutter test tool/preview --update-goldens`. Rilis: `sh tool/release_macos.sh` (panduan instal: `docs/rilis-macos.md`).
+| # | Modul | Isi | Status | Test | Review | Commit |
+|---|---|---|---|---|---|---|
+| 0 | Fondasi | Tema, sidebar, Pengaturan, PIN owner, 4 rekening, nomor nota, backup lokal, rilis .dmg | ✅ Selesai | 6 | 10 temuan → diperbaiki | `bd24dd9` |
+| 1 | Gudang | Barang/Jasa/Ready Stock, CRUD produk, harga beli khusus owner, stok opname, pembelian stok (→ kas), import/export Excel format Kledo (stok kosong = 1), riwayat stok | ✅ Selesai | 9 | 10 temuan → diperbaiki | (commit ini) |
+| 2 | Kontak | Customer + mobil/plat, import Google Sheet (dedupe HP), riwayat belanja, repeat order, top pelanggan | ⏭️ Berikutnya | – | – | – |
+| 3 | Penjualan | Invoice/kasir, pemesanan + DP, pembayaran per rekening, tag status, PDF, kirim WA, input transaksi lama | ⬜ Belum | – | – | – |
+| 4 | Kas & Bank | Mutasi & saldo 4 rekening, transfer, saldo awal, arus kas | ⬜ Belum | – | – | – |
+| 5 | Biaya | Biaya operasional & pribadi, kategori | ⬜ Belum | – | – | – |
+| 6 | Gaji | Karyawan, insentif per teknisi (dibagi 2 bila berdua), komisi sales 3%, slip gaji | ⬜ Belum | – | – | – |
+| 7 | Laporan | Penjualan, laba rugi, terlaris, export Excel | ⬜ Belum | – | – | – |
 
-**Keputusan teknis penting:** font Inter via `fonts:` pubspec (bukan `google_fonts` — v9 tidak kompatibel Flutter 3.47); macOS App Sandbox dimatikan (akses folder backup/bukti); bundle id `com.mpratama.workshopErp` **tidak boleh berubah** setelah instal; backup ke Google Drive ditunda (lokal dulu).
+Total test saat ini: **15 lulus**. Importer sudah dicoba dengan file asli client: 68 produk masuk, 1 ditolak (SKU kembar CB/001, sesuai temuan awal).
 
-**Git:** lokal, belum ada remote. File client di `docs/` di-gitignore. Push ke GitHub menunggu konfirmasi.
+## Catatan teknis
 
-**Menunggu dari client:** data produk lengkap + daftar jasa (harga, tarif insentif); saldo awal 4 rekening; versi macOS & tipe Mac kasir (minimal macOS 12); logo versi latar terang.
+- **Struktur:** `lib/core/` (theme, format, owner/PIN, ui, table), `lib/db/database.dart` (semua tabel), `lib/modules/<modul>/` (repo = aturan bisnis + test, controller GetX, page, dialogs), `lib/shell.dart`.
+- **Alat:** preview UI ke PNG `flutter test tool/preview --update-goldens`; cek import file asli `IMPORT_FILE=… flutter test tool/check_import_test.dart`; rilis `sh tool/release_macos.sh` (panduan `docs/rilis-macos.md`).
+- **Skema:** schemaVersion tetap 1 sampai terpasang di client; tabel baru otomatis dibuat di DB lama (`CREATE TABLE IF NOT EXISTS`). Perubahan **kolom** = hapus DB dev (`~/Library/Application Support/com.mpratama.workshopErp/`) selama belum di client.
+- **Aturan bisnis di repo, bukan di UI** (pelajaran sirviu): mis. pembelian hanya untuk barang & rekening aktif dicek di `recordPurchase`.
+- Font Inter via `fonts:` pubspec; App Sandbox mati; bundle id `com.mpratama.workshopErp` **tidak boleh berubah**; backup Google Drive ditunda.
+
+**Git:** lokal, belum ada remote. File client di `docs/` di-gitignore.
+
+**Menunggu dari client:** perbaikan data produk (SKU kembar CB/001, SR800.3 & LED HVT EXPERT H4 dobel, produk yang belum ada: POWER+, switch, kabel, paket) + daftar jasa (harga, tarif insentif); saldo awal 4 rekening; versi macOS di Air M1 (minimal 12); logo versi latar terang.

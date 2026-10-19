@@ -63,4 +63,19 @@ void main() {
     await db.autoBackup(force: true);
     expect(dir.listSync().length, 2);
   });
+
+  test('DB lama (versi 1 tanpa tabel modul baru) mendapat tabel baru saat dibuka', () async {
+    final dir = await Directory.systemTemp.createTemp('old_db');
+    addTearDown(() => dir.delete(recursive: true));
+    final file = File('${dir.path}/old.sqlite');
+    final old = AppDb(NativeDatabase(file));
+    await old.setSetting('shop_name', 'Bengkel Lama');
+    await old.customStatement('DROP TABLE products'); // tiru DB dari Modul 0
+    await old.close();
+
+    final now = AppDb(NativeDatabase(file));
+    addTearDown(now.close);
+    expect(await now.select(now.products).get(), isEmpty); // tidak "no such table"
+    expect(await now.setting('shop_name'), 'Bengkel Lama'); // data lama utuh
+  });
 }

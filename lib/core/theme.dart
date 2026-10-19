@@ -52,14 +52,11 @@ ThemeData buildTheme() {
   const btnSize = Size(64, 40);
   return ThemeData(
     useMaterial3: true,
-    colorScheme: ColorScheme.fromSeed(
-      seedColor: C.primary,
-      primary: C.primary,
-      surface: C.surface,
-      error: C.danger,
-    ),
+    colorScheme: ColorScheme.fromSeed(seedColor: C.primary, primary: C.primary, surface: C.surface, error: C.danger),
     scaffoldBackgroundColor: C.bg,
     fontFamily: 'Inter',
+    // Input & teks isi = 14 (design.md §3), bukan 16 bawaan Material.
+    textTheme: const TextTheme(bodyLarge: TextStyle(fontSize: 14), bodyMedium: TextStyle(fontSize: 14)),
     dividerColor: C.border,
     dividerTheme: const DividerThemeData(color: C.border, space: 1, thickness: 1),
     cardTheme: CardThemeData(
@@ -81,6 +78,7 @@ ThemeData buildTheme() {
       focusedBorder: inputBorder.copyWith(borderSide: const BorderSide(color: C.primary, width: 2)),
       // label mengapung = 75% ukuran ini -> 12 px (minimum design.md)
       labelStyle: T.label.copyWith(fontSize: 16),
+      hintStyle: T.body.copyWith(color: C.inkMuted),
       floatingLabelBehavior: FloatingLabelBehavior.always,
     ),
     filledButtonTheme: FilledButtonThemeData(

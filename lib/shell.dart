@@ -7,6 +7,7 @@ import 'core/format.dart';
 import 'core/theme.dart';
 import 'core/ui.dart';
 import 'db/database.dart';
+import 'modules/gudang/gudang_page.dart';
 import 'modules/pengaturan/pengaturan_page.dart';
 
 class _Menu {
@@ -18,7 +19,7 @@ class _Menu {
 
 final _menus = <_Menu>[
   const _Menu('Penjualan', Icons.receipt_long_outlined, _Soon('Penjualan')),
-  const _Menu('Gudang', Icons.inventory_2_outlined, _Soon('Gudang')),
+  const _Menu('Gudang', Icons.inventory_2_outlined, GudangPage()),
   const _Menu('Kontak', Icons.people_outline, _Soon('Kontak')),
   const _Menu('Kas & Bank', Icons.account_balance_wallet_outlined, _Soon('Kas & Bank')),
   const _Menu('Biaya', Icons.payments_outlined, _Soon('Biaya')),
@@ -44,10 +45,7 @@ class _ShellState extends State<Shell> {
           _Sidebar(selected: _index, onSelect: (i) => setState(() => _index = i)),
           const VerticalDivider(width: 1),
           Expanded(
-            child: IndexedStack(
-              index: _index,
-              children: [for (final m in _menus) m.page, const PengaturanPage()],
-            ),
+            child: IndexedStack(index: _index, children: [for (final m in _menus) m.page, const PengaturanPage()]),
           ),
         ],
       ),
@@ -99,12 +97,7 @@ class _Sidebar extends StatelessWidget {
                     ),
                     const SizedBox(width: S.md),
                     Expanded(
-                      child: Text(
-                        s['shop_name']!,
-                        style: T.section,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
+                      child: Text(s['shop_name']!, style: T.section, maxLines: 2, overflow: TextOverflow.ellipsis),
                     ),
                   ],
                 ),
@@ -112,12 +105,7 @@ class _Sidebar extends StatelessWidget {
               for (var i = 0; i < _menus.length; i++)
                 _Item(_menus[i].label, _menus[i].icon, selected == i, () => onSelect(i)),
               const Spacer(),
-              _Item(
-                'Pengaturan',
-                Icons.settings_outlined,
-                selected == _settingsIndex,
-                () => onSelect(_settingsIndex),
-              ),
+              _Item('Pengaturan', Icons.settings_outlined, selected == _settingsIndex, () => onSelect(_settingsIndex)),
               Padding(
                 padding: const EdgeInsets.all(S.sm),
                 child: Text(
