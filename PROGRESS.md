@@ -31,6 +31,6 @@ Total test saat ini: **33 lulus**. Importer dicoba dengan file asli client: prod
 - **Log error:** `~/Library/Logs/Workshop ERP/app.log`.
 - Font Inter via `fonts:` pubspec; App Sandbox mati; bundle id `com.mpratama.workshopErp` **tidak boleh berubah**; backup Google Drive ditunda.
 
-**Git:** lokal, belum ada remote. File client di `docs/` di-gitignore.
+**Git:** GitHub **private** [mpratama17/workshop-erp-flutter](https://github.com/mpratama17/workshop-erp-flutter), branch `main`. File client di `docs/` di-gitignore. Riwayat commit awal masih memuat 1 no. HP customer & 2 nama teknisi asli (sudah diganti di commit terbaru) — jangan jadikan repo ini publik; untuk portofolio buat snapshot bersih terpisah.
 
 **Menunggu dari client:** perbaikan data produk (SKU kembar CB/001, SR800.3 & LED HVT EXPERT H4 dobel, produk yang belum ada: POWER+, switch, kabel, paket) + daftar jasa (harga, tarif insentif); saldo awal 4 rekening; versi macOS di Air M1 (minimal 12); logo versi latar terang.
