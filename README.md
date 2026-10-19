@@ -1,4 +1,4 @@
-# workshop_erp_flutter
+# garage_erp_desktop
 
 A new Flutter project.
 

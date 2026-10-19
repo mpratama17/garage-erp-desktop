@@ -4,7 +4,7 @@ import 'package:file_selector/file_selector.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
-/// Pilih foto/PDF bukti pembayaran lalu salin ke `~/Documents/Workshop ERP Bukti/<tahun>/<bulan>/`.
+/// Pilih foto/PDF bukti pembayaran lalu salin ke `~/Documents/Garage ERP Bukti/<tahun>/<bulan>/`.
 /// Kembalikan path salinan, atau null bila dibatalkan.
 // ponytail: folder lokal; sinkron ke Google Drive ditunda (keputusan client) — cukup ganti folder induknya nanti.
 Future<String?> pickProof(String label) async {
@@ -18,7 +18,7 @@ Future<String?> pickProof(String label) async {
   final dir = Directory(
     p.join(
       (await getApplicationDocumentsDirectory()).path,
-      'Workshop ERP Bukti',
+      'Garage ERP Bukti',
       '${now.year}',
       now.month.toString().padLeft(2, '0'),
     ),

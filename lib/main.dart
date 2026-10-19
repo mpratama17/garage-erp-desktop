@@ -27,7 +27,7 @@ Future<void> main() async {
   await windowManager.setPreventClose(true);
   windowManager.addListener(_BackupOnClose(db));
   await windowManager.waitUntilReadyToShow(
-    const WindowOptions(title: 'Workshop ERP', size: Size(1440, 900), minimumSize: Size(1280, 720), center: true),
+    const WindowOptions(title: 'Garage ERP', size: Size(1440, 900), minimumSize: Size(1280, 720), center: true),
     () async {
       await windowManager.show();
       await windowManager.focus();
@@ -63,7 +63,7 @@ class App extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => MaterialApp(
-    title: 'Workshop ERP',
+    title: 'Garage ERP',
     debugShowCheckedModeBanner: false,
     theme: buildTheme(),
     locale: const Locale('id'),

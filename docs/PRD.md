@@ -5,12 +5,12 @@
 | Client | Star Garage — member Yoong Motor (Pasuruan) |
 | Versi | **Draft 2.2** · 19 Okt 2026 |
 | Status | Requirement lengkap — siap coding (sisa hanya item default di §10) |
-| Repo | `workshop-erp-flutter` (nama generik; nama bengkel diatur dari Pengaturan) |
+| Repo | `garage-erp-desktop` (nama generik; nama bengkel diatur dari Pengaturan) |
 | Sumber | `docs/brief-client.txt` (versi 13:08), 2 contoh invoice Kledo (`docs/contoh-*.pdf`), `docs/GUDANG BARANG new.xlsx`, `docs/INSENTIF-DES24.pdf`, logo, screenshot app pusat, Google Sheet customer (~148 baris), **Sheet pembukuan penjualan** (DES24–JULI26 + UANG 2025/2026), **Sheet pengeluaran & insentif** (PENGELUARAN 2025/2026, INSENTIF-DES24 s/d OKT26) |
 
 **Changelog v2.3** (19 Okt):
 - PC kasir = **Mac** → target rilis 1 hanya **macOS**; Windows tidak dibangun/diuji (kode tetap lintas-platform).
-- **Backup lokal dulu** (default `~/Documents/Workshop ERP Backup`); backup ke Google Drive ditunda.
+- **Backup lokal dulu** (default `~/Documents/Garage ERP Backup`); backup ke Google Drive ditunda.
 
 **Changelog v2.2** (klarifikasi client 19 Okt):
 - Stok awal: barang yang stoknya kosong diisi **1**.
@@ -205,7 +205,7 @@ Data Kledo tidak bisa diambil, sehingga app mulai dari **saldo awal per tanggal 
 |---|---|
 | Biaya | **Rp 0 per bulan**: tanpa server, domain, DB berbayar, maupun API berbayar |
 | Platform | **macOS** (PC kasir client = Mac), 1 perangkat, **offline** (SQLite). Kode tetap bisa dibuild untuk Windows bila nanti perlu |
-| Backup | Salinan database otomatis (harian + saat app ditutup) ke folder **lokal** (default `~/Documents/Workshop ERP Backup`, bisa diganti mis. ke flashdisk), 60 file terbaru. Ke Google Drive: ditunda |
+| Backup | Salinan database otomatis (harian + saat app ditutup) ke folder **lokal** (default `~/Documents/Garage ERP Backup`, bisa diganti mis. ke flashdisk), 60 file terbaru. Ke Google Drive: ditunda |
 | Integritas | Transaksi tidak dihapus permanen (void + pembalik); uang disimpan sebagai integer Rupiah; semua total dihitung, tidak diketik |
 | Keamanan | PIN owner untuk aksi sensitif (§3) |
 | Bahasa | Indonesia, format Rp & tanggal Indonesia |

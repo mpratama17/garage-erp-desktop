@@ -2,9 +2,9 @@ import 'package:drift/drift.dart' hide isNull;
 import 'package:drift/native.dart';
 import 'package:excel/excel.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:workshop_erp_flutter/core/format.dart';
-import 'package:workshop_erp_flutter/db/database.dart';
-import 'package:workshop_erp_flutter/modules/kontak/kontak_repo.dart';
+import 'package:garage_erp_desktop/core/format.dart';
+import 'package:garage_erp_desktop/db/database.dart';
+import 'package:garage_erp_desktop/modules/kontak/kontak_repo.dart';
 
 List<int> _xlsx(List<List<CellValue?>> rows) {
   final excel = Excel.createExcel();

@@ -1,4 +1,4 @@
-# Aturan Desain — workshop-erp-flutter
+# Aturan Desain — garage-erp-desktop
 
 Sumber: `docs/referensi-ui.jpeg` (admin dashboard terang: sidebar putih, kartu putih, KPI pastel, tabel dengan pill status), `docs/logo-star-garage.jpeg` (oranye + hitam), screenshot app pusat (tab Barang/Jasa, Template/Import/Export, paginasi).
 Platform: Flutter desktop (Windows/macOS), **offline**. Semua aturan di bawah diwujudkan di **satu file `lib/core/theme.dart`** (token + `ThemeData`); layar tidak boleh menulis warna/ukuran mentah.

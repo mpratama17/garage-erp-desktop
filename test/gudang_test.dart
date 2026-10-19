@@ -3,9 +3,9 @@ import 'package:drift/native.dart';
 import 'package:excel/excel.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:workshop_erp_flutter/core/ui.dart';
-import 'package:workshop_erp_flutter/db/database.dart';
-import 'package:workshop_erp_flutter/modules/gudang/gudang_repo.dart';
+import 'package:garage_erp_desktop/core/ui.dart';
+import 'package:garage_erp_desktop/db/database.dart';
+import 'package:garage_erp_desktop/modules/gudang/gudang_repo.dart';
 
 List<int> _xlsx(List<List<CellValue?>> rows) {
   final excel = Excel.createExcel();

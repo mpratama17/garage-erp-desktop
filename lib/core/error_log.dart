@@ -3,12 +3,12 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
 
-/// Semua error Flutter/Dart juga ditulis ke ~/Library/Logs/Workshop ERP/app.log,
+/// Semua error Flutter/Dart juga ditulis ke ~/Library/Logs/Garage ERP/app.log,
 /// supaya bisa dibaca developer atau dikirim client (Debug Console tidak tersimpan).
 // ponytail: satu file, dipotong saat > 1 MB; cukup untuk satu PC kasir.
 void installErrorLog() {
   final home = Platform.environment['HOME'] ?? '.';
-  final file = File(p.join(home, 'Library', 'Logs', 'Workshop ERP', 'app.log'));
+  final file = File(p.join(home, 'Library', 'Logs', 'Garage ERP', 'app.log'));
   try {
     file.parent.createSync(recursive: true);
     if (file.existsSync() && file.lengthSync() > 1024 * 1024) file.writeAsStringSync('');

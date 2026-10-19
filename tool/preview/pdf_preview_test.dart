@@ -4,10 +4,10 @@ import 'dart:io';
 import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:workshop_erp_flutter/db/database.dart';
-import 'package:workshop_erp_flutter/modules/gudang/gudang_repo.dart';
-import 'package:workshop_erp_flutter/modules/penjualan/invoice_pdf.dart';
-import 'package:workshop_erp_flutter/modules/penjualan/penjualan_repo.dart';
+import 'package:garage_erp_desktop/db/database.dart';
+import 'package:garage_erp_desktop/modules/gudang/gudang_repo.dart';
+import 'package:garage_erp_desktop/modules/penjualan/invoice_pdf.dart';
+import 'package:garage_erp_desktop/modules/penjualan/penjualan_repo.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();

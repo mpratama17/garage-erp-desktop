@@ -261,10 +261,10 @@ Future<Uint8List> buildInvoicePdf(AppDb db, int docId) async {
   return doc.save();
 }
 
-/// Simpan PDF ke ~/Documents/Workshop ERP Nota/INV-00247.pdf dan kembalikan path-nya.
+/// Simpan PDF ke ~/Documents/Garage ERP Nota/INV-00247.pdf dan kembalikan path-nya.
 Future<String> saveInvoicePdf(AppDb db, int docId, {String? dir}) async {
   final s = await db.docSummary(docId);
-  final folder = dir ?? p.join((await getApplicationDocumentsDirectory()).path, 'Workshop ERP Nota');
+  final folder = dir ?? p.join((await getApplicationDocumentsDirectory()).path, 'Garage ERP Nota');
   await Directory(folder).create(recursive: true);
   final file = File(p.join(folder, '${s.doc.no.replaceAll('/', '-')}.pdf'));
   await file.writeAsBytes(await buildInvoicePdf(db, docId));

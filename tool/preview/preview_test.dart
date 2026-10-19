@@ -9,12 +9,12 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get/get.dart' hide Value;
 import 'package:intl/date_symbol_data_local.dart';
-import 'package:workshop_erp_flutter/core/owner.dart';
-import 'package:workshop_erp_flutter/db/database.dart';
-import 'package:workshop_erp_flutter/main.dart';
-import 'package:workshop_erp_flutter/modules/gudang/gudang_repo.dart';
-import 'package:workshop_erp_flutter/modules/kontak/kontak_repo.dart';
-import 'package:workshop_erp_flutter/modules/penjualan/penjualan_repo.dart';
+import 'package:garage_erp_desktop/core/owner.dart';
+import 'package:garage_erp_desktop/db/database.dart';
+import 'package:garage_erp_desktop/main.dart';
+import 'package:garage_erp_desktop/modules/gudang/gudang_repo.dart';
+import 'package:garage_erp_desktop/modules/kontak/kontak_repo.dart';
+import 'package:garage_erp_desktop/modules/penjualan/penjualan_repo.dart';
 
 Future<void> _loadFonts() async {
   final inter = FontLoader('Inter');
@@ -28,7 +28,7 @@ Future<void> _loadFonts() async {
 
 Future<void> _seed(AppDb db) async {
   await db.setSetting('shop_name', 'Star Garage');
-  await db.setSetting('backup_dir', '/Users/kasir/Documents/Workshop ERP Backup'); // path_provider tidak ada di test
+  await db.setSetting('backup_dir', '/Users/kasir/Documents/Garage ERP Backup'); // path_provider tidak ada di test
   final file = File('docs/GUDANG BARANG new.xlsx');
   if (file.existsSync()) await db.applyImport(parseProductsXlsx(file.readAsBytesSync()).rows);
   final items = await db.watchProducts().first;

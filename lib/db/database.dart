@@ -154,7 +154,7 @@ const settingDefaults = {
   'pin_hash': '',
 };
 
-Future<File> dbFile() async => File(p.join((await getApplicationSupportDirectory()).path, 'workshop_erp.sqlite'));
+Future<File> dbFile() async => File(p.join((await getApplicationSupportDirectory()).path, 'garage_erp.sqlite'));
 
 @DriftDatabase(
   tables: [
@@ -175,7 +175,7 @@ class AppDb extends _$AppDb {
     : super(
         e ??
             driftDatabase(
-              name: 'workshop_erp',
+              name: 'garage_erp',
               native: DriftNativeOptions(databasePath: () async => (await dbFile()).path),
             ),
       );
@@ -251,14 +251,14 @@ class AppDb extends _$AppDb {
   Future<File> backupTo(String dir, {DateTime? now}) async {
     final t = now ?? DateTime.now();
     final stamp = t.toIso8601String().substring(0, 23).replaceAll(RegExp('[:.]'), '-');
-    final out = File(p.join(dir, 'workshop_erp-$stamp.sqlite'));
+    final out = File(p.join(dir, 'garage_erp-$stamp.sqlite'));
     await Directory(dir).create(recursive: true);
     await customStatement('VACUUM INTO ?', [out.path]);
     final old =
         Directory(dir)
             .listSync()
             .whereType<File>()
-            .where((f) => p.basename(f.path).startsWith('workshop_erp-'))
+            .where((f) => p.basename(f.path).startsWith('garage_erp-'))
             .toList()
           ..sort((a, b) => b.path.compareTo(a.path));
     for (final f in old.skip(60)) {
@@ -268,12 +268,12 @@ class AppDb extends _$AppDb {
     return out;
   }
 
-  /// Folder backup: pilihan owner, atau default lokal ~/Documents/Workshop ERP Backup.
+  /// Folder backup: pilihan owner, atau default lokal ~/Documents/Garage ERP Backup.
   // ponytail: backup lokal saja (keputusan client); salin ke Google Drive/flashdisk menyusul.
   Future<String> backupDir() async {
     final dir = await setting('backup_dir');
     if (dir.isNotEmpty) return dir;
-    return p.join((await getApplicationDocumentsDirectory()).path, 'Workshop ERP Backup');
+    return p.join((await getApplicationDocumentsDirectory()).path, 'Garage ERP Backup');
   }
 
   /// Backup otomatis: sekali sehari, dan setiap app ditutup ([force]).

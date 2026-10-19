@@ -2,8 +2,8 @@ import 'dart:io';
 
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:workshop_erp_flutter/core/format.dart';
-import 'package:workshop_erp_flutter/db/database.dart';
+import 'package:garage_erp_desktop/core/format.dart';
+import 'package:garage_erp_desktop/db/database.dart';
 
 void main() {
   test('format Rupiah, terbilang, no. HP', () {
