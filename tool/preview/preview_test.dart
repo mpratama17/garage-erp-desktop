@@ -5,6 +5,7 @@ import 'dart:io';
 
 import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get/get.dart' hide Value;
@@ -12,6 +13,7 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'package:garage_erp_desktop/core/owner.dart';
 import 'package:garage_erp_desktop/db/database.dart';
 import 'package:garage_erp_desktop/main.dart';
+import 'package:garage_erp_desktop/modules/biaya/biaya_repo.dart';
 import 'package:garage_erp_desktop/modules/gudang/gudang_repo.dart';
 import 'package:garage_erp_desktop/modules/kas/kas_repo.dart';
 import 'package:garage_erp_desktop/modules/kontak/kontak_repo.dart';
@@ -137,6 +139,23 @@ Future<void> _seed(AppDb db) async {
     at: now.subtract(const Duration(days: 1)),
     note: 'top up belanja part',
   );
+
+  // Biaya contoh
+  final cat = {for (final k in await db.watchCategories().first) k.name: k.id};
+  for (final (c, name, amount, days, account) in [
+    ('Listrik', 'Token listrik bengkel', 500000, 2, 'Tunai'),
+    ('Makan & Minum', 'Makan siang teknisi', 75000, 1, 'Tunai'),
+    ('Ongkir', 'Kirim part ke Malang', 45000, 1, 'ShopeePay'),
+    ('Rumah (Listrik/Air/Wifi)', 'Wifi rumah', 350000, 4, 'BCA'),
+  ]) {
+    await db.saveExpense(
+      at: now.subtract(Duration(days: days)),
+      accountId: acc[account]!,
+      categoryId: cat[c]!,
+      description: name,
+      amount: amount,
+    );
+  }
 }
 
 void main() {
@@ -196,6 +215,20 @@ void main() {
     await tester.tap(find.text('Arus kas'));
     await settle();
     await shot('kas-arus');
+
+    await tester.tap(find.text('Biaya').first);
+    await settle();
+    await shot('biaya');
+    await tester.tap(find.text('Token listrik bengkel'));
+    await settle();
+    await shot('biaya-ubah');
+    await tester.tap(find.text('Batal').last);
+    await settle();
+    await tester.tap(find.widgetWithText(OutlinedButton, 'Kategori'));
+    await settle();
+    await shot('biaya-kategori');
+    await tester.tap(find.text('Selesai'));
+    await settle();
 
     await tester.tap(find.text('Kontak'));
     await settle();

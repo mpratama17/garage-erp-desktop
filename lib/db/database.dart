@@ -37,7 +37,7 @@ class CashEntries extends Table {
   IntColumn get accountId => integer().references(Accounts, #id)();
   IntColumn get amount => integer()();
   // purchase | payment (bayar/DP invoice, refId=invoices.id) | refund (balikan saat invoice batal)
-  // | expense | salary | transfer | capital
+  // | expense (refId=expense_categories.id) | salary | transfer | capital | income
   TextColumn get kind => text()();
   IntColumn get refId => integer().nullable()();
   TextColumn get description => text()();
@@ -136,6 +136,37 @@ class Purchases extends Table {
   TextColumn get note => text().withDefault(const Constant(''))();
 }
 
+/// Kategori biaya. [personal] = pengeluaran rumah/pribadi: dicatat, tapi di laba rugi
+/// tampil di bawah laba bersih usaha (bukan biaya operasional).
+class ExpenseCategories extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  TextColumn get name => text().unique()();
+  BoolColumn get personal => boolean().withDefault(const Constant(false))();
+  BoolColumn get active => boolean().withDefault(const Constant(true))();
+}
+
+/// Kategori awal dari sheet pengeluaran client (PRD BIA-2/BIA-3); `true` = pribadi.
+const defaultExpenseCategories = {
+  'Alat & Bahan Bengkel': false,
+  'Listrik': false,
+  'Air': false,
+  'Wifi': false,
+  'Transportasi': false,
+  'Ongkir': false,
+  'Makan & Minum': false,
+  'Tukang/Servis': false,
+  'Iuran/Langganan': false,
+  'Admin Bank': false,
+  'BPJS': false,
+  'Bonus/THR': false,
+  'Lain-lain': false,
+  'Rumah (Listrik/Air/Wifi)': true,
+  'PDAM Langgar': true,
+  'Sumbangan': true,
+  'ART': true,
+  'Pribadi Lain-lain': true,
+};
+
 /// Nilai awal pengaturan (dipakai bila key belum pernah disimpan).
 const settingDefaults = {
   'shop_name': 'Nama Bengkel',
@@ -168,6 +199,7 @@ Future<File> dbFile() async => File(p.join((await getApplicationSupportDirectory
     Employees,
     Invoices,
     InvoiceLines,
+    ExpenseCategories,
   ],
 )
 class AppDb extends _$AppDb {
@@ -212,6 +244,14 @@ class AppDb extends _$AppDb {
       // Selama pengembangan (schemaVersion tetap 1): tabel modul baru dibuat di DB yang sudah ada.
       // Aman diulang — drift memakai CREATE TABLE IF NOT EXISTS. Perubahan kolom tetap butuh migrasi.
       if (!details.wasCreated) await Migrator(this).createAll();
+      if (await (select(expenseCategories)..limit(1)).getSingleOrNull() == null) {
+        await batch(
+          (b) => b.insertAll(expenseCategories, [
+            for (final e in defaultExpenseCategories.entries)
+              ExpenseCategoriesCompanion.insert(name: e.key, personal: Value(e.value)),
+          ]),
+        ); // satu transaksi: tidak tersisa separuh bila app mati di tengah
+      }
     },
   );
 

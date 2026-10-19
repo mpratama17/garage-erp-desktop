@@ -181,8 +181,8 @@ extension KasRepo on AppDb {
                   x.name.lower().equals(name.toLowerCase()) &
                   (a.id.present ? x.id.equals(a.id.value).not() : const Constant(true)),
             ))
-            .getSingleOrNull();
-    if (dup != null) throw ArgumentError('Rekening "$name" sudah ada');
+            .get();
+    if (dup.isNotEmpty) throw ArgumentError('Rekening "$name" sudah ada');
     final data = a.copyWith(name: Value(name), note: Value(a.note.present ? a.note.value.trim() : ''));
     if (a.id.present) {
       await (update(accounts)..where((x) => x.id.equals(a.id.value))).write(data);

@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:get/get.dart';
+import 'package:get/get.dart' hide Value;
+import 'package:intl/intl.dart';
+import 'package:path/path.dart' as path;
 
+import '../db/database.dart';
 import 'format.dart';
 
 import 'owner.dart';
@@ -168,5 +171,86 @@ class MoneyField extends StatelessWidget {
     inputFormatters: [ThousandsFormatter()],
     onChanged: onChanged,
     decoration: InputDecoration(labelText: label, prefixText: prefix.isEmpty ? null : prefix),
+  );
+}
+
+// ------------------------------------------------------------------ form & aksi
+
+/// Jalankan aksi repo: [ArgumentError] = pesan aturan untuk user, error lain = "Gagal".
+Future<void> runAction(BuildContext context, Future<void> Function() action, [String? done]) async {
+  try {
+    await action();
+    if (done != null && context.mounted) toast(context, done);
+  } on ArgumentError catch (e) {
+    if (context.mounted) toast(context, '${e.message}');
+  } catch (e) {
+    if (context.mounted) toast(context, 'Gagal: $e');
+  }
+}
+
+Widget dateField(BuildContext ctx, DateTime value, ValueChanged<DateTime> onPick) => InkWell(
+  onTap: () async {
+    final d = await showDatePicker(
+      context: ctx,
+      initialDate: value,
+      firstDate: DateTime(2020),
+      lastDate: DateTime.now(),
+    );
+    if (d != null) onPick(d);
+  },
+  child: InputDecorator(
+    decoration: const InputDecoration(labelText: 'Tanggal'),
+    child: Text(tgl(value)),
+  ),
+);
+
+Widget proofRow(String proof, VoidCallback onPick) => Row(
+  children: [
+    OutlinedButton.icon(
+      onPressed: onPick,
+      icon: const Icon(Icons.attach_file, size: 18),
+      label: const Text('Lampirkan bukti'),
+    ),
+    const SizedBox(width: S.sm),
+    Expanded(
+      child: Text(
+        proof.isEmpty ? 'Belum ada bukti' : path.basename(proof),
+        style: T.label,
+        overflow: TextOverflow.ellipsis,
+      ),
+    ),
+  ],
+);
+
+DropdownButtonFormField<int> accountField(
+  String label,
+  int? value,
+  List<Account> items,
+  ValueChanged<int?> onChanged,
+) => DropdownButtonFormField<int>(
+  isExpanded: true,
+  initialValue: value,
+  decoration: InputDecoration(labelText: label),
+  items: [for (final a in items) DropdownMenuItem(value: a.id, child: Text(a.name))],
+  onChanged: onChanged,
+);
+
+/// ‹ Oktober 2026 › — pindah bulan dengan [onShift](-1 / +1).
+class MonthNav extends StatelessWidget {
+  const MonthNav({super.key, required this.month, required this.onShift});
+  final DateTime month;
+  final ValueChanged<int> onShift;
+
+  @override
+  Widget build(BuildContext context) => Row(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      IconButton(tooltip: 'Bulan sebelumnya', onPressed: () => onShift(-1), icon: const Icon(Icons.chevron_left)),
+      SizedBox(
+        width: 130,
+        child: Text(DateFormat('MMMM y', 'id').format(month), textAlign: TextAlign.center, style: T.section),
+      ),
+      IconButton(tooltip: 'Bulan berikutnya', onPressed: () => onShift(1), icon: const Icon(Icons.chevron_right)),
+    ],
   );
 }

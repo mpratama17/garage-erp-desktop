@@ -1,7 +1,6 @@
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter/material.dart';
 import 'package:get/get.dart' hide Value;
-import 'package:path/path.dart' as path;
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/format.dart';
@@ -13,22 +12,6 @@ import '../../core/ui.dart';
 import '../../db/database.dart';
 import 'kas_controller.dart';
 import 'kas_repo.dart';
-
-const _monthNames = [
-  'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', //
-  'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember',
-];
-
-Future<void> _run(BuildContext context, Future<void> Function() action, [String? done]) async {
-  try {
-    await action();
-    if (done != null && context.mounted) toast(context, done);
-  } on ArgumentError catch (e) {
-    if (context.mounted) toast(context, '${e.message}');
-  } catch (e) {
-    if (context.mounted) toast(context, 'Gagal: $e');
-  }
-}
 
 class KasPage extends StatelessWidget {
   const KasPage({super.key});
@@ -219,20 +202,7 @@ class _Mutasi extends StatelessWidget {
       toolbar: [
         Text('Masuk ${rp(income)} · Keluar ${rp(expense)}', style: T.label),
         const SizedBox(width: S.lg),
-        IconButton(
-          tooltip: 'Bulan sebelumnya',
-          onPressed: () => c.shiftMonth(-1),
-          icon: const Icon(Icons.chevron_left),
-        ),
-        SizedBox(
-          width: 130,
-          child: Text('${_monthNames[m.month - 1]} ${m.year}', textAlign: TextAlign.center, style: T.section),
-        ),
-        IconButton(
-          tooltip: 'Bulan berikutnya',
-          onPressed: () => c.shiftMonth(1),
-          icon: const Icon(Icons.chevron_right),
-        ),
+        MonthNav(month: m, onShift: c.shiftMonth),
       ],
       columns: [
         Col('Tanggal', (r) => Text(tgl(r.entry.at)), flex: 2),
@@ -287,7 +257,7 @@ class _RowActions extends StatelessWidget {
       if (r.entry.proofPath.isNotEmpty)
         IconButton(
           tooltip: 'Buka bukti',
-          onPressed: () => _run(context, () => launchUrl(Uri.file(r.entry.proofPath))),
+          onPressed: () => runAction(context, () => launchUrl(Uri.file(r.entry.proofPath))),
           icon: const Icon(Icons.attach_file, size: 18),
         ),
       if (CashKind.manual.contains(r.entry.kind))
@@ -315,7 +285,7 @@ class _RowActions extends StatelessWidget {
               ),
             );
             if (ok == true && context.mounted) {
-              await _run(context, () => c.db.deleteManualEntry(r.entry.id), 'Transaksi dihapus');
+              await runAction(context, () => c.db.deleteManualEntry(r.entry.id), 'Transaksi dihapus');
             }
           },
           icon: const Icon(Icons.delete_outline, size: 18),
@@ -438,53 +408,6 @@ class _Arus extends StatelessWidget {
 
 // ------------------------------------------------------------------ dialog
 
-Widget _dateField(BuildContext ctx, DateTime value, ValueChanged<DateTime> onPick) => InkWell(
-  onTap: () async {
-    final d = await showDatePicker(
-      context: ctx,
-      initialDate: value,
-      firstDate: DateTime(2020),
-      lastDate: DateTime.now(),
-    );
-    if (d != null) onPick(d);
-  },
-  child: InputDecorator(
-    decoration: const InputDecoration(labelText: 'Tanggal'),
-    child: Text(tgl(value)),
-  ),
-);
-
-Widget _proofRow(String proof, VoidCallback onPick) => Row(
-  children: [
-    OutlinedButton.icon(
-      onPressed: onPick,
-      icon: const Icon(Icons.attach_file, size: 18),
-      label: const Text('Lampirkan bukti'),
-    ),
-    const SizedBox(width: S.sm),
-    Expanded(
-      child: Text(
-        proof.isEmpty ? 'Belum ada bukti' : path.basename(proof),
-        style: T.label,
-        overflow: TextOverflow.ellipsis,
-      ),
-    ),
-  ],
-);
-
-DropdownButtonFormField<int> _accountField(
-  String label,
-  int? value,
-  List<Account> items,
-  ValueChanged<int?> onChanged,
-) => DropdownButtonFormField<int>(
-  isExpanded: true,
-  initialValue: value,
-  decoration: InputDecoration(labelText: label),
-  items: [for (final a in items) DropdownMenuItem(value: a.id, child: Text(a.name))],
-  onChanged: onChanged,
-);
-
 Future<void> _transferDialog(BuildContext context, KasController c) async {
   final accounts = c.activeAccounts;
   if (accounts.length < 2) return toast(context, 'Butuh minimal 2 rekening aktif');
@@ -504,12 +427,12 @@ Future<void> _transferDialog(BuildContext context, KasController c) async {
             children: [
               Row(
                 children: [
-                  Expanded(child: _accountField('Dari', from, accounts, (v) => from = v)),
+                  Expanded(child: accountField('Dari', from, accounts, (v) => from = v)),
                   const Padding(
                     padding: EdgeInsets.symmetric(horizontal: S.sm),
                     child: Icon(Icons.arrow_forward),
                   ),
-                  Expanded(child: _accountField('Ke', to, accounts, (v) => to = v)),
+                  Expanded(child: accountField('Ke', to, accounts, (v) => to = v)),
                 ],
               ),
               const SizedBox(height: S.md),
@@ -519,7 +442,7 @@ Future<void> _transferDialog(BuildContext context, KasController c) async {
                     child: MoneyField(controller: amount, label: 'Nominal *'),
                   ),
                   const SizedBox(width: S.md),
-                  SizedBox(width: 140, child: _dateField(ctx, date, (d) => setState(() => date = d))),
+                  SizedBox(width: 140, child: dateField(ctx, date, (d) => setState(() => date = d))),
                 ],
               ),
               const SizedBox(height: S.md),
@@ -528,7 +451,7 @@ Future<void> _transferDialog(BuildContext context, KasController c) async {
                 decoration: const InputDecoration(labelText: 'Keterangan', hintText: 'mis. top up ShopeePay'),
               ),
               const SizedBox(height: S.md),
-              _proofRow(proof, () async {
+              proofRow(proof, () async {
                 final p = await pickProof('transfer');
                 if (p != null) setState(() => proof = p);
               }),
@@ -540,7 +463,7 @@ Future<void> _transferDialog(BuildContext context, KasController c) async {
           FilledButton(
             onPressed: () async {
               if (from == null || to == null) return toast(ctx, 'Pilih rekening');
-              await _run(ctx, () async {
+              await runAction(ctx, () async {
                 await c.db.transfer(
                   fromId: from!,
                   toId: to!,
@@ -597,9 +520,9 @@ Future<void> _incomeDialog(BuildContext context, KasController c) async {
               const SizedBox(height: S.md),
               Row(
                 children: [
-                  Expanded(child: _accountField('Ke rekening', accountId, accounts, (v) => accountId = v)),
+                  Expanded(child: accountField('Ke rekening', accountId, accounts, (v) => accountId = v)),
                   const SizedBox(width: S.md),
-                  SizedBox(width: 140, child: _dateField(ctx, date, (d) => setState(() => date = d))),
+                  SizedBox(width: 140, child: dateField(ctx, date, (d) => setState(() => date = d))),
                 ],
               ),
               const SizedBox(height: S.md),
@@ -615,7 +538,7 @@ Future<void> _incomeDialog(BuildContext context, KasController c) async {
                 decoration: const InputDecoration(labelText: 'Catatan'),
               ),
               const SizedBox(height: S.md),
-              _proofRow(proof, () async {
+              proofRow(proof, () async {
                 final p = await pickProof('pemasukan');
                 if (p != null) setState(() => proof = p);
               }),
@@ -627,7 +550,7 @@ Future<void> _incomeDialog(BuildContext context, KasController c) async {
           FilledButton(
             onPressed: () async {
               if (accountId == null) return toast(ctx, 'Pilih rekening');
-              await _run(ctx, () async {
+              await runAction(ctx, () async {
                 await c.db.addIncome(
                   accountId: accountId!,
                   amount: parseRupiah(amount.text),
@@ -693,7 +616,7 @@ Future<void> _accountDialog(BuildContext context, KasController c, Account? a) a
         actions: [
           OutlinedButton(onPressed: () => Navigator.pop(ctx), child: const Text('Batal')),
           FilledButton(
-            onPressed: () => _run(ctx, () async {
+            onPressed: () => runAction(ctx, () async {
               await c.db.saveAccount(
                 AccountsCompanion(
                   id: a == null ? const Value.absent() : Value(a.id),
