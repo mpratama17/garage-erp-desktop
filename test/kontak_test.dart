@@ -27,7 +27,7 @@ void main() {
     expect(normalizePhone('0062 811 0000 2222'), '081100002222');
     expect(normalizePhone('+62 811 0000 2222'), '081100002222');
     expect(validPhone('081234567890'), true);
-    expect(validPhone('0812197093'), true); // 10 digit masih wajar
+    expect(validPhone('0811000009'), true); // 10 digit masih wajar
     expect(validPhone('0812'), false);
     expect(validPhone('81234567890'), false);
   });

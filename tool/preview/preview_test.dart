@@ -61,8 +61,8 @@ Future<void> _seed(AppDb db) async {
   }
 
   // Penjualan contoh
-  final t1 = await db.into(db.employees).insert(EmployeesCompanion.insert(name: 'Andry', role: 'teknisi'));
-  final t2 = await db.into(db.employees).insert(EmployeesCompanion.insert(name: 'Ashraful', role: 'teknisi'));
+  final t1 = await db.into(db.employees).insert(EmployeesCompanion.insert(name: 'Teknisi A', role: 'teknisi'));
+  final t2 = await db.into(db.employees).insert(EmployeesCompanion.insert(name: 'Teknisi B', role: 'teknisi'));
   final all = await db.watchProducts().first;
   final barang = all.firstWhere((s) => !s.isService && s.stock > 0).product;
   final jasa = all.firstWhere((s) => s.isService).product;
