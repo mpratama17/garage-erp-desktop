@@ -2,7 +2,7 @@
 
 Last updated: 2026-10-19.
 
-**Apa:** mini-ERP desktop **macOS** offline (Flutter + SQLite/drift + GetX) untuk Star Garage (bengkel modif lampu, member Yoong Motor Pasuruan), pengganti Kledo + Google Sheet. 7 modul + Pengaturan (`docs/PRD.md` v2.3). Kasir: MacBook Air M1.
+**Apa:** mini-ERP desktop **macOS** offline (Flutter + SQLite/drift + GetX) untuk Star Garage (bengkel modif lampu, member Yoong Motor Pasuruan), pengganti Kledo + Google Sheet. Dashboard + 7 modul + Pengaturan (`docs/PRD.md` v2.3). Kasir: MacBook Air M1. Ringkasan untuk GitHub: `README.md`.
 
 **Metode:** vertical slice per modul — skema → logika + test → controller GetX → UI → analyze/test/preview/run → code review → perbaikan → commit.
 
@@ -19,7 +19,19 @@ Last updated: 2026-10-19.
 | 6 | Gaji | Khusus owner (PIN). Karyawan (teknisi/sales, gaji pokok, makan, aktif), slip per periode 27–26: pokok + makan + insentif per pekerjaan (berdua = ½) + tunjangan kerja sales 3% omzet (bisa dikoreksi) + lembur + bonus − potongan, rincian insentif per invoice/mobil, bayar dari rekening + bukti (slip dibeku), batalkan pembayaran | ✅ Selesai | 7 | 8 temuan → 6 diperbaiki | `fd854d9` |
 | 7 | Laporan | Khusus owner (dicek di repo). Bulanan (per hari) / tahunan (per bulan): laba rugi (pendapatan − HPP − biaya − gaji = laba bersih usaha − pribadi = sisa, rincian biaya per kategori, peringatan modal kosong), penjualan (invoice, bruto, diskon, omzet, per kategori), terlaris, arus kas; export Excel tiap tab. + Export Excel gaji per periode (slip + rincian insentif) | ✅ Selesai | 3 | 10 temuan → 9 diperbaiki | `99b7120` |
 
-Total test saat ini: **52 lulus**. **Semua modul R1 selesai** — berikutnya: uji manual end-to-end, backlog B1/B3, rilis .dmg pertama ke client. Importer dicoba dengan file asli client: produk 68 masuk / 1 ditolak (SKU kembar CB/001); customer 142 masuk / 6 digabung (no. HP sama: IQBAL–INDRO, JAHLIL×2, JAUHAR–JOHAN, NAFI–NAVI, UMAR×2, YAQIN) — semua sesuai temuan analisis awal.
+## Upgrade UI/UX (permintaan 19 Okt, setelah R1)
+
+| Fase | Isi | Commit |
+|---|---|---|
+| Form | Label di atas field, field abu tanpa garis (`Labeled`), kartu berbayangan lembut | `0708049` |
+| Pengaturan | Folder simpan nota & export, jadwal backup (harian+tutup / harian / mingguan / nonaktif), 2 kolom, logo nota & ikon sidebar terpisah | `cbf9028` |
+| Shell | Sidebar aktif solid, topbar + **cari global** (invoice/customer/produk → buka record), logo tanpa latar | `a69d3d4` |
+| Dashboard | KPI, grafik omzet 12 bulan (fl_chart), belum lunas, terlaris, stok menipis; laba & saldo khusus owner | `8120669` |
+| KPI & teks | Kartu KPI di Penjualan/Gudang/Biaya/Gaji; label & subjudul dipangkas | `9076e8b` |
+| Tombol & feedback | Hierarki tombol (1 utama/layar, destruktif terpisah di kiri), konfirmasi berlabel kata kerja, notifikasi Berhasil/Periksa lagi/Gagal di overlay, dialog sukses invoice (PDF/WA) | `00bc081` |
+| Kunci saldo | Saldo Kas & Bank khusus owner (repo menolak tanpa PIN); perbaikan urutan buka PIN (bug: PIN benar tidak membuka modul owner) | (commit ini) |
+
+Total test saat ini: **59 lulus**. **Semua modul R1 + upgrade UI selesai** — berikutnya: uji manual end-to-end di Mac, backlog B3, rilis .dmg pertama ke client. Importer dicoba dengan file asli client: produk 68 masuk / 1 ditolak (SKU kembar CB/001); customer 142 masuk / 6 digabung (no. HP sama: IQBAL–INDRO, JAHLIL×2, JAUHAR–JOHAN, NAFI–NAVI, UMAR×2, YAQIN) — semua sesuai temuan analisis awal.
 
 ## Backlog (diminta, belum dikerjakan)
 
@@ -40,6 +52,8 @@ Total test saat ini: **52 lulus**. **Semua modul R1 selesai** — berikutnya: uj
 - **Biaya:** tidak ada tabel biaya — biaya = baris `cash_entries` jenis `expense`, `refId` = kategori. Pribadi/operasional mengikuti kategori (ubah tanda kategori = ikut mengubah biaya lama). Kategori awal di-seed sekali (batch) saat tabel kosong.
 - **Gaji:** slip = tabel `payslips` (unik per karyawan+awal periode); dibayar = ada `cash_entries` kind `salary` refId=slip. Komponen otomatis null selama belum dibayar (ikut data terbaru), dibekukan saat bayar. Akhir periode selalu diturunkan dari `payroll_start_day` di repo; bayar ditolak bila bertumpuk dengan slip lain yang sudah dibayar. Insentif hanya dari invoice tidak batal (pemesanan tidak dihitung, transaksi lama dihitung). **Laporan (Modul 7): gaji = kind `salary` → masuk biaya operasional.** Komisi: tiap karyawan peran Sales dapat % × omzet toko. **Client: tidak ada karyawan sales (2 teknisi saja); owner merangkap sales/admin** → tidak ada komisi kecuali owner ditambahkan sebagai karyawan Sales.
 - **Laporan:** pendapatan & HPP menurut tanggal invoice (pemesanan/DP tidak dihitung); biaya & gaji menurut tanggal uang keluar; pembelian stok bukan biaya. Terlaris dikelompokkan per produk (nama produk saat ini). Grafik belum dibuat (tabel + Excel cukup untuk PRD).
+- **Owner/PIN:** `ensure()` membuka `db.ownerUnlocked` DULU baru `isOwner` (listener Dashboard/Kas langsung memuat data owner). Saldo, laba, nilai stok, gaji hanya dimuat saat owner terbuka.
+- **Feedback:** `runAction` → sukses/`warn` (ArgumentError = aturan bisnis)/gagal (error sistem → log); `confirmAction` untuk aksi penting; controller teks dialog tidak di-dispose manual (dialog masih beranimasi).
 - **UI bersama** (`core/ui.dart`): `runAction`, `dateField`, `proofRow`, `accountField`, `MonthNav`, `OwnerGate`; `core/xlsx.dart`: `buildXlsxSheets`, `saveXlsx`.
 - **Format:** lebar 120 dipatok di `analysis_options.yaml`; jangan `dart format` file `*.g.dart` (build_runner tetap 80).
 - **Log error:** `~/Library/Logs/Garage ERP/app.log`.
