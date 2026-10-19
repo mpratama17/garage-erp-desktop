@@ -32,6 +32,64 @@ Widget statusPill(DocSummary s) {
 class PenjualanPage extends StatelessWidget {
   const PenjualanPage({super.key});
 
+  /// Ringkasan dari daftar yang sudah dimuat (tab aktif).
+  static List<Widget> _kpis(PenjualanController c) {
+    final now = DateTime.now();
+    final docs = c.docs.where((d) => !d.doc.isVoid).toList();
+    int sum(Iterable<DocSummary> ds, int Function(DocSummary) f) => ds.fold(0, (t, d) => t + f(d));
+    if (c.kind.value == DocKind.order) {
+      final open = docs.where((d) => !d.hasInvoice).toList();
+      return [
+        KpiCard(
+          icon: Icons.event_note_outlined,
+          tone: Tone.info,
+          label: 'Pemesanan terbuka',
+          value: '${open.length}',
+          hint: 'Nilai ${rupiah(sum(open, (d) => d.total))}',
+        ),
+        KpiCard(
+          icon: Icons.savings_outlined,
+          tone: Tone.success,
+          label: 'DP diterima',
+          value: rupiah(sum(open, (d) => d.paid)),
+        ),
+        KpiCard(
+          icon: Icons.hourglass_bottom,
+          tone: Tone.warning,
+          label: 'Sisa tagihan',
+          value: rupiah(sum(open, (d) => d.remaining)),
+        ),
+      ];
+    }
+    final month = docs.where((d) => d.doc.at.year == now.year && d.doc.at.month == now.month).toList();
+    final unpaid = docs.where((d) => d.status == PayStatus.unpaid || d.status == PayStatus.partial).toList();
+    final overdue = unpaid.where((d) => d.overdue(now)).toList();
+    return [
+      KpiCard(
+        icon: Icons.trending_up,
+        tone: Tone.success,
+        label: 'Penjualan bulan ini',
+        value: rupiah(sum(month, (d) => d.total)),
+        hint: '${month.length} invoice',
+      ),
+      KpiCard(
+        icon: Icons.receipt_long_outlined,
+        tone: Tone.warning,
+        label: 'Belum dibayar',
+        value: rupiah(sum(unpaid, (d) => d.remaining)),
+        hint: '${unpaid.length} invoice',
+      ),
+      KpiCard(
+        icon: Icons.warning_amber_rounded,
+        tone: overdue.isEmpty ? Tone.neutral : Tone.danger,
+        label: 'Lewat jatuh tempo',
+        value: '${overdue.length} invoice',
+        hint: overdue.isEmpty ? 'Aman' : rupiah(sum(overdue, (d) => d.remaining)),
+        hintColor: overdue.isEmpty ? null : C.danger,
+      ),
+    ];
+  }
+
   @override
   Widget build(BuildContext context) {
     final c = Get.put(PenjualanController(Get.find<AppDb>()));
@@ -49,7 +107,7 @@ class PenjualanPage extends StatelessWidget {
       children: [
         PageHeader(
           title: 'Penjualan',
-          subtitle: 'Kasir, invoice, dan pemesanan (pre order).',
+          subtitle: 'Invoice & pemesanan.',
           actions: [
             OutlinedButton(
               onPressed: () async {
@@ -81,6 +139,7 @@ class PenjualanPage extends StatelessWidget {
             ),
           ],
         ),
+        Obx(() => KpiRow(_kpis(c))),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: S.xxl),
           child: Align(
@@ -581,7 +640,7 @@ class _LineTile extends StatelessWidget {
         title: Text('Modal per unit — ${l.name}'),
         content: SizedBox(
           width: 300,
-          child: MoneyField(controller: ctrl, label: 'Modal per unit (kosong = belum diisi)'),
+          child: MoneyField(controller: ctrl, label: 'Modal / unit', hint: 'belum diisi'),
         ),
         actions: [
           OutlinedButton(onPressed: () => Navigator.pop(ctx), child: const Text('Batal')),

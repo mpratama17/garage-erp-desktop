@@ -173,10 +173,18 @@ class ThousandsFormatter extends TextInputFormatter {
 
 /// Input angka/Rupiah. Baca nilainya dengan [parseRupiah].
 class MoneyField extends StatelessWidget {
-  const MoneyField({super.key, required this.controller, required this.label, this.prefix = 'Rp ', this.onChanged});
+  const MoneyField({
+    super.key,
+    required this.controller,
+    required this.label,
+    this.prefix = 'Rp ',
+    this.hint,
+    this.onChanged,
+  });
   final TextEditingController controller;
   final String label;
   final String prefix;
+  final String? hint; // teks samar saat kosong, mis. 'kosong = lunas'
   final ValueChanged<String>? onChanged;
 
   @override
@@ -188,7 +196,7 @@ class MoneyField extends StatelessWidget {
       style: T.money,
       inputFormatters: [ThousandsFormatter()],
       onChanged: onChanged,
-      decoration: InputDecoration(prefixText: prefix.isEmpty ? null : prefix),
+      decoration: InputDecoration(hintText: hint, prefixText: prefix.isEmpty ? null : prefix),
     ),
   );
 }
@@ -345,4 +353,25 @@ class KpiCard extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Deretan kartu KPI sama lebar (maks. 4, design.md §6), dengan jarak antarkartu dan bawah.
+class KpiRow extends StatelessWidget {
+  const KpiRow(this.cards, {super.key, this.padding = const EdgeInsets.fromLTRB(S.xxl, 0, S.xxl, S.lg)});
+  final List<Widget> cards;
+  final EdgeInsets padding;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: padding,
+    child: IntrinsicHeight(
+      // semua kartu setinggi kartu tertinggi
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          for (final (i, k) in cards.indexed) ...[if (i > 0) const SizedBox(width: S.lg), Expanded(child: k)],
+        ],
+      ),
+    ),
+  );
 }

@@ -64,6 +64,35 @@ class GudangPage extends StatelessWidget {
             ),
           ],
         ),
+        Obx(() {
+          final active = c.products.where((s) => s.product.active);
+          final goods = active.where((s) => !s.isService).toList();
+          final low = goods.where((s) => s.isLow).length;
+          final value = goods.fold<int>(0, (t, s) => t + (s.stock > 0 ? s.stock * s.product.buyPrice : 0));
+          return KpiRow([
+            KpiCard(
+              icon: Icons.inventory_2_outlined,
+              tone: Tone.info,
+              label: 'Barang aktif',
+              value: '${goods.length}',
+              hint: '${active.length - goods.length} jasa',
+            ),
+            KpiCard(
+              icon: Icons.warning_amber_rounded,
+              tone: low == 0 ? Tone.neutral : Tone.warning,
+              label: 'Stok menipis',
+              value: '$low barang',
+              hint: low == 0 ? 'Aman' : 'Lihat tab Ready Stock',
+            ),
+            KpiCard(
+              icon: Icons.account_balance_wallet_outlined,
+              tone: Tone.success,
+              label: 'Nilai stok (harga beli)',
+              value: rupiah(value),
+              ownerOnly: true,
+            ),
+          ]);
+        }),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: S.xxl),
           child: Align(
@@ -310,9 +339,9 @@ class _ProductPanelState extends State<ProductPanel> {
                     Expanded(
                       child: Obx(
                         () => owner.isOwner.value
-                            ? MoneyField(controller: buy, label: 'Harga beli (owner)')
+                            ? MoneyField(controller: buy, label: 'Harga beli')
                             : const Labeled(
-                                'Harga beli (owner)',
+                                'Harga beli',
                                 InputDecorator(
                                   decoration: InputDecoration(),
                                   child: OwnerOnly(child: SizedBox()),
@@ -342,7 +371,7 @@ class _ProductPanelState extends State<ProductPanel> {
                   SwitchListTile(
                     contentPadding: EdgeInsets.zero,
                     title: const Text('Aktif'),
-                    subtitle: const Text('Produk nonaktif tidak muncul saat membuat invoice.'),
+                    subtitle: const Text('Tidak muncul di invoice.'),
                     value: active,
                     onChanged: (v) => setState(() => active = v),
                   ),

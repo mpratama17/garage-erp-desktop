@@ -40,7 +40,7 @@ class _DashboardPageState extends State<DashboardPage> {
             () => Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                _row([
+                KpiRow(padding: EdgeInsets.zero, [
                   KpiCard(
                     icon: Icons.today_outlined,
                     tone: Tone.info,
@@ -162,12 +162,6 @@ class _DashboardPageState extends State<DashboardPage> {
           ),
         ),
       ),
-    ],
-  );
-
-  static Widget _row(List<Widget> cards) => Row(
-    children: [
-      for (final (i, k) in cards.indexed) ...[if (i > 0) const SizedBox(width: S.lg), Expanded(child: k)],
     ],
   );
 

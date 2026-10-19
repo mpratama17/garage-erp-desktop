@@ -43,7 +43,7 @@ class _LaporanState extends State<_Laporan> {
       children: [
         PageHeader(
           title: 'Laporan',
-          subtitle: 'Laba rugi, penjualan, produk terlaris, dan arus kas. Gaji & insentif di halaman Gaji.',
+          subtitle: 'Laba rugi, penjualan, terlaris, arus kas.',
           actions: [
             OutlinedButton(
               onPressed: () async {

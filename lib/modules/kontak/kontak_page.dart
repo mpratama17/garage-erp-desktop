@@ -33,7 +33,7 @@ class KontakPage extends StatelessWidget {
         Obx(
           () => PageHeader(
             title: 'Kontak',
-            subtitle: '${c.customers.length} customer · nama, no. HP, mobil, dan plat.',
+            subtitle: '${c.customers.length} customer',
             actions: [
               OutlinedButton(
                 onPressed: () async {

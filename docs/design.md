@@ -98,9 +98,9 @@ Ukuran minimum teks 12. Tidak ada huruf kapital semua kecuali kode (SKU, nomor p
 - Klik baris = buka detail di **panel kanan** (bukan pindah halaman), supaya daftar tetap terlihat.
 - **Empty state**: satu kalimat + satu tombol aksi ("Belum ada invoice. + Invoice Baru").
 
-### Kartu KPI (Laporan & atas halaman Kas)
+### Kartu KPI (`KpiCard` + `KpiRow`: Dashboard, Penjualan, Gudang, Biaya, Gaji; Kas = kartu saldo)
 - Ikon dalam kotak pastel 40 px + label + angka `kpi` + perubahan vs periode lalu (▲ hijau / ▼ merah, selalu dengan tanda panah, tidak hanya warna).
-- Maksimal 4 kartu per baris.
+- Maksimal 4 kartu per baris, tinggi disamakan. Angka owner-only (laba, saldo di Dashboard, nilai stok) tampil `••••` saat terkunci.
 
 ### Form
 - **Label di atas input** (widget `Labeled`), field **latar abu `#F2F4F7` tanpa garis**; fokus = garis `primary` 1,5 px; error = garis bahaya. Tidak memakai label melayang Material. Wajib = tanda `*`.

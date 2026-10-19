@@ -25,7 +25,7 @@ class BiayaPage extends StatelessWidget {
       children: [
         PageHeader(
           title: 'Biaya',
-          subtitle: 'Biaya operasional & pengeluaran pribadi. Pembelian stok dicatat di Gudang, gaji di Gaji.',
+          subtitle: 'Operasional & pribadi. Stok dicatat di Gudang, gaji di Gaji.',
           actions: [
             OutlinedButton(
               onPressed: () async {
@@ -39,6 +39,31 @@ class BiayaPage extends StatelessWidget {
               label: const Text('Biaya'),
             ),
           ],
+        ),
+        Obx(
+          () => KpiRow([
+            KpiCard(
+              icon: Icons.payments_outlined,
+              tone: Tone.info,
+              label: 'Total bulan ini',
+              value: rupiah(c.total()),
+              hint: '${c.expenses.length} biaya',
+            ),
+            KpiCard(
+              icon: Icons.build_outlined,
+              tone: Tone.warning,
+              label: 'Operasional',
+              value: rupiah(c.total(personal: false)),
+              hint: 'Masuk laba rugi',
+            ),
+            KpiCard(
+              icon: Icons.home_outlined,
+              tone: Tone.neutral,
+              label: 'Pribadi',
+              value: rupiah(c.total(personal: true)),
+              hint: 'Di bawah laba bersih usaha',
+            ),
+          ]),
         ),
         Expanded(
           child: Padding(
@@ -60,9 +85,9 @@ class BiayaPage extends StatelessWidget {
       SegmentedButton<BiayaFilter>(
         showSelectedIcon: false,
         segments: [
-          ButtonSegment(value: BiayaFilter.semua, label: Text('Semua ${rp(c.total())}')),
-          ButtonSegment(value: BiayaFilter.operasional, label: Text('Operasional ${rp(c.total(personal: false))}')),
-          ButtonSegment(value: BiayaFilter.pribadi, label: Text('Pribadi ${rp(c.total(personal: true))}')),
+          ButtonSegment(value: BiayaFilter.semua, label: Text('Semua')),
+          ButtonSegment(value: BiayaFilter.operasional, label: Text('Operasional')),
+          ButtonSegment(value: BiayaFilter.pribadi, label: Text('Pribadi')),
         ],
         selected: {c.filter.value},
         onSelectionChanged: (s) => c.filter.value = s.first,
@@ -282,7 +307,7 @@ Future<void> _categoryDialog(BuildContext context, BiayaController c, ExpenseCat
                 SwitchListTile(
                   contentPadding: EdgeInsets.zero,
                   title: const Text('Aktif'),
-                  subtitle: const Text('Kategori nonaktif tidak bisa dipilih untuk biaya baru.'),
+                  subtitle: const Text('Tidak bisa dipilih untuk biaya baru.'),
                   value: active,
                   onChanged: (v) => setState(() => active = v),
                 ),

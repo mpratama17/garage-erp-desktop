@@ -45,7 +45,7 @@ class _GajiState extends State<_Gaji> {
       children: [
         PageHeader(
           title: 'Gaji',
-          subtitle: 'Slip gaji per periode: gaji pokok, makan, insentif teknisi, tunjangan kerja sales.',
+          subtitle: 'Slip per periode & insentif teknisi.',
           actions: [
             OutlinedButton(
               onPressed: () async {
@@ -61,6 +61,38 @@ class _GajiState extends State<_Gaji> {
             ),
           ],
         ),
+        Obx(() {
+          final paid = c.slips.where((s) => s.paid).toList();
+          return KpiRow([
+            KpiCard(
+              icon: Icons.groups_outlined,
+              tone: Tone.info,
+              label: 'Total gaji periode',
+              value: rupiah(c.total),
+              hint: '${c.slips.length} karyawan',
+            ),
+            KpiCard(
+              icon: Icons.check_circle_outline,
+              tone: Tone.success,
+              label: 'Sudah dibayar',
+              value: rupiah(paid.fold(0, (t, s) => t + s.total)),
+              hint: '${paid.length} slip',
+            ),
+            KpiCard(
+              icon: Icons.hourglass_bottom,
+              tone: paid.length == c.slips.length ? Tone.neutral : Tone.warning,
+              label: 'Belum dibayar',
+              value: rupiah(c.total - paid.fold(0, (t, s) => t + s.total)),
+              hint: '${c.slips.length - paid.length} slip',
+            ),
+            KpiCard(
+              icon: Icons.handyman_outlined,
+              tone: Tone.neutral,
+              label: 'Insentif teknisi',
+              value: rupiah(c.slips.fold(0, (t, s) => t + s.incentive)),
+            ),
+          ]);
+        }),
         Padding(
           padding: const EdgeInsets.fromLTRB(S.xxl, 0, S.xxl, S.lg),
           child: Align(
@@ -100,8 +132,6 @@ class _GajiState extends State<_Gaji> {
       emptyMessage: 'Belum ada karyawan. Tambah lewat tombol Karyawan.',
       onTap: (s) => _slipDialog(context, c, s),
       toolbar: [
-        Text('Total ${rp(c.total)}', style: T.label),
-        const SizedBox(width: S.lg),
         IconButton(tooltip: 'Periode sebelumnya', onPressed: () => c.shift(-1), icon: const Icon(Icons.chevron_left)),
         SizedBox(
           width: 230,
@@ -249,7 +279,8 @@ Future<void> _slipDialog(BuildContext context, GajiController c, Slip s) async {
                     MoneyField(
                       controller: commission,
                       onChanged: (_) => setState(() {}),
-                      label: 'Koreksi tunjangan kerja (kosong = otomatis ${rp(s.autoCommission)})',
+                      label: 'Koreksi komisi',
+                      hint: 'otomatis ${rp(s.autoCommission)}',
                     ),
                   ],
                   const SizedBox(height: S.md),
@@ -486,7 +517,7 @@ Future<void> _employeeDialog(BuildContext context, GajiController c, Employee? e
                 SwitchListTile(
                   contentPadding: EdgeInsets.zero,
                   title: const Text('Aktif'),
-                  subtitle: const Text('Karyawan nonaktif tidak bisa dipilih di invoice dan tidak dibuatkan slip.'),
+                  subtitle: const Text('Tidak muncul di invoice & slip.'),
                   value: active,
                   onChanged: (v) => setState(() => active = v),
                 ),

@@ -337,14 +337,14 @@ class _DocEditorState extends State<_DocEditor> {
     ),
     onSelected: _pickCustomer,
     fieldViewBuilder: (_, ctrl, focus, _) => Labeled(
-      'Customer (cari nama / HP / plat)',
+      'Customer',
       TextField(
         controller: ctrl,
         focusNode: focus,
         onChanged: (v) {
           if (customer != null && v != customer!.name) setState(() => customer = null);
         },
-        decoration: const InputDecoration(hintText: 'kosong = UMUM'),
+        decoration: const InputDecoration(hintText: 'Cari nama / HP / plat · kosong = UMUM'),
       ),
     ),
   );
@@ -489,7 +489,11 @@ class _DocEditorState extends State<_DocEditor> {
             Row(
               children: [
                 Expanded(
-                  child: MoneyField(controller: payAmount, label: isOrder ? 'Nominal DP' : 'Nominal (kosong = lunas)'),
+                  child: MoneyField(
+                    controller: payAmount,
+                    label: isOrder ? 'Nominal DP' : 'Nominal',
+                    hint: isOrder ? null : 'kosong = lunas',
+                  ),
                 ),
                 const SizedBox(width: S.sm),
                 SizedBox(

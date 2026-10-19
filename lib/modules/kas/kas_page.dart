@@ -25,7 +25,7 @@ class KasPage extends StatelessWidget {
       children: [
         PageHeader(
           title: 'Kas & Bank',
-          subtitle: 'Saldo rekening, mutasi, transfer, dan arus kas.',
+          subtitle: 'Saldo, mutasi, transfer.',
           actions: [
             OutlinedButton(onPressed: () => _incomeDialog(context, c), child: const Text('Uang masuk lain')),
             OutlinedButton(onPressed: () => _transferDialog(context, c), child: const Text('Transfer')),
@@ -589,7 +589,7 @@ Future<void> _accountDialog(BuildContext context, KasController c, Account? a) a
             children: [
               Labeled('Nama *', TextField(controller: name, autofocus: a == null)),
               const SizedBox(height: S.md),
-              MoneyField(controller: opening, label: 'Saldo awal (saat mulai pakai app)'),
+              MoneyField(controller: opening, label: 'Saldo awal', hint: 'saat mulai pakai app'),
               const SizedBox(height: S.md),
               Labeled(
                 'Keterangan',
@@ -602,7 +602,7 @@ Future<void> _accountDialog(BuildContext context, KasController c, Account? a) a
                 SwitchListTile(
                   contentPadding: EdgeInsets.zero,
                   title: const Text('Aktif'),
-                  subtitle: const Text('Rekening nonaktif tidak bisa dipilih untuk transaksi baru.'),
+                  subtitle: const Text('Tidak bisa dipilih untuk transaksi baru.'),
                   value: active,
                   onChanged: (v) => setState(() => active = v),
                 ),
