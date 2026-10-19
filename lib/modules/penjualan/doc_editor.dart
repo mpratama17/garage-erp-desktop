@@ -139,14 +139,12 @@ class _DocEditorState extends State<_DocEditor> {
           OutlinedButton(onPressed: () => Navigator.pop(ctx), child: const Text('Batal')),
           FilledButton(
             onPressed: () async {
-              try {
+              await runAction(ctx, () async {
                 final id = await c.db.saveCustomer(
                   CustomersCompanion.insert(name: name.text, phone: Value(phone.text)),
                 );
                 if (ctx.mounted) Navigator.pop(ctx, id);
-              } on ArgumentError catch (e) {
-                if (ctx.mounted) warn(ctx, '${e.message}');
-              }
+              });
             },
             child: const Text('Simpan'),
           ),

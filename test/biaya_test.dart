@@ -40,6 +40,7 @@ void main() {
       ('ART', 100000, true, 'Tunai'),
       ('Listrik', 250000, false, 'Tunai'),
     ]);
+    db.ownerUnlocked = true; // saldo khusus owner
     final saldo = {for (final b in await db.watchBalances().first) b.account.name: b.balance};
     expect(saldo['Tunai'], -350000);
     final flow = await db.cashFlow(DateTime(2026), DateTime(2027), Period.monthly);

@@ -110,7 +110,6 @@ extension KontakRepo on AppDb {
     return into(customers).insert(data);
   }
 
-  // ponytail: hapus langsung; saat modul Penjualan ada, customer yang punya invoice ditolak oleh FK.
   /// Hapus customer yang belum pernah bertransaksi. Yang punya invoice/pemesanan tidak bisa dihapus
   /// (riwayat & laporan tetap utuh) — ubah datanya saja.
   Future<void> deleteCustomer(int id) => transaction(() async {

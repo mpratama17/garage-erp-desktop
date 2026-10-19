@@ -56,13 +56,23 @@ Future<void> _savedDialog(BuildContext context, PenjualanController c, int id) a
       actionsAlignment: MainAxisAlignment.center,
       actions: [
         OutlinedButton.icon(
-          onPressed: () => runAction(ctx, () => c.openPdf(id)),
+          onPressed: () => runAction(
+            ctx,
+            () => c.openPdf(id),
+            null,
+            'PDF gagal dibuat atau dibuka. Cek folder simpan file di Pengaturan, lalu coba lagi.',
+          ),
           icon: const Icon(Icons.picture_as_pdf_outlined, size: 18),
           label: const Text('Buka PDF'),
         ),
         if (hasPhone)
           OutlinedButton.icon(
-            onPressed: () => runAction(ctx, () => c.sendWa(id)),
+            onPressed: () => runAction(
+              ctx,
+              () => c.sendWa(id),
+              null,
+              'WhatsApp tidak bisa dibuka. Cek koneksi internet atau nomor HP customer.',
+            ),
             icon: const Icon(Icons.chat_outlined, size: 18),
             label: const Text('Kirim WA'),
           ),
@@ -333,12 +343,22 @@ class _DocPanel extends StatelessWidget {
                   runSpacing: S.sm,
                   children: [
                     OutlinedButton.icon(
-                      onPressed: () => runAction(context, () => c.openPdf(d.id)),
+                      onPressed: () => runAction(
+                        context,
+                        () => c.openPdf(d.id),
+                        null,
+                        'PDF gagal dibuat atau dibuka. Cek folder simpan file di Pengaturan, lalu coba lagi.',
+                      ),
                       icon: const Icon(Icons.picture_as_pdf_outlined, size: 18),
                       label: const Text('PDF / Cetak'),
                     ),
                     OutlinedButton.icon(
-                      onPressed: () => runAction(context, () => c.sendWa(d.id)),
+                      onPressed: () => runAction(
+                        context,
+                        () => c.sendWa(d.id),
+                        null,
+                        'WhatsApp tidak bisa dibuka. Cek koneksi internet atau nomor HP customer.',
+                      ),
                       icon: const Icon(Icons.chat_outlined, size: 18),
                       label: const Text('Kirim WA'),
                     ),
@@ -416,7 +436,12 @@ class _DocPanel extends StatelessWidget {
                                 if (p.proofPath.isNotEmpty)
                                   IconButton(
                                     tooltip: 'Buka bukti',
-                                    onPressed: () => runAction(context, () => launchUrl(Uri.file(p.proofPath))),
+                                    onPressed: () => runAction(
+                                      context,
+                                      () => launchUrl(Uri.file(p.proofPath)),
+                                      null,
+                                      'File bukti tidak bisa dibuka — mungkin sudah dipindah atau dihapus.',
+                                    ),
                                     icon: const Icon(Icons.attach_file, size: 18),
                                   ),
                                 Text(rp(p.amount), style: T.money.copyWith(color: p.amount < 0 ? C.danger : null)),
@@ -543,7 +568,7 @@ class _DocPanel extends StatelessWidget {
             FilledButton(
               onPressed: () async {
                 if (accountId == null) return warn(ctx, 'Pilih rekening');
-                try {
+                await runAction(ctx, () async {
                   await c.db.addPayment(
                     s.doc.id,
                     PaymentInput(
@@ -555,9 +580,7 @@ class _DocPanel extends StatelessWidget {
                     ),
                   );
                   if (ctx.mounted) Navigator.pop(ctx);
-                } on ArgumentError catch (e) {
-                  if (ctx.mounted) warn(ctx, '${e.message}');
-                }
+                }, 'Pembayaran diterima');
               },
               child: const Text('Simpan'),
             ),

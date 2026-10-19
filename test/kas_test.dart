@@ -129,4 +129,14 @@ void main() {
     db.ownerUnlocked = false;
     await expectLater(db.saveAccount(AccountsCompanion.insert(name: 'X')), throwsArgumentError);
   });
+
+  test('saldo khusus owner: tanpa PIN saldo & saldo berjalan tidak dimuat, mutasi tetap terlihat', () async {
+    await db.addIncome(accountId: bca, amount: 100000, at: d, kind: CashKind.income, description: 'Lain');
+    db.ownerUnlocked = false;
+    expect(() => db.watchBalances(), throwsArgumentError);
+    await expectLater(db.balanceBefore(bca, d), throwsArgumentError);
+    final rows = await db.watchEntries(accountId: bca, from: DateTime(2026, 10), to: DateTime(2026, 11)).first;
+    expect(rows.map((r) => (r.entry.amount, r.balanceAfter)), [(100000, null)]);
+    expect((await db.watchAccounts().first).length, 4);
+  });
 }

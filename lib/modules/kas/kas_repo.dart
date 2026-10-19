@@ -54,14 +54,22 @@ const _months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 
 };
 
 extension KasRepo on AppDb {
-  /// Saldo = saldo awal + jumlah semua transaksi kas rekening itu.
-  Stream<List<AccountBalance>> watchBalances() => customSelect(
-    'SELECT a.*, a.opening_balance + COALESCE((SELECT SUM(amount) FROM cash_entries e WHERE e.account_id = a.id), 0) '
-    'AS balance FROM accounts a ORDER BY a.active DESC, a.id',
-    readsFrom: {accounts, cashEntries},
-  ).watch().map((rows) => [for (final r in rows) AccountBalance(accounts.map(r.data), r.read<int>('balance'))]);
+  /// Semua rekening (tanpa saldo) — untuk dipilih siapa saja.
+  Stream<List<Account>> watchAccounts() =>
+      (select(accounts)..orderBy([(a) => OrderingTerm.desc(a.active), (a) => OrderingTerm.asc(a.id)])).watch();
 
-  /// Mutasi pada [from, to) (terbaru di atas). Bila [accountId] diisi, setiap baris membawa saldo berjalan.
+  /// Saldo = saldo awal + jumlah semua transaksi kas rekening itu. Khusus owner.
+  Stream<List<AccountBalance>> watchBalances() {
+    requireOwner();
+    return customSelect(
+      'SELECT a.*, a.opening_balance + COALESCE((SELECT SUM(amount) FROM cash_entries e WHERE e.account_id = a.id), 0) '
+      'AS balance FROM accounts a ORDER BY a.active DESC, a.id',
+      readsFrom: {accounts, cashEntries},
+    ).watch().map((rows) => [for (final r in rows) AccountBalance(accounts.map(r.data), r.read<int>('balance'))]);
+  }
+
+  /// Mutasi pada [from, to) (terbaru di atas). Bila [accountId] diisi dan owner terbuka,
+  /// setiap baris membawa saldo berjalan (saldo = data owner).
   Stream<List<EntryRow>> watchEntries({int? accountId, required DateTime from, required DateTime to}) {
     final q = select(cashEntries).join([innerJoin(accounts, accounts.id.equalsExp(cashEntries.accountId))])
       ..where(
@@ -71,7 +79,7 @@ extension KasRepo on AppDb {
       )
       ..orderBy([OrderingTerm.asc(cashEntries.at), OrderingTerm.asc(cashEntries.id)]);
     return q.watch().asyncMap((rows) async {
-      var running = accountId == null ? null : await balanceBefore(accountId, from);
+      var running = accountId == null || !ownerUnlocked ? null : await balanceBefore(accountId, from);
       final out = <EntryRow>[];
       for (final r in rows) {
         final e = r.readTable(cashEntries);
@@ -83,6 +91,7 @@ extension KasRepo on AppDb {
   }
 
   Future<int> balanceBefore(int accountId, DateTime at) async {
+    requireOwner();
     final acc = await (select(accounts)..where((a) => a.id.equals(accountId))).getSingle();
     final sum = cashEntries.amount.sum();
     final row =

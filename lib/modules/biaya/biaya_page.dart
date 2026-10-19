@@ -107,7 +107,12 @@ class BiayaPage extends StatelessWidget {
             ? const SizedBox.shrink()
             : IconButton(
                 tooltip: 'Buka bukti',
-                onPressed: () => runAction(context, () => launchUrl(Uri.file(r.entry.proofPath))),
+                onPressed: () => runAction(
+                  context,
+                  () => launchUrl(Uri.file(r.entry.proofPath)),
+                  null,
+                  'File bukti tidak bisa dibuka — mungkin sudah dipindah atau dihapus.',
+                ),
                 icon: const Icon(Icons.attach_file, size: 18),
               ),
         flex: 1,

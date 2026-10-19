@@ -53,16 +53,16 @@ class KasPage extends StatelessWidget {
                   selected: c.accountId.value == null,
                   onTap: () => c.accountId.value = null,
                 ),
-                for (final b in c.balances)
+                for (final a in c.accounts)
                   _BalanceCard(
-                    icon: _accountIcons[b.account.name.toLowerCase()],
-                    label: b.account.active ? b.account.name : '${b.account.name} (nonaktif)',
-                    value: b.balance,
-                    note: b.account.note,
-                    selected: c.accountId.value == b.account.id,
-                    onTap: () => c.accountId.value = b.account.id,
+                    icon: _accountIcons[a.name.toLowerCase()],
+                    label: a.active ? a.name : '${a.name} (nonaktif)',
+                    value: c.balances[a.id],
+                    note: a.note,
+                    selected: c.accountId.value == a.id,
+                    onTap: () => c.accountId.value = a.id,
                     onEdit: () async {
-                      if (await owner.ensure(context) && context.mounted) await _accountDialog(context, c, b.account);
+                      if (await owner.ensure(context) && context.mounted) await _accountDialog(context, c, a);
                     },
                   ),
               ],
@@ -121,7 +121,7 @@ class _BalanceCard extends StatelessWidget {
   });
   final String? icon; // file di assets/icons/
   final String label, note;
-  final int value;
+  final int? value; // null = owner terkunci → ••••
   final bool selected;
   final VoidCallback onTap;
   final VoidCallback? onEdit;
@@ -155,11 +155,14 @@ class _BalanceCard extends StatelessWidget {
                     const SizedBox(height: S.xs),
                     Text(label, style: T.label, overflow: TextOverflow.ellipsis),
                     const SizedBox(height: S.xs),
-                    Text(
-                      rupiah(value),
-                      style: T.section.copyWith(
-                        fontFeatures: T.money.fontFeatures,
-                        color: value < 0 ? C.danger : C.ink,
+                    // Saldo = data owner: •••• + gembok sampai PIN dimasukkan (klik = minta PIN).
+                    OwnerOnly(
+                      child: Text(
+                        value == null ? '—' : rupiah(value!),
+                        style: T.section.copyWith(
+                          fontFeatures: T.money.fontFeatures,
+                          color: (value ?? 0) < 0 ? C.danger : C.ink,
+                        ),
                       ),
                     ),
                     Text(note, style: T.label, overflow: TextOverflow.ellipsis), // selalu ada agar tinggi kartu sama
@@ -226,7 +229,7 @@ class _Mutasi extends StatelessWidget {
           flex: 2,
           numeric: true,
         ),
-        if (single)
+        if (single && c.balances.isNotEmpty)
           Col(
             'Saldo',
             (r) => Text(r.balanceAfter == null ? '' : rp(r.balanceAfter!), style: T.money),
@@ -258,7 +261,12 @@ class _RowActions extends StatelessWidget {
       if (r.entry.proofPath.isNotEmpty)
         IconButton(
           tooltip: 'Buka bukti',
-          onPressed: () => runAction(context, () => launchUrl(Uri.file(r.entry.proofPath))),
+          onPressed: () => runAction(
+            context,
+            () => launchUrl(Uri.file(r.entry.proofPath)),
+            null,
+            'File bukti tidak bisa dibuka — mungkin sudah dipindah atau dihapus.',
+          ),
           icon: const Icon(Icons.attach_file, size: 18),
         ),
       if (CashKind.manual.contains(r.entry.kind))

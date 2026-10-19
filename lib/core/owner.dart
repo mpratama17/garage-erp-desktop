@@ -36,8 +36,8 @@ class OwnerController extends GetxController {
 
   void lock() {
     _idle?.cancel();
+    db.ownerUnlocked = false; // kunci repo dulu, baru listener diberi tahu
     isOwner.value = false;
-    db.ownerUnlocked = false;
   }
 
   /// true bila sudah/berhasil masuk mode owner. Minta PIN (atau buat PIN pertama kali).
@@ -58,8 +58,10 @@ class OwnerController extends GetxController {
       }
       return false;
     }
-    isOwner.value = true;
+    // Urutan penting: buka kunci repo DULU, baru umumkan ke listener (Dashboard/Kas langsung memuat
+    // data owner saat isOwner berubah — bila terbalik, repo menolak dan PIN benar pun gagal membuka).
     db.ownerUnlocked = true;
+    isOwner.value = true;
     touch();
     return true;
   }

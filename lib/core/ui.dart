@@ -376,18 +376,19 @@ Future<bool> runAction(
   BuildContext context,
   Future<void> Function() action, [
   String? done,
-  String failed = 'Data belum tersimpan. Coba sekali lagi; bila tetap gagal, kirim file log ke admin.',
+  String failed = 'Terjadi kesalahan, aksi tidak selesai. Coba sekali lagi; bila tetap gagal, kirim file log ke admin.',
 ]) async {
   try {
     await action();
     if (done != null && context.mounted) notify(context, done);
     return true;
-  } on ArgumentError catch (e) {
-    if (context.mounted) warn(context, '${e.message}');
   } catch (e, st) {
-    FlutterError.reportError(FlutterErrorDetails(exception: e, stack: st, library: 'runAction'));
-    if (context.mounted) {
-      notify(context, failed, kind: Notice.error);
+    // ArgumentError = aturan bisnis dari repo → user bisa memperbaiki. RangeError/IndexError (turunannya) = bug.
+    if (e is ArgumentError && e is! RangeError && e is! IndexError) {
+      if (context.mounted) warn(context, '${e.message}');
+    } else {
+      FlutterError.reportError(FlutterErrorDetails(exception: e, stack: st, library: 'runAction'));
+      if (context.mounted) notify(context, failed, kind: Notice.error);
     }
   }
   return false;

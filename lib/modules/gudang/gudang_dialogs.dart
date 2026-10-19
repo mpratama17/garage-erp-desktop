@@ -60,12 +60,10 @@ Future<bool?> showAdjustDialog(BuildContext context, AppDb db, StockedProduct it
           onPressed: () async {
             final n = int.tryParse(actual.text.trim());
             if (n == null) return warn(ctx, 'Stok sebenarnya harus angka');
-            try {
+            await runAction(ctx, () async {
               await db.adjustStock(item.product.id, n, note.text);
               if (ctx.mounted) Navigator.pop(ctx, true);
-            } on ArgumentError catch (e) {
-              if (ctx.mounted) warn(ctx, '${e.message}');
-            }
+            });
           },
           child: const Text('Simpan'),
         ),
@@ -127,7 +125,7 @@ class _PurchaseDialogState extends State<_PurchaseDialog> {
     if (valid.length != lines.length) {
       return warn(context, 'Pilih barang dari daftar di setiap baris (atau hapus barisnya)');
     }
-    try {
+    await runAction(context, () async {
       await widget.c.db.recordPurchase(
         at: date,
         accountId: accountId,
@@ -143,9 +141,7 @@ class _PurchaseDialogState extends State<_PurchaseDialog> {
         ],
       );
       if (mounted) Navigator.pop(context, true);
-    } on ArgumentError catch (e) {
-      if (mounted) warn(context, '${e.message}');
-    }
+    });
   }
 
   @override

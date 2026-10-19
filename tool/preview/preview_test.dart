@@ -276,12 +276,14 @@ void main() {
     await tester.tap(find.widgetWithText(FilledButton, 'Simpan').last);
     await settle();
     await shot('notif-sukses');
+    await tester.pump(const Duration(seconds: 9)); // biarkan notifikasi hilang sendiri
     // Isian kurang = notifikasi "periksa lagi" (bukan error sistem).
     await tester.tap(find.widgetWithText(FilledButton, 'Biaya'));
     await settle();
     await tester.tap(find.widgetWithText(FilledButton, 'Simpan').last);
     await settle();
     await shot('notif-peringatan');
+    await tester.pump(const Duration(seconds: 9)); // biarkan notifikasi hilang sendiri
     await tester.tap(find.text('Batal').last);
     await settle();
     await tester.tap(find.widgetWithText(OutlinedButton, 'Kategori'));
@@ -324,7 +326,13 @@ void main() {
     await settle();
     await shot('pengaturan');
 
+    // Terakhir: Kas saat owner terkunci (saldo ••••). Tanpa pumpAndSettle — halaman owner lain
+    // dibangun ulang & memuat data di zona test (spinner tak berujung).
+    await tester.tap(find.text('Kas & Bank'));
     owner.lock(); // hentikan timer auto-lock
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    await shot('kas-terkunci');
     debugDisableShadows = true; // wajib dikembalikan sebelum test selesai
     await tester.runAsync(db.close);
   });
