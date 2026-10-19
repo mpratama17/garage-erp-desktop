@@ -11,7 +11,7 @@ Last updated: 2026-10-19.
 | # | Modul | Isi | Status | Test | Review | Commit |
 |---|---|---|---|---|---|---|
 | 0 | Fondasi | Tema, sidebar, Pengaturan, PIN owner, 4 rekening, nomor nota, backup lokal, rilis .dmg | ✅ Selesai | 6 | 10 temuan → diperbaiki | `bd24dd9` |
-| 1 | Gudang | Barang/Jasa/Ready Stock, CRUD produk, harga beli khusus owner, stok opname, pembelian stok (→ kas), import/export Excel format Kledo (stok kosong = 1), riwayat stok | ✅ Selesai | 9 | 10 temuan → diperbaiki | (commit ini) |
+| 1 | Gudang | Barang/Jasa/Ready Stock, CRUD produk, harga beli khusus owner, stok opname, pembelian stok (→ kas), import/export Excel format Kledo (stok kosong = 1), riwayat stok | ✅ Selesai | 9 | 10 temuan → diperbaiki | `5041dcc` |
 | 2 | Kontak | Customer + mobil/plat, import Google Sheet (dedupe HP), riwayat belanja, repeat order, top pelanggan | ⏭️ Berikutnya | – | – | – |
 | 3 | Penjualan | Invoice/kasir, pemesanan + DP, pembayaran per rekening, tag status, PDF, kirim WA, input transaksi lama | ⬜ Belum | – | – | – |
 | 4 | Kas & Bank | Mutasi & saldo 4 rekening, transfer, saldo awal, arus kas | ⬜ Belum | – | – | – |
