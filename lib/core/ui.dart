@@ -145,7 +145,10 @@ class ThousandsFormatter extends TextInputFormatter {
       if (text[offset] != '.') digitsBefore--;
       offset++;
     }
-    return TextEditingValue(text: text, selection: TextSelection.collapsed(offset: offset));
+    return TextEditingValue(
+      text: text,
+      selection: TextSelection.collapsed(offset: offset),
+    );
   }
 }
 

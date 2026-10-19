@@ -74,8 +74,9 @@ class GudangController extends GetxController {
     try {
       final r = await db.applyImport(res.rows);
       return (summary: '${r.created} produk baru, ${r.updated} diperbarui', errors: res.errors);
-    } on ArgumentError catch (e) {
-      return (summary: 'Import dibatalkan, tidak ada data yang berubah', errors: [...res.errors, '${e.message}']);
+    } catch (e) {
+      final msg = e is ArgumentError ? '${e.message}' : '$e';
+      return (summary: 'Import dibatalkan, tidak ada data yang berubah', errors: [...res.errors, msg]);
     }
   }
 }

@@ -17,6 +17,7 @@ String tgl(DateTime d) => _date.format(d);
 /// 08xxxxxxxx; buang spasi/strip/newline, ubah +62/62 jadi 0.
 String normalizePhone(String raw) {
   var p = raw.replaceAll(RegExp(r'\D'), '');
+  if (p.startsWith('0062')) p = p.substring(2); // awalan sambungan internasional
   if (p.startsWith('62')) p = '0${p.substring(2)}';
   if (p.isNotEmpty && !p.startsWith('0')) p = '0$p';
   return p;
@@ -62,4 +63,9 @@ String _t(int n) {
 String terbilang(int n) {
   final words = n == 0 ? 'nol' : '${n < 0 ? 'minus ' : ''}${_t(n.abs())}';
   return '${words.split(' ').where((w) => w.isNotEmpty).map((w) => w[0].toUpperCase() + w.substring(1)).join(' ')} Rupiah';
+}
+
+extension StringBlank on String {
+  String ifEmpty(String other) => isEmpty ? other : this;
+  String? get nullIfEmpty => isEmpty ? null : this;
 }

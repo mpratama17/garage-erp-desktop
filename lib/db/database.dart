@@ -70,6 +70,17 @@ class StockMoves extends Table {
   TextColumn get note => text().withDefault(const Constant(''))();
 }
 
+/// Customer. No. HP dinormalisasi (08…) dan unik bila diisi — kunci dedupe.
+/// Mobil & plat di sini = mobil utama; invoice menyimpan salinan mobil/plat per transaksi.
+class Customers extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  TextColumn get name => text()();
+  TextColumn get phone => text().nullable().unique()();
+  TextColumn get car => text().withDefault(const Constant(''))();
+  TextColumn get plate => text().withDefault(const Constant(''))();
+  TextColumn get note => text().withDefault(const Constant(''))();
+}
+
 /// Pembelian stok (owner). Baris & harga beli ada di stock_moves (kind=purchase, refId=id).
 class Purchases extends Table {
   IntColumn get id => integer().autoIncrement()();
@@ -100,7 +111,7 @@ const settingDefaults = {
 
 Future<File> dbFile() async => File(p.join((await getApplicationSupportDirectory()).path, 'workshop_erp.sqlite'));
 
-@DriftDatabase(tables: [Settings, Accounts, CashEntries, Products, StockMoves, Purchases])
+@DriftDatabase(tables: [Settings, Accounts, CashEntries, Products, StockMoves, Purchases, Customers])
 class AppDb extends _$AppDb {
   AppDb([QueryExecutor? e])
     : super(

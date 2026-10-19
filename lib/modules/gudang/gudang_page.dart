@@ -136,7 +136,7 @@ class GudangPage extends StatelessWidget {
                       child: ProductPanel(
                         // Kunci ikut "sudah dimuat": setelah produk baru disimpan, panel dibuat ulang
                         // begitu datanya muncul dari stream (bukan tetap sebagai form kosong).
-                        key: ValueKey((c.panelId.value, c.opened != null)),
+                        key: ValueKey((c.panelId.value, c.opened?.product)),
                         controller: c,
                         item: c.opened,
                         newIsService: isJasa,
@@ -232,6 +232,8 @@ class _ProductPanelState extends State<ProductPanel> {
       if (mounted) toast(context, 'Produk tersimpan');
     } on ArgumentError catch (e) {
       if (mounted) toast(context, '${e.message}');
+    } catch (e) {
+      if (mounted) toast(context, 'Gagal menyimpan: $e');
     }
   }
 

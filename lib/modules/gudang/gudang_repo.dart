@@ -1,7 +1,7 @@
 import 'package:drift/drift.dart';
-import 'package:excel/excel.dart';
 
 import '../../core/format.dart';
+import '../../core/xlsx.dart';
 import '../../db/database.dart';
 
 class StockedProduct {
@@ -64,74 +64,41 @@ const productHeaders = [
   'Tarif Insentif',
 ];
 
-String _key(String h) => h.replaceAll('*', '').trim().toLowerCase();
-
-String _cellText(Data? d) => switch (d?.value) {
-  null => '',
-  TextCellValue(:final value) => (value.text ?? '').trim(),
-  IntCellValue(:final value) => '$value',
-  DoubleCellValue(:final value) => value == value.roundToDouble() ? '${value.round()}' : '$value',
-  final v => v.toString().trim(),
-};
-
-/// "3400000", "3400000.0", "Rp 3.400.000", "Rp 3.400.000,00" -> 3400000. null bila kosong.
-int? _cellInt(Data? d) {
-  final v = d?.value;
-  if (v is IntCellValue) return v.value;
-  if (v is DoubleCellValue) return v.value.round();
-  final t = _cellText(d);
-  if (t.isEmpty) return null;
-  // Rupiah tanpa sen: buang pecahan 1–2 digit di akhir ("…,00" / "….5") sebelum ambil digit.
-  return parseRupiah(t.replaceFirst(RegExp(r'[.,]\d{1,2}$'), ''));
-}
-
 /// Baca sheet pertama file .xlsx. Kolom dicari dari nama header, bukan posisi.
 ImportResult parseProductsXlsx(List<int> bytes) {
-  final excel = Excel.decodeBytes(bytes);
-  final sheet = excel.tables.values.first;
-  final rows = sheet.rows;
-  if (rows.isEmpty) return ImportResult([], ['File kosong']);
-  final col = {for (var i = 0; i < rows.first.length; i++) _key(_cellText(rows.first[i])): i};
-  Data? at(List<Data?> r, String header) {
-    final i = col[_key(header)];
-    return i == null || i >= r.length ? null : r[i];
-  }
-
-  if (!col.containsKey('nama produk')) {
+  final t = XlsxTable.decode(bytes);
+  if (t.rows.isEmpty) return ImportResult([], ['File kosong']);
+  if (!t.has('Nama Produk')) {
     return ImportResult([], ['Kolom "*Nama Produk" tidak ditemukan — pakai template dari tombol Template']);
   }
 
   final out = <ProductRow>[];
   final errors = <String>[];
   final seenSku = <String>{};
-  for (var i = 1; i < rows.length; i++) {
-    final r = rows[i];
-    final rowNo = i + 1;
-    final name = _cellText(at(r, 'Nama Produk'));
-    if (r.every((c) => _cellText(c).isEmpty)) continue;
+  for (final (rowNo, r) in t.dataRows) {
+    final name = t.text(r, 'Nama Produk');
     if (name.isEmpty) {
       errors.add('Baris $rowNo: nama produk kosong');
       continue;
     }
-    final sku = _cellText(at(r, 'Kode / SKU Produk'));
+    final sku = t.text(r, 'Kode / SKU Produk');
     if (sku.isNotEmpty && !seenSku.add(sku.toUpperCase())) {
       errors.add('Baris $rowNo: SKU "$sku" dipakai lebih dari sekali di file ("$name")');
       continue;
     }
-    final type = _cellText(at(r, 'Tipe')).toLowerCase();
     out.add(
       ProductRow(
         rowNo: rowNo,
         name: name,
-        sku: sku.isEmpty ? null : sku,
-        category: _cellText(at(r, 'Kategori Produk')).nullIfEmpty,
-        unit: _cellText(at(r, 'Unit Produk (Satuan)')).ifEmpty('PCS'),
-        isService: type == 'jasa',
-        buyPrice: _cellInt(at(r, 'Harga Pembelian')),
-        sellPrice: _cellInt(at(r, 'Harga Penjualan')),
-        minStock: _cellInt(at(r, 'Stok Minimal')),
-        openingStock: _cellInt(at(r, 'Stok Awal')) ?? _cellInt(at(r, 'Stok')),
-        incentive: _cellInt(at(r, 'Tarif Insentif')),
+        sku: sku.nullIfEmpty,
+        category: t.text(r, 'Kategori Produk').nullIfEmpty,
+        unit: t.text(r, 'Unit Produk (Satuan)').ifEmpty('PCS'),
+        isService: t.text(r, 'Tipe').toLowerCase() == 'jasa',
+        buyPrice: t.number(r, 'Harga Pembelian'),
+        sellPrice: t.number(r, 'Harga Penjualan'),
+        minStock: t.number(r, 'Stok Minimal'),
+        openingStock: t.number(r, 'Stok Awal') ?? t.number(r, 'Stok'),
+        incentive: t.number(r, 'Tarif Insentif'),
       ),
     );
   }
@@ -139,33 +106,21 @@ ImportResult parseProductsXlsx(List<int> bytes) {
 }
 
 /// File .xlsx berisi produk (atau template kosong bila [items] kosong).
-List<int> buildProductsXlsx(List<StockedProduct> items) {
-  final excel = Excel.createExcel();
-  final name = excel.getDefaultSheet()!;
-  excel.appendRow(name, [for (final h in productHeaders) TextCellValue(h)]);
-  for (final s in items) {
-    final p = s.product;
-    excel.appendRow(name, [
-      TextCellValue(p.name),
-      TextCellValue(p.sku ?? ''),
-      TextCellValue(p.category),
-      TextCellValue(p.unit),
-      IntCellValue(p.buyPrice),
-      IntCellValue(p.sellPrice),
-      IntCellValue(p.minStock),
-      TextCellValue(p.isService ? 'Jasa' : 'Barang'),
-      p.isService ? null : IntCellValue(s.stock),
-      IntCellValue(p.incentive),
-    ]);
-  }
-  excel.rename(name, 'Produk');
-  return excel.encode()!;
-}
-
-extension on String {
-  String ifEmpty(String other) => isEmpty ? other : this;
-  String? get nullIfEmpty => isEmpty ? null : this;
-}
+List<int> buildProductsXlsx(List<StockedProduct> items) => buildXlsx('Produk', productHeaders, [
+  for (final s in items)
+    [
+      s.product.name,
+      s.product.sku ?? '',
+      s.product.category,
+      s.product.unit,
+      s.product.buyPrice,
+      s.product.sellPrice,
+      s.product.minStock,
+      s.isService ? 'Jasa' : 'Barang',
+      s.isService ? null : s.stock,
+      s.product.incentive,
+    ],
+]);
 
 extension GudangRepo on AppDb {
   Stream<List<StockedProduct>> watchProducts() => customSelect(

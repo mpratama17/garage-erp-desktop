@@ -13,6 +13,7 @@ import 'package:workshop_erp_flutter/core/owner.dart';
 import 'package:workshop_erp_flutter/db/database.dart';
 import 'package:workshop_erp_flutter/main.dart';
 import 'package:workshop_erp_flutter/modules/gudang/gudang_repo.dart';
+import 'package:workshop_erp_flutter/modules/kontak/kontak_repo.dart';
 
 Future<void> _loadFonts() async {
   final inter = FontLoader('Inter');
@@ -37,6 +38,15 @@ Future<void> _seed(AppDb db) async {
         openingStock: 1,
       );
   await db.adjustStock(cb, 0, 'stok opname: rusak');
+  for (final (name, phone, car, plate) in [
+    ('BUDI SANTOSO', '081100002222', 'TOYOTA INNOVA', 'N 1234 AB'),
+    ('SITI AMINAH', '081100003333', 'HONDA BRIO', ''),
+    ('WALK-IN TANPA HP', null, '', ''),
+  ]) {
+    await db.saveCustomer(
+      CustomersCompanion.insert(name: name, phone: Value(phone), car: Value(car), plate: Value(plate)),
+    );
+  }
   for (final (name, price, inc) in [('Cleaning Coating', 350000, 100000), ('Setting Sinar', 1000000, 50000)]) {
     await db.saveProduct(
       ProductsCompanion.insert(
@@ -85,6 +95,12 @@ void main() {
     await tester.tap(find.text('Jasa').first);
     await settle();
     await shot('gudang-jasa');
+
+    await tester.tap(find.text('Kontak'));
+    await settle();
+    await tester.tap(find.text('BUDI SANTOSO'));
+    await settle();
+    await shot('kontak');
 
     await tester.tap(find.text('Pengaturan'));
     await settle();
