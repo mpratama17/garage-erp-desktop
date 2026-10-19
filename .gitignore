@@ -54,3 +54,9 @@ docs/*.jpeg
 docs/*.jpg
 docs/*.png
 docs/brief-client.txt
+
+# Gambar preview UI lokal
+tool/preview/*.png
+
+# Hasil rilis
+dist/

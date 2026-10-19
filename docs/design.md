@@ -1,7 +1,7 @@
 # Aturan Desain — workshop-erp-flutter
 
 Sumber: `docs/referensi-ui.jpeg` (admin dashboard terang: sidebar putih, kartu putih, KPI pastel, tabel dengan pill status), `docs/logo-star-garage.jpeg` (oranye + hitam), screenshot app pusat (tab Barang/Jasa, Template/Import/Export, paginasi).
-Platform: Flutter desktop (Windows/macOS), **offline**. Semua aturan di bawah diwujudkan di **satu file `lib/theme.dart`** (token + `ThemeData`); layar tidak boleh menulis warna/ukuran mentah.
+Platform: Flutter desktop (Windows/macOS), **offline**. Semua aturan di bawah diwujudkan di **satu file `lib/core/theme.dart`** (token + `ThemeData`); layar tidak boleh menulis warna/ukuran mentah.
 
 ## 1. Prinsip
 
@@ -38,8 +38,7 @@ Status **tidak boleh dibedakan hanya dengan warna**: pill selalu berisi teks ("L
 
 ## 3. Tipografi
 
-- Font: **Inter** lewat package `google_fonts` (paling dekat dengan referensi UI; ganti font = ubah satu baris di `lib/theme.dart`).
-- Karena app **offline**, file `.ttf` Inter disalin ke `assets/google_fonts/` dan `GoogleFonts.config.allowRuntimeFetching = false`. `google_fonts` memakai file lokal itu, tidak mengunduh saat runtime.
+- Font: **Inter** (Google Fonts, OFL). File `.ttf` 400/500/600/700 ada di `assets/fonts/` dan didaftarkan di `pubspec.yaml` (`fonts:`) — offline, ketebalan otomatis benar. Package `google_fonts` tidak dipakai: versi 9 memakai `material_ui` sehingga `TextTheme`-nya tidak kompatibel dengan Flutter 3.47, dan pengunduhan runtime tidak berguna untuk app offline.
 - Angka uang & stok memakai **tabular figures** (`FontFeature.tabularFigures()`) dan **rata kanan** di tabel.
 
 | Gaya | Ukuran / tebal | Pakai |

@@ -8,6 +8,10 @@
 | Repo | `workshop-erp-flutter` (nama generik; nama bengkel diatur dari Pengaturan) |
 | Sumber | `docs/brief-client.txt` (versi 13:08), 2 contoh invoice Kledo (`docs/contoh-*.pdf`), `docs/GUDANG BARANG new.xlsx`, `docs/INSENTIF-DES24.pdf`, logo, screenshot app pusat, Google Sheet customer (~148 baris), **Sheet pembukuan penjualan** (DES24–JULI26 + UANG 2025/2026), **Sheet pengeluaran & insentif** (PENGELUARAN 2025/2026, INSENTIF-DES24 s/d OKT26) |
 
+**Changelog v2.3** (19 Okt):
+- PC kasir = **Mac** → target rilis 1 hanya **macOS**; Windows tidak dibangun/diuji (kode tetap lintas-platform).
+- **Backup lokal dulu** (default `~/Documents/Workshop ERP Backup`); backup ke Google Drive ditunda.
+
 **Changelog v2.2** (klarifikasi client 19 Okt):
 - Stok awal: barang yang stoknya kosong diisi **1**.
 - Stok dianggap **sudah** dikurangi penjualan Agu–Okt → transaksi lama tidak mengubah stok.
@@ -40,7 +44,7 @@
 
 Star Garage adalah bengkel modifikasi & restorasi lampu mobil (projector, LED, foglamp, custom headlamp, cleaning/coating). Selama ini transaksi dicatat di **Kledo** (invoice) **dan** di beberapa Google Sheet (penjualan, pengeluaran, insentif, gaji). Kledo dihentikan karena **biaya langganan**, dan langganannya sudah berakhir sehingga datanya tidak bisa diambil.
 
-App ini menggantikan Kledo + spreadsheet tersebut dengan **satu aplikasi desktop (Windows/macOS) tanpa biaya bulanan**: data di PC bengkel, backup ke Google Drive.
+App ini menggantikan Kledo + spreadsheet tersebut dengan **satu aplikasi desktop macOS tanpa biaya bulanan**: data di PC bengkel, backup ke Google Drive.
 
 **Volume nyata** (sheet penjualan Des 2024 – Jul 2026): **224 transaksi / 503 baris dalam 20 bulan ≈ 11 transaksi per bulan**, omzet ≈ Rp 589 jt. Artinya kebutuhan utamanya **pencatatan yang benar dan terhubung**, bukan kasir super cepat.
 
@@ -200,8 +204,8 @@ Data Kledo tidak bisa diambil, sehingga app mulai dari **saldo awal per tanggal 
 | Area | Kebutuhan |
 |---|---|
 | Biaya | **Rp 0 per bulan**: tanpa server, domain, DB berbayar, maupun API berbayar |
-| Platform | Desktop Windows & macOS, 1 PC, **offline** (SQLite) |
-| Backup | Salinan database otomatis (harian + saat app ditutup) ke folder Google Drive; restore dari file backup |
+| Platform | **macOS** (PC kasir client = Mac), 1 perangkat, **offline** (SQLite). Kode tetap bisa dibuild untuk Windows bila nanti perlu |
+| Backup | Salinan database otomatis (harian + saat app ditutup) ke folder **lokal** (default `~/Documents/Workshop ERP Backup`, bisa diganti mis. ke flashdisk), 60 file terbaru. Ke Google Drive: ditunda |
 | Integritas | Transaksi tidak dihapus permanen (void + pembalik); uang disimpan sebagai integer Rupiah; semua total dihitung, tidak diketik |
 | Keamanan | PIN owner untuk aksi sensitif (§3) |
 | Bahasa | Indonesia, format Rp & tanggal Indonesia |
@@ -262,8 +266,8 @@ Data awal (§4.9) diinput saat R1a dipasang.
 | Grafik di Laporan | `fl_chart` | 1.2.0 | ➕ tambah (saat modul Laporan) |
 | Ikon aplikasi dari logo | `flutter_launcher_icons` (dev) | 0.14.4 | ➕ tambah (saat rilis) |
 | State management | `get` (GetX) — **hanya** `GetxController` + `Get.put`/`Get.find` + `Obx`/`.obs`; navigasi tetap sidebar biasa | 4.7.3 | ➕ tambah (keputusan tim) |
-| Font | `google_fonts` — Inter, file dibundel di assets, unduh runtime dimatikan | 9.0.0 | ➕ tambah. Flutter Favorite |
+| Font | **Inter** (Google Fonts) lewat `fonts:` di pubspec — tanpa package. `google_fonts` 9.0.0 dicoba lalu dilepas: `TextTheme`-nya (dari `material_ui`) tidak kompatibel dengan Flutter 3.47 | — | ✅ |
 
 Sengaja **tidak** dipakai: Riverpod/Bloc (sudah GetX), fitur routing & HTTP GetX & router lain (sidebar + `IndexedStack`), `shared_preferences` (pengaturan di tabel `settings`), `share_plus` / WhatsApp API (cukup link `wa.me` + buka folder PDF), Google Drive API (cukup folder Drive for desktop), `syncfusion_*` (lisensi komersial).
 
-Di luar pub.dev: **Inno Setup** untuk installer Windows, **GitHub Actions `windows-latest`** untuk build `.exe` (Flutter tidak bisa build Windows dari Mac). `drift_flutter` membawa `sqlite3_flutter_libs` versi *eol* (SQLite kini dibundel lewat build hook `sqlite3` 3.x) — build Windows harus diuji di CI sejak minggu pertama.
+Di luar pub.dev: rilis macOS = `.app` ad-hoc signed dalam `.dmg` (lihat `docs/rilis-macos.md`), tanpa Apple Developer Program.

@@ -1,15 +1,18 @@
 import 'package:intl/intl.dart';
 
-const ppnRate = 11; // persen
-
 final _rp = NumberFormat.decimalPattern('id');
+final _date = DateFormat('dd/MM/yyyy');
+
+/// 2250000 -> "2.250.000"
 String rp(int v) => _rp.format(v);
 
-/// Harga satu baris setelah diskon persen, dibulatkan ke rupiah.
-int lineTotal(int qty, int price, int discountPct) =>
-    (qty * price * (100 - discountPct) / 100).round();
+/// 2250000 -> "Rp 2.250.000"
+String rupiah(int v) => 'Rp ${rp(v)}';
 
-int ppnOf(int subtotal) => (subtotal * ppnRate / 100).round();
+/// "Rp 2.250.000" / "2.250.000" / "2250000" -> 2250000. Kosong -> 0.
+int parseRupiah(String s) => int.tryParse(s.replaceAll(RegExp(r'[^0-9-]'), '')) ?? 0;
+
+String tgl(DateTime d) => _date.format(d);
 
 /// 08xxxxxxxx; buang spasi/strip/newline, ubah +62/62 jadi 0.
 String normalizePhone(String raw) {
@@ -19,9 +22,28 @@ String normalizePhone(String raw) {
   return p;
 }
 
+/// 081234567890 -> 0812-3456-7890
+String displayPhone(String p) {
+  final parts = <String>[];
+  for (var i = 0; i < p.length; i += 4) {
+    parts.add(p.substring(i, i + 4 > p.length ? p.length : i + 4));
+  }
+  return parts.join('-');
+}
+
 const _satuan = [
-  '', 'satu', 'dua', 'tiga', 'empat', 'lima', 'enam', 'tujuh', 'delapan',
-  'sembilan', 'sepuluh', 'sebelas',
+  '',
+  'satu',
+  'dua',
+  'tiga',
+  'empat',
+  'lima',
+  'enam',
+  'tujuh',
+  'delapan',
+  'sembilan',
+  'sepuluh',
+  'sebelas',
 ];
 
 String _t(int n) {
@@ -38,6 +60,6 @@ String _t(int n) {
 
 /// 2250000 -> "Dua Juta Dua Ratus Lima Puluh Ribu Rupiah"
 String terbilang(int n) {
-  final words = n == 0 ? 'nol' : _t(n);
+  final words = n == 0 ? 'nol' : '${n < 0 ? 'minus ' : ''}${_t(n.abs())}';
   return '${words.split(' ').where((w) => w.isNotEmpty).map((w) => w[0].toUpperCase() + w.substring(1)).join(' ')} Rupiah';
 }
