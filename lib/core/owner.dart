@@ -36,6 +36,7 @@ class OwnerController extends GetxController {
   void lock() {
     _idle?.cancel();
     isOwner.value = false;
+    db.ownerUnlocked = false;
   }
 
   /// true bila sudah/berhasil masuk mode owner. Minta PIN (atau buat PIN pertama kali).
@@ -57,6 +58,7 @@ class OwnerController extends GetxController {
       return false;
     }
     isOwner.value = true;
+    db.ownerUnlocked = true;
     touch();
     return true;
   }

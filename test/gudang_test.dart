@@ -18,7 +18,7 @@ List<int> _xlsx(List<List<CellValue?>> rows) {
 
 void main() {
   late AppDb db;
-  setUp(() => db = AppDb(NativeDatabase.memory()));
+  setUp(() => db = AppDb(NativeDatabase.memory())..ownerUnlocked = true);
   tearDown(() => db.close());
 
   Future<int> barang(String name, {String? sku, int stock = 0, int min = 0}) => db.saveProduct(

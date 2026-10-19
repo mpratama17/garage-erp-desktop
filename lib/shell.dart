@@ -10,6 +10,7 @@ import 'db/database.dart';
 import 'modules/gudang/gudang_page.dart';
 import 'modules/kontak/kontak_page.dart';
 import 'modules/pengaturan/pengaturan_page.dart';
+import 'modules/penjualan/penjualan_page.dart';
 
 class _Menu {
   const _Menu(this.label, this.icon, this.page);
@@ -19,7 +20,7 @@ class _Menu {
 }
 
 final _menus = <_Menu>[
-  const _Menu('Penjualan', Icons.receipt_long_outlined, _Soon('Penjualan')),
+  const _Menu('Penjualan', Icons.receipt_long_outlined, PenjualanPage()),
   const _Menu('Gudang', Icons.inventory_2_outlined, GudangPage()),
   const _Menu('Kontak', Icons.people_outline, KontakPage()),
   const _Menu('Kas & Bank', Icons.account_balance_wallet_outlined, _Soon('Kas & Bank')),

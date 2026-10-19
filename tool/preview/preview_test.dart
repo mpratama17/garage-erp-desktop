@@ -14,6 +14,7 @@ import 'package:workshop_erp_flutter/db/database.dart';
 import 'package:workshop_erp_flutter/main.dart';
 import 'package:workshop_erp_flutter/modules/gudang/gudang_repo.dart';
 import 'package:workshop_erp_flutter/modules/kontak/kontak_repo.dart';
+import 'package:workshop_erp_flutter/modules/penjualan/penjualan_repo.dart';
 
 Future<void> _loadFonts() async {
   final inter = FontLoader('Inter');
@@ -58,11 +59,65 @@ Future<void> _seed(AppDb db) async {
       ),
     );
   }
+
+  // Penjualan contoh
+  final t1 = await db.into(db.employees).insert(EmployeesCompanion.insert(name: 'Andry', role: 'teknisi'));
+  final t2 = await db.into(db.employees).insert(EmployeesCompanion.insert(name: 'Ashraful', role: 'teknisi'));
+  final all = await db.watchProducts().first;
+  final barang = all.firstWhere((s) => !s.isService && s.stock > 0).product;
+  final jasa = all.firstWhere((s) => s.isService).product;
+  final custs = await db.watchCustomers().first;
+  final budi = custs.firstWhere((c) => c.name == 'BUDI SANTOSO');
+  final siti = custs.firstWhere((c) => c.name == 'SITI AMINAH');
+  final bca = (await db.select(db.accounts).get()).first.id;
+  final now = DateTime.now();
+  LineInput b() =>
+      LineInput(productId: barang.id, name: barang.name, qty: 1, price: barang.sellPrice, tech1Id: t1, tech2Id: t2);
+  LineInput j() => LineInput(productId: jasa.id, name: jasa.name, qty: 1, price: jasa.sellPrice, tech1Id: t1);
+  await db.saveDoc(
+    kind: DocKind.invoice,
+    at: now.subtract(const Duration(days: 40)),
+    customerId: budi.id,
+    lines: [j()],
+    payNow: PaymentInput(accountId: bca, amount: jasa.sellPrice, at: now),
+  );
+  await db.saveDoc(
+    kind: DocKind.invoice,
+    at: now,
+    dueAt: now.add(const Duration(days: 30)),
+    customerId: budi.id,
+    car: budi.car,
+    plate: budi.plate,
+    lines: [b(), j()],
+    payNow: PaymentInput(accountId: bca, amount: barang.sellPrice + jasa.sellPrice, at: now),
+  );
+  await db.saveDoc(
+    kind: DocKind.invoice,
+    at: now,
+    dueAt: now.add(const Duration(days: 30)),
+    customerId: siti.id,
+    car: siti.car,
+    lines: [b()],
+    payNow: PaymentInput(accountId: bca, amount: barang.sellPrice ~/ 2, at: now),
+  );
+  await db.saveDoc(
+    kind: DocKind.invoice,
+    at: now.subtract(const Duration(days: 45)),
+    dueAt: now.subtract(const Duration(days: 15)),
+    lines: [j()],
+  );
+  await db.saveDoc(
+    kind: DocKind.order,
+    at: now,
+    customerId: siti.id,
+    lines: [b(), j()],
+    payNow: PaymentInput(accountId: bca, amount: jasa.sellPrice, at: now),
+  );
 }
 
 void main() {
   testWidgets('layar', (tester) async {
-    final db = Get.put(AppDb(NativeDatabase.memory()));
+    final db = Get.put((AppDb(NativeDatabase.memory())..ownerUnlocked = true));
     final owner = Get.put(OwnerController(db));
     await tester.runAsync(() async {
       await initializeDateFormatting('id');
@@ -96,9 +151,21 @@ void main() {
     await settle();
     await shot('gudang-jasa');
 
+    await tester.tap(find.text('Penjualan').first);
+    await settle();
+    await shot('penjualan');
+    await tester.tap(find.text('INV/00248'));
+    await settle();
+    await shot('penjualan-panel');
+    await tester.tap(find.text('Kasir / Invoice'));
+    await settle();
+    await shot('penjualan-kasir');
+    await tester.tap(find.text('Batal').last);
+    await settle();
+
     await tester.tap(find.text('Kontak'));
     await settle();
-    await tester.tap(find.text('BUDI SANTOSO'));
+    await tester.tap(find.text('BUDI SANTOSO').last);
     await settle();
     await shot('kontak');
 

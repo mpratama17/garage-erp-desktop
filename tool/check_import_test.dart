@@ -14,7 +14,7 @@ void main() {
     final res = parseProductsXlsx(File(Platform.environment['IMPORT_FILE']!).readAsBytesSync());
     // ignore: avoid_print
     print('baris valid: ${res.rows.length}\nerror:\n  ${res.errors.join('\n  ')}');
-    final db = AppDb(NativeDatabase.memory());
+    final db = (AppDb(NativeDatabase.memory())..ownerUnlocked = true);
     // ignore: avoid_print
     print('hasil: ${await db.applyImport(res.rows)}');
     final list = await db.watchProducts().first;
@@ -29,7 +29,7 @@ void main() {
 
   test('customer', () async {
     final res = parseCustomersXlsx(File(Platform.environment['IMPORT_FILE']!).readAsBytesSync());
-    final db = AppDb(NativeDatabase.memory());
+    final db = (AppDb(NativeDatabase.memory())..ownerUnlocked = true);
     final r = await db.applyCustomerImport(res.rows);
     // ignore: avoid_print
     print(

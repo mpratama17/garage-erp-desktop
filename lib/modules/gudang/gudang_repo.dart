@@ -152,7 +152,9 @@ extension GudangRepo on AppDb {
     final name = p.name.value.trim();
     if (name.isEmpty) throw ArgumentError('Nama produk wajib diisi');
     final sku = p.sku.present ? p.sku.value?.trim() : null;
-    final clean = p.copyWith(name: Value(name), sku: Value(sku == null || sku.isEmpty ? null : sku));
+    var clean = p.copyWith(name: Value(name), sku: Value(sku == null || sku.isEmpty ? null : sku));
+    // Harga beli hanya boleh ditulis owner; dari admin diabaikan.
+    if (!ownerUnlocked) clean = clean.copyWith(buyPrice: const Value.absent());
     if (clean.sku.value != null) {
       final dup =
           await (select(products)..where(
@@ -179,6 +181,7 @@ extension GudangRepo on AppDb {
 
   /// Stok opname: set stok menjadi [actual]; selisihnya dicatat sebagai penyesuaian.
   Future<void> adjustStock(int productId, int actual, String note) async {
+    requireOwner();
     if (note.trim().isEmpty) throw ArgumentError('Alasan penyesuaian wajib diisi');
     await transaction(() async {
       final delta = actual - await stockOf(productId);
@@ -203,6 +206,7 @@ extension GudangRepo on AppDb {
     String supplier = '',
     String note = '',
   }) {
+    requireOwner();
     if (lines.isEmpty) throw ArgumentError('Belum ada barang');
     if (lines.any((l) => l.qty <= 0 || l.unitCost < 0)) {
       throw ArgumentError('Qty harus lebih dari 0 dan harga tidak boleh minus');
@@ -258,6 +262,7 @@ extension GudangRepo on AppDb {
   /// Terapkan hasil import: cocokkan ke produk lama via SKU (atau nama bila tanpa SKU).
   /// Barang baru tanpa stok awal diisi 1 (keputusan client). Stok produk lama tidak diubah.
   Future<({int created, int updated})> applyImport(List<ProductRow> rows) => transaction(() async {
+    requireOwner(); // import menulis harga beli
     var created = 0, updated = 0;
     final existing = await select(products).get();
     final bySku = {

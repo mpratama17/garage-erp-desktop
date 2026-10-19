@@ -197,6 +197,7 @@ class _PurchaseDialogState extends State<_PurchaseDialog> {
                   SizedBox(
                     width: 170,
                     child: DropdownButtonFormField<int>(
+                      isExpanded: true,
                       initialValue: accountId,
                       decoration: const InputDecoration(labelText: 'Dibayar dari'),
                       items: [for (final a in widget.accounts) DropdownMenuItem(value: a.id, child: Text(a.name))],

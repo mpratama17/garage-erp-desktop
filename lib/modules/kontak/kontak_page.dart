@@ -1,4 +1,4 @@
-import 'package:drift/drift.dart' show Value;
+import 'package:drift/drift.dart' show TableUpdateQuery, Value;
 import 'package:flutter/material.dart';
 import 'package:get/get.dart' hide Value;
 
@@ -9,6 +9,8 @@ import '../../core/theme.dart';
 import '../../core/ui.dart';
 import '../../db/database.dart';
 import 'kontak_controller.dart';
+import '../penjualan/penjualan_page.dart' show statusPill;
+import '../penjualan/penjualan_repo.dart';
 import 'kontak_repo.dart';
 
 class KontakPage extends StatelessWidget {
@@ -57,6 +59,10 @@ class KontakPage extends StatelessWidget {
               ),
             ],
           ),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(S.xxl, 0, S.xxl, S.lg),
+          child: _Stats(db: c.db),
         ),
         Expanded(
           child: Padding(
@@ -268,20 +274,174 @@ class _CustomerPanelState extends State<_CustomerPanel> {
                     FilledButton(onPressed: _save, child: const Text('Simpan')),
                   ],
                 ),
-                if (x != null) ...[
-                  const SizedBox(height: S.xl),
-                  Text('Riwayat belanja', style: T.section),
-                  const SizedBox(height: S.sm),
-                  Text(
-                    'Invoice, total belanja, dan kunjungan terakhir customer ini tampil di sini setelah modul Penjualan aktif.',
-                    style: T.pageSubtitle,
-                  ),
-                ],
+                if (x != null) ...[const SizedBox(height: S.xl), _History(db: widget.c.db, customerId: x!.id)],
               ],
             ),
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Riwayat belanja satu customer (invoice saja, batal tidak dihitung ke total).
+class _History extends StatelessWidget {
+  const _History({required this.db, required this.customerId});
+  final AppDb db;
+  final int customerId;
+
+  @override
+  Widget build(BuildContext context) => StreamBuilder<List<DocSummary>>(
+    stream: db.watchCustomerInvoices(customerId),
+    builder: (_, snap) {
+      final all = snap.data ?? const <DocSummary>[];
+      final valid = all.where((s) => !s.doc.isVoid).toList();
+      final total = valid.fold(0, (t, s) => t + s.total);
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text('Riwayat belanja', style: T.section),
+          const SizedBox(height: S.sm),
+          Text(
+            valid.isEmpty
+                ? 'Belum ada invoice.'
+                : '${valid.length} invoice · total ${rupiah(total)} · terakhir ${tgl(valid.first.doc.at)}',
+            style: T.label,
+          ),
+          const SizedBox(height: S.sm),
+          for (final s in all)
+            Container(
+              padding: const EdgeInsets.symmetric(vertical: S.sm),
+              decoration: const BoxDecoration(
+                border: Border(bottom: BorderSide(color: C.border)),
+              ),
+              child: Row(
+                children: [
+                  SizedBox(width: 88, child: Text(tgl(s.doc.at), style: T.label)),
+                  Expanded(
+                    child: Text(
+                      [s.doc.no, s.doc.plate].where((x) => x.isNotEmpty).join(' · '),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  statusPill(s),
+                  const SizedBox(width: S.sm),
+                  Text(rp(s.total), style: T.money),
+                ],
+              ),
+            ),
+        ],
+      );
+    },
+  );
+}
+
+/// Pelanggan aktif, % repeat order, dan top pelanggan — bulan ini / tahun ini.
+class _Stats extends StatefulWidget {
+  const _Stats({required this.db});
+  final AppDb db;
+  @override
+  State<_Stats> createState() => _StatsState();
+}
+
+class _StatsState extends State<_Stats> {
+  bool yearly = false;
+  late var stream = _watch();
+
+  /// Dihitung ulang setiap invoice/baris/customer berubah. Periode dihitung saat itu juga,
+  /// jadi "Bulan ini" ikut berganti walau app terbuka melewati pergantian bulan.
+  Stream<({int active, double repeatPct, List<({Customer customer, int total, int count})> top})> _watch() async* {
+    final db = widget.db;
+    final changes = db.tableUpdates(TableUpdateQuery.onAllTables([db.invoices, db.invoiceLines, db.customers]));
+    yield await _compute();
+    await for (final _ in changes) {
+      yield await _compute();
+    }
+  }
+
+  Future<({int active, double repeatPct, List<({Customer customer, int total, int count})> top})> _compute() {
+    final now = DateTime.now();
+    final from = yearly ? DateTime(now.year) : DateTime(now.year, now.month);
+    final to = yearly ? DateTime(now.year + 1) : DateTime(now.year, now.month + 1);
+    return widget.db.customerStats(from, to);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    Widget card(String label, String value, {Widget? extra}) => Expanded(
+      child: Card(
+        child: Padding(
+          padding: const EdgeInsets.all(S.lg),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(label, style: T.label),
+              const SizedBox(height: S.xs),
+              Text(value, style: T.kpi.copyWith(fontSize: 22)),
+              ?extra,
+            ],
+          ),
+        ),
+      ),
+    );
+    return StreamBuilder(
+      stream: stream,
+      builder: (_, snap) {
+        final st = snap.data;
+        final top = st?.top ?? const [];
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            card(
+              'Pelanggan aktif',
+              '${st?.active ?? 0}',
+              extra: Padding(
+                padding: const EdgeInsets.only(top: S.sm),
+                child: SegmentedButton<bool>(
+                  showSelectedIcon: false,
+                  style: const ButtonStyle(visualDensity: VisualDensity.compact),
+                  segments: const [
+                    ButtonSegment(value: false, label: Text('Bulan ini')),
+                    ButtonSegment(value: true, label: Text('Tahun ini')),
+                  ],
+                  selected: {yearly},
+                  onSelectionChanged: (v) => setState(() {
+                    yearly = v.first;
+                    stream = _watch();
+                  }),
+                ),
+              ),
+            ),
+            const SizedBox(width: S.md),
+            card('Repeat order', '${(st?.repeatPct ?? 0).toStringAsFixed(0)}%'),
+            const SizedBox(width: S.md),
+            Expanded(
+              flex: 2,
+              child: Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(S.lg),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Top pelanggan', style: T.label),
+                      const SizedBox(height: S.xs),
+                      if (top.isEmpty) Text('Belum ada transaksi.', style: T.pageSubtitle),
+                      for (final (i, t) in top.take(3).indexed)
+                        Row(
+                          children: [
+                            SizedBox(width: 20, child: Text('${i + 1}', style: T.label)),
+                            Expanded(child: Text(t.customer.name, overflow: TextOverflow.ellipsis)),
+                            Text('${t.count}× · ${rp(t.total)}', style: T.money),
+                          ],
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 }

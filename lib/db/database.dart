@@ -36,7 +36,9 @@ class CashEntries extends Table {
   DateTimeColumn get at => dateTime()();
   IntColumn get accountId => integer().references(Accounts, #id)();
   IntColumn get amount => integer()();
-  TextColumn get kind => text()(); // purchase | payment | expense | salary | transfer | capital
+  // purchase | payment (bayar/DP invoice, refId=invoices.id) | refund (balikan saat invoice batal)
+  // | expense | salary | transfer | capital
+  TextColumn get kind => text()();
   IntColumn get refId => integer().nullable()();
   TextColumn get description => text()();
   TextColumn get note => text().withDefault(const Constant(''))();
@@ -81,6 +83,49 @@ class Customers extends Table {
   TextColumn get note => text().withDefault(const Constant(''))();
 }
 
+/// Karyawan (dikelola di modul Gaji). role: teknisi | sales.
+class Employees extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  TextColumn get name => text()();
+  TextColumn get role => text()();
+  IntColumn get baseSalary => integer().withDefault(const Constant(0))();
+  IntColumn get mealAllowance => integer().withDefault(const Constant(0))();
+  BoolColumn get active => boolean().withDefault(const Constant(true))();
+}
+
+/// Invoice & pemesanan (kind: invoice | order) — satu tabel karena isi & barisnya sama.
+/// Total, terbayar, dan status TIDAK disimpan: dihitung dari invoice_lines & cash_entries.
+class Invoices extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  TextColumn get kind => text()();
+  TextColumn get no => text().unique()(); // INV/00247 atau SO/00013
+  DateTimeColumn get at => dateTime()();
+  DateTimeColumn get dueAt => dateTime().nullable()();
+  IntColumn get customerId => integer().nullable().references(Customers, #id)();
+  TextColumn get car => text().withDefault(const Constant(''))(); // salinan saat transaksi
+  TextColumn get plate => text().withDefault(const Constant(''))();
+  IntColumn get orderId => integer().nullable()(); // pada invoice: pemesanan asalnya
+  BoolColumn get legacy => boolean().withDefault(const Constant(false))(); // transaksi lama: tanpa gerak stok
+  TextColumn get note => text().withDefault(const Constant(''))();
+  BoolColumn get isVoid => boolean().withDefault(const Constant(false))();
+  TextColumn get voidReason => text().withDefault(const Constant(''))();
+}
+
+class InvoiceLines extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  IntColumn get invoiceId => integer().references(Invoices, #id)();
+  IntColumn get productId => integer().references(Products, #id)();
+  TextColumn get name => text()(); // salinan nama saat transaksi
+  TextColumn get description => text().withDefault(const Constant(''))();
+  IntColumn get qty => integer()();
+  IntColumn get price => integer()();
+  IntColumn get discount => integer().withDefault(const Constant(0))(); // Rp, untuk seluruh baris
+  IntColumn get cost => integer().nullable()(); // modal per unit, diisi owner (null = belum diisi)
+  IntColumn get incentive => integer().withDefault(const Constant(0))(); // tarif per unit
+  IntColumn get tech1Id => integer().nullable().references(Employees, #id)();
+  IntColumn get tech2Id => integer().nullable().references(Employees, #id)();
+}
+
 /// Pembelian stok (owner). Baris & harga beli ada di stock_moves (kind=purchase, refId=id).
 class Purchases extends Table {
   IntColumn get id => integer().autoIncrement()();
@@ -111,7 +156,20 @@ const settingDefaults = {
 
 Future<File> dbFile() async => File(p.join((await getApplicationSupportDirectory()).path, 'workshop_erp.sqlite'));
 
-@DriftDatabase(tables: [Settings, Accounts, CashEntries, Products, StockMoves, Purchases, Customers])
+@DriftDatabase(
+  tables: [
+    Settings,
+    Accounts,
+    CashEntries,
+    Products,
+    StockMoves,
+    Purchases,
+    Customers,
+    Employees,
+    Invoices,
+    InvoiceLines,
+  ],
+)
 class AppDb extends _$AppDb {
   AppDb([QueryExecutor? e])
     : super(
@@ -121,6 +179,14 @@ class AppDb extends _$AppDb {
               native: DriftNativeOptions(databasePath: () async => (await dbFile()).path),
             ),
       );
+
+  /// Mode owner aktif (PIN sudah dimasukkan). Diset oleh OwnerController; dicek oleh repo,
+  /// sehingga aturan khusus owner tidak hanya hidup di UI.
+  bool ownerUnlocked = false;
+
+  void requireOwner() {
+    if (!ownerUnlocked) throw ArgumentError('Butuh PIN owner');
+  }
 
   // ponytail: tetap v1 sampai app terpasang di client; setelah itu tiap perubahan skema = migrasi.
   @override
