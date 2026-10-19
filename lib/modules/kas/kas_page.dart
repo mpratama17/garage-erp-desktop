@@ -63,6 +63,7 @@ class KasPage extends StatelessWidget {
               runSpacing: S.md,
               children: [
                 _BalanceCard(
+                  icon: 'money-stack.png',
                   label: 'Semua rekening',
                   value: c.totalBalance,
                   selected: c.accountId.value == null,
@@ -70,6 +71,7 @@ class KasPage extends StatelessWidget {
                 ),
                 for (final b in c.balances)
                   _BalanceCard(
+                    icon: _accountIcons[b.account.name.toLowerCase()],
                     label: b.account.active ? b.account.name : '${b.account.name} (nonaktif)',
                     value: b.balance,
                     note: b.account.note,
@@ -115,15 +117,25 @@ class KasPage extends StatelessWidget {
   }
 }
 
+/// Logo per nama rekening; rekening lain memakai ikon umum.
+const _accountIcons = {
+  'bca': 'bca-logo.png',
+  'mandiri': 'mandiri-logo.png',
+  'shopeepay': 'spay-logo.png',
+  'tunai': 'money.png',
+};
+
 class _BalanceCard extends StatelessWidget {
   const _BalanceCard({
     required this.label,
     required this.value,
     required this.selected,
     required this.onTap,
+    this.icon,
     this.note = '',
     this.onEdit,
   });
+  final String? icon; // file di assets/icons/
   final String label, note;
   final int value;
   final bool selected;
@@ -150,6 +162,13 @@ class _BalanceCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    SizedBox(
+                      height: 28,
+                      child: icon == null
+                          ? const Icon(Icons.account_balance_outlined, size: 24, color: C.inkMuted)
+                          : Image.asset('assets/icons/$icon', height: 28, fit: BoxFit.contain),
+                    ),
+                    const SizedBox(height: S.xs),
                     Text(label, style: T.label, overflow: TextOverflow.ellipsis),
                     const SizedBox(height: S.xs),
                     Text(
@@ -159,7 +178,7 @@ class _BalanceCard extends StatelessWidget {
                         color: value < 0 ? C.danger : C.ink,
                       ),
                     ),
-                    if (note.isNotEmpty) Text(note, style: T.label, overflow: TextOverflow.ellipsis),
+                    Text(note, style: T.label, overflow: TextOverflow.ellipsis), // selalu ada agar tinggi kartu sama
                   ],
                 ),
               ),
