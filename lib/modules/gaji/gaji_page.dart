@@ -87,7 +87,7 @@ class _GajiState extends State<_Gaji> {
             ),
             KpiCard(
               icon: Icons.handyman_outlined,
-              tone: Tone.neutral,
+              tone: Tone.purple,
               label: 'Insentif teknisi',
               value: rupiah(c.slips.fold(0, (t, s) => t + s.incentive)),
             ),

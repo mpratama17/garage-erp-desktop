@@ -58,7 +58,7 @@ class BiayaPage extends StatelessWidget {
             ),
             KpiCard(
               icon: Icons.home_outlined,
-              tone: Tone.neutral,
+              tone: Tone.purple,
               label: 'Pribadi',
               value: rupiah(c.total(personal: true)),
               hint: 'Di bawah laba bersih usaha',

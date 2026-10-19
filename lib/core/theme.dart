@@ -1,26 +1,27 @@
 import 'package:flutter/material.dart';
 
-/// Token desain — sumber: docs/design.md. Layar tidak boleh menulis warna/ukuran mentah.
+/// Token desain — sumber: docs/design.md (palet mengikuti referensi: biru royal, slate, pastel).
+/// Layar tidak boleh menulis warna/ukuran mentah. Merah (`danger`) hanya untuk bahaya/error.
 abstract final class C {
-  static const bg = Color(0xFFF5F6F8);
+  static const bg = Color(0xFFF4F6FB);
   static const surface = Color(0xFFFFFFFF);
-  static const border = Color(0xFFE4E7EC);
-  static const field = Color(0xFFF2F4F7); // latar input
-  static const ink = Color(0xFF111318);
-  static const inkMuted = Color(0xFF5B6170);
-  static const primary = Color(0xFFC2410C);
-  static const primarySoft = Color(0xFFFFF1E8);
-  static const brandOrange = Color(0xFFF07A1E);
+  static const border = Color(0xFFE5E9F2);
+  static const field = Color(0xFFF2F5FA); // latar input
+  static const ink = Color(0xFF0F172A);
+  static const inkMuted = Color(0xFF64748B);
+  static const primary = Color(0xFF2F5BEA);
+  static const primarySoft = Color(0xFFEEF3FF);
   static const danger = Color(0xFFB42318);
 }
 
 /// Pasangan latar/teks untuk pill status.
 enum Tone {
-  success(Color(0xFFE7F6EC), Color(0xFF1B6B3A)),
-  warning(Color(0xFFFFF4DB), Color(0xFF8A5A00)),
+  success(Color(0xFFE6F7EF), Color(0xFF0F7A4D)),
+  warning(Color(0xFFFFF4DC), Color(0xFF8F5B00)),
   danger(Color(0xFFFDECEC), Color(0xFFB42318)),
-  info(Color(0xFFEAF1FF), Color(0xFF1D4ED8)),
-  neutral(Color(0xFFEEF0F3), Color(0xFF475467));
+  info(Color(0xFFEAF1FF), Color(0xFF2F5BEA)),
+  purple(Color(0xFFF1EDFE), Color(0xFF6A47E0)),
+  neutral(Color(0xFFEEF1F6), Color(0xFF475569));
 
   const Tone(this.bg, this.fg);
   final Color bg;
@@ -105,6 +106,16 @@ ThemeData buildTheme() {
     dialogTheme: DialogThemeData(
       backgroundColor: C.surface,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(S.rCard)),
+    ),
+    segmentedButtonTheme: SegmentedButtonThemeData(
+      style: ButtonStyle(
+        backgroundColor: WidgetStateProperty.resolveWith(
+          (s) => s.contains(WidgetState.selected) ? C.primarySoft : C.surface,
+        ),
+        foregroundColor: WidgetStateProperty.resolveWith((s) => s.contains(WidgetState.selected) ? C.primary : C.ink),
+        side: const WidgetStatePropertyAll(BorderSide(color: C.border)),
+        textStyle: WidgetStatePropertyAll(T.body.copyWith(fontWeight: FontWeight.w600)),
+      ),
     ),
     snackBarTheme: const SnackBarThemeData(behavior: SnackBarBehavior.floating, width: 480),
     pageTransitionsTheme: const PageTransitionsTheme(

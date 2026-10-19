@@ -498,7 +498,9 @@ class KpiCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final number = Text(value, style: T.kpi.copyWith(fontSize: 22), maxLines: 1, overflow: TextOverflow.ellipsis);
+    // Seperti referensi: seluruh kartu pastel, ikon di kotak pastel yang sedikit lebih tua.
     return Card(
+      color: Color.lerp(tone.bg, C.surface, 0.25),
       child: Padding(
         padding: const EdgeInsets.all(S.lg),
         child: Row(
@@ -506,7 +508,10 @@ class KpiCard extends StatelessWidget {
             Container(
               width: 44,
               height: 44,
-              decoration: BoxDecoration(color: tone.bg, borderRadius: BorderRadius.circular(12)),
+              decoration: BoxDecoration(
+                color: Color.lerp(tone.bg, tone.fg, 0.14),
+                borderRadius: BorderRadius.circular(12),
+              ),
               child: Icon(icon, color: tone.fg, size: 22),
             ),
             const SizedBox(width: S.md),

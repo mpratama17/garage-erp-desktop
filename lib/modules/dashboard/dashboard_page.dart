@@ -50,7 +50,7 @@ class _DashboardPageState extends State<DashboardPage> {
                   ),
                   KpiCard(
                     icon: Icons.trending_up,
-                    tone: Tone.success,
+                    tone: Tone.purple,
                     label: 'Omzet bulan ini',
                     value: rupiah(c.monthOmzet),
                     hint: _delta(c.monthOmzet, c.lastMonthToDate.value),
@@ -58,7 +58,7 @@ class _DashboardPageState extends State<DashboardPage> {
                   ),
                   KpiCard(
                     icon: Icons.receipt_long_outlined,
-                    tone: c.overdueCount > 0 ? Tone.danger : Tone.warning,
+                    tone: Tone.warning, // merah hanya di teks "lewat tempo"
                     label: 'Belum lunas',
                     value: rupiah(c.unpaidTotal),
                     hint: '${c.unpaid.length} invoice · ${c.overdueCount} lewat tempo',
@@ -66,7 +66,7 @@ class _DashboardPageState extends State<DashboardPage> {
                   ),
                   KpiCard(
                     icon: Icons.inventory_2_outlined,
-                    tone: c.lowStock.isEmpty ? Tone.neutral : Tone.warning,
+                    tone: Tone.success,
                     label: 'Stok menipis',
                     value: '${c.lowStock.length} barang',
                     hint: c.lowStock.isEmpty ? 'Aman' : 'Perlu belanja',
@@ -246,10 +246,10 @@ class _SalesChart extends StatelessWidget {
                             spots: [for (final (i, p) in points.indexed) FlSpot(i.toDouble(), p.omzet.toDouble())],
                             isCurved: true,
                             preventCurveOverShooting: true,
-                            color: C.brandOrange,
+                            color: C.primary,
                             barWidth: 3,
                             dotData: const FlDotData(show: false),
-                            belowBarData: BarAreaData(show: true, color: C.brandOrange.withValues(alpha: 0.12)),
+                            belowBarData: BarAreaData(show: true, color: C.primary.withValues(alpha: 0.12)),
                           ),
                         ],
                       ),

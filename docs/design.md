@@ -1,12 +1,12 @@
 # Aturan Desain — garage-erp-desktop
 
-Sumber: `docs/referensi-ui.jpeg` (admin dashboard terang: sidebar putih, kartu putih, KPI pastel, tabel dengan pill status), `docs/logo-star-garage.jpeg` (oranye + hitam), screenshot app pusat (tab Barang/Jasa, Template/Import/Export, paginasi).
+Sumber: `docs/referensi-ui.jpeg` (admin dashboard terang: sidebar putih, menu aktif biru, kartu putih, KPI pastel, tabel dengan pill status), `docs/logo-star-garage.jpeg` (logo saja), screenshot app pusat (tab Barang/Jasa, Template/Import/Export, paginasi).
 Platform: Flutter desktop (Windows/macOS), **offline**. Semua aturan di bawah diwujudkan di **satu file `lib/core/theme.dart`** (token + `ThemeData`); layar tidak boleh menulis warna/ukuran mentah.
 
 ## 1. Prinsip
 
 1. **Ikuti referensi untuk layout & rasa**: terang, lega, kartu putih di atas latar abu sangat muda, banyak whitespace.
-2. **Warna brand dari logo**, bukan biru referensi: oranye sebagai aksen, hitam untuk teks. Nama bengkel & logo berasal dari Pengaturan, sehingga app tetap generik.
+2. **Palet mengikuti referensi** (keputusan owner 19 Okt): biru royal sebagai warna utama, teks navy/slate, KPI pastel. Oranye brand **hanya di logo**. **Merah hanya untuk bahaya/error** — tidak pernah untuk menu aktif atau tombol simpan.
 3. **Data dulu**: angka (Rupiah, stok, status) harus terbaca sekilas. Tidak ada dekorasi yang tidak membawa informasi (tanpa foto produk, ilustrasi, gradien).
 4. **Satu cara untuk satu hal**: satu jenis tabel, satu jenis form, satu jenis dialog di semua modul.
 5. **Hanya mode terang.** Dark mode tidak dibuat (bengkel siang hari, 1 PC).
@@ -15,24 +15,26 @@ Platform: Flutter desktop (Windows/macOS), **offline**. Semua aturan di bawah di
 
 | Token | Hex | Pakai untuk |
 |---|---|---|
-| `bg` | `#F5F6F8` | Latar aplikasi |
+| `bg` | `#F4F6FB` | Latar aplikasi (abu kebiruan) |
 | `surface` | `#FFFFFF` | Kartu, sidebar, tabel, dialog |
-| `border` | `#E4E7EC` | Garis kartu, pemisah baris tabel, input |
-| `ink` | `#111318` | Teks utama, angka |
-| `inkMuted` | `#5B6170` | Label, subjudul, teks sekunder (kontras ≥ 4.5:1 di `surface`) |
-| `primary` | `#C2410C` | Tombol utama, item sidebar aktif, link, fokus. Teks putih di atasnya = kontras ≥ 4.5:1 |
-| `primarySoft` | `#FFF1E8` | Latar item sidebar aktif, baris terpilih |
-| `brandOrange` | `#F07A1E` | **Hanya** aksen non-teks (ikon KPI, garis grafik) — tidak untuk latar teks putih |
+| `border` | `#E5E9F2` | Garis kartu, pemisah baris tabel |
+| `field` | `#F2F5FA` | Latar input |
+| `ink` | `#0F172A` | Teks utama, angka (navy) |
+| `inkMuted` | `#64748B` | Label, subjudul, teks sekunder (slate; kontras ≥ 4.5:1 di `surface`) |
+| `primary` | `#2F5BEA` | Tombol utama, menu aktif (blok solid, teks putih), link, fokus, garis grafik. Teks putih di atasnya ≥ 4.5:1 |
+| `primarySoft` | `#EEF3FF` | Hover menu, baris terpilih, segmen tab terpilih |
+| `danger` | `#B42318` | **Hanya** aksi destruktif, error, lewat jatuh tempo, stok minus |
 
-Status (pill = teks gelap di latar pastel):
+Nada pastel (`Tone`) — pill status & kartu KPI (kartu = latar pastel penuh, ikon di kotak pastel lebih tua):
 
 | Arti | Latar | Teks | Dipakai untuk |
 |---|---|---|---|
-| Sukses | `#E7F6EC` | `#1B6B3A` | Lunas, Ready Stock, Aktif |
-| Peringatan | `#FFF4DB` | `#8A5A00` | Dibayar Sebagian, Stok menipis |
-| Bahaya | `#FDECEC` | `#B42318` | Belum Lunas (lewat jatuh tempo), Stok habis/minus |
-| Info | `#EAF1FF` | `#1D4ED8` | Belum Lunas (belum jatuh tempo), Pemesanan terbuka |
-| Netral | `#EEF0F3` | `#475467` | Batal, Nonaktif, Jasa |
+| Sukses (mint) | `#E6F7EF` | `#0F7A4D` | Lunas, Ready Stock, Aktif; KPI stok/laba |
+| Peringatan (kuning) | `#FFF4DC` | `#8F5B00` | Dibayar Sebagian, Stok menipis; KPI belum lunas/belum dibayar |
+| Bahaya (merah) | `#FDECEC` | `#B42318` | Lewat jatuh tempo, Stok habis/minus |
+| Info (biru) | `#EAF1FF` | `#2F5BEA` | Belum Lunas (belum jatuh tempo), Pemesanan terbuka; KPI omzet hari ini, saldo |
+| Ungu | `#F1EDFE` | `#6A47E0` | KPI omzet bulan ini, insentif, pribadi (variasi seperti referensi) |
+| Netral | `#EEF1F6` | `#475569` | Batal, Nonaktif, Jasa |
 
 Status **tidak boleh dibedakan hanya dengan warna**: pill selalu berisi teks ("Lunas", "Habis").
 
@@ -103,7 +105,7 @@ Ukuran minimum teks 12. Tidak ada huruf kapital semua kecuali kode (SKU, nomor p
 - Maksimal 4 kartu per baris, tinggi disamakan. Angka owner-only (laba, saldo di Dashboard, nilai stok) tampil `••••` saat terkunci.
 
 ### Form
-- **Label di atas input** (widget `Labeled`), field **latar abu `#F2F4F7` tanpa garis**; fokus = garis `primary` 1,5 px; error = garis bahaya. Tidak memakai label melayang Material. Wajib = tanda `*`.
+- **Label di atas input** (widget `Labeled`), field **latar abu `#F2F4F7` tanpa garis**; fokus = garis `primary` (biru) 1,5 px; error = garis bahaya. Tidak memakai label melayang Material. Wajib = tanda `*`.
 - Teks label & bantuan **singkat** (1–3 kata). Aturan penting yang mencegah salah input tetap ditampilkan, sebagai teks bantuan kecil di bawah field/kartu, bukan di label. Error di bawah input, warna bahaya, kalimat jelas ("No. HP sudah dipakai BUDI").
 - **Input Rupiah**: ketik angka polos, tampil `2.250.000` saat fokus hilang; prefix `Rp`. Input diskon menerima `10%` lalu dikonversi ke Rupiah.
 - Tanggal: pemilih tanggal format `dd/MM/yyyy`.
@@ -121,9 +123,9 @@ Ukuran minimum teks 12. Tidak ada huruf kapital semua kecuali kode (SKU, nomor p
 - Aksi penting yang selesai (invoice/pemesanan baru) memakai **dialog sukses** berisi langkah berikutnya (Buka PDF, Kirim WA, Selesai).
 
 ### Tombol
-- **Utama** (`FilledButton` oranye): maks. **satu per layar/dialog**, untuk aksi paling sering (Simpan, Kasir/Invoice, Bayar). Paling kanan.
+- **Utama** (`FilledButton` biru): maks. **satu per layar/dialog**, untuk aksi paling sering (Simpan, Kasir/Invoice, Bayar). Paling kanan.
 - **Sekunder** (`OutlinedButton` netral): aksi lain, termasuk aksi owner yang jarang (+ Rekening, Backup sekarang, Export).
-- **Tersier** (`TextButton` oranye): tautan ringan (Lihat semua, Tambah baris).
+- **Tersier** (`TextButton` biru): tautan ringan (Lihat semua, Tambah baris).
 - **Destruktif** (`DangerButton`, garis merah): di **kiri, terpisah** dari Batal/Simpan (`dialogActions`), selalu lewat `confirmAction`.
   Di konfirmasi: tombol merah penuh dengan **kata kerja + objek** ("Hapus biaya", "Batalkan pembayaran"), bukan "Ya/Tidak".
 - Controller teks lokal di dialog **tidak di-dispose manual** setelah `showDialog`: dialog masih beranimasi menutup dan bisa dibangun ulang.
@@ -156,7 +158,7 @@ Semua elemen bisa dijangkau `Tab`, dengan **cincin fokus 2 px `primary`** yang t
 ## 10. Grafik
 
 - Di Dashboard & Laporan: garis (omzet/laba per waktu) dan batang (per kategori/rekening). Tidak ada pie/donut (referensi punya; batang lebih mudah dibandingkan).
-- Warna seri: `brandOrange` (utama), `#1D4ED8` (pembanding). Sumbu & grid `border`; label `inkMuted`.
+- Warna seri: `primary` biru dengan area biru muda; tooltip navy. Sumbu & grid `border`; label `inkMuted`.
 - Setiap grafik punya tabel angka di bawahnya (bisa di-export).
 
 ## 11. Tidak dipakai (sengaja)
