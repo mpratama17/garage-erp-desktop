@@ -64,8 +64,14 @@ Future<void> _seed(AppDb db) async {
   }
 
   // Penjualan contoh
-  final t1 = await db.into(db.employees).insert(EmployeesCompanion.insert(name: 'Teknisi A', role: 'teknisi'));
-  final t2 = await db.into(db.employees).insert(EmployeesCompanion.insert(name: 'Teknisi B', role: 'teknisi'));
+  Future<int> emp(String name, String role, int base) => db
+      .into(db.employees)
+      .insert(
+        EmployeesCompanion.insert(name: name, role: role, baseSalary: Value(base), mealAllowance: const Value(300000)),
+      );
+  final t1 = await emp('Teknisi A', 'teknisi', 2000000);
+  final t2 = await emp('Teknisi B', 'teknisi', 2000000);
+  await emp('Sales A', 'sales', 1500000);
   final all = await db.watchProducts().first;
   final barang = all.firstWhere((s) => !s.isService && s.stock > 0).product;
   final jasa = all.firstWhere((s) => s.isService).product;
@@ -74,9 +80,17 @@ Future<void> _seed(AppDb db) async {
   final siti = custs.firstWhere((c) => c.name == 'SITI AMINAH');
   final bca = (await db.select(db.accounts).get()).first.id;
   final now = DateTime.now();
-  LineInput b() =>
-      LineInput(productId: barang.id, name: barang.name, qty: 1, price: barang.sellPrice, tech1Id: t1, tech2Id: t2);
-  LineInput j() => LineInput(productId: jasa.id, name: jasa.name, qty: 1, price: jasa.sellPrice, tech1Id: t1);
+  LineInput b() => LineInput(
+    productId: barang.id,
+    name: barang.name,
+    qty: 1,
+    price: barang.sellPrice,
+    incentive: 50000,
+    tech1Id: t1,
+    tech2Id: t2,
+  );
+  LineInput j() =>
+      LineInput(productId: jasa.id, name: jasa.name, qty: 1, price: jasa.sellPrice, incentive: 100000, tech1Id: t1);
   await db.saveDoc(
     kind: DocKind.invoice,
     at: now.subtract(const Duration(days: 40)),
@@ -228,6 +242,20 @@ void main() {
     await settle();
     await shot('biaya-kategori');
     await tester.tap(find.text('Selesai'));
+    await settle();
+
+    await tester.tap(find.text('Gaji').first);
+    await settle();
+    await shot('gaji');
+    await tester.tap(find.text('Teknisi A').last);
+    await settle();
+    await shot('gaji-slip');
+    await tester.tap(find.text('Batal').last);
+    await settle();
+    await tester.tap(find.text('Sales A').last);
+    await settle();
+    await shot('gaji-slip-sales');
+    await tester.tap(find.text('Batal').last);
     await settle();
 
     await tester.tap(find.text('Kontak'));

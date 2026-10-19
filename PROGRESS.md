@@ -16,10 +16,10 @@ Last updated: 2026-10-19.
 | 3 | Penjualan | Invoice/kasir (bayar langsung), pemesanan + DP → invoice, pembayaran bertahap per rekening + bukti, tag Lunas/Dibayar Sebagian/Belum Lunas/lewat tempo/Batal, batal (stok & uang balik), PDF format Kledo, kirim WA + link review, input transaksi lama (tanpa gerak stok), modal per baris khusus owner, teknisi 0–2 per baris; + riwayat & statistik customer di Kontak | ✅ Selesai | 13 | 10 temuan → diperbaiki | `a8491d8` |
 | 4 | Kas & Bank | Saldo per rekening (saldo awal + semua transaksi), mutasi per bulan + saldo berjalan, transfer antar rekening (tidak dihitung arus kas), modal masuk/pemasukan lain + bukti, hapus transaksi manual (owner), kelola rekening (owner), arus kas harian/bulanan/kuartal/tahunan | ✅ Selesai | 5 | 10 temuan → 8 diperbaiki | `3012c0a` |
 | 5 | Biaya | Catat biaya (siapa saja) + bukti, ubah/hapus (owner), filter operasional/pribadi per bulan + total, kategori kelola owner (18 awal dari sheet client; tanda pribadi, nonaktif) | ✅ Selesai | 4 | 10 temuan → 8 diperbaiki | `de361cf` |
-| 6 | Gaji | Karyawan, insentif per teknisi (dibagi 2 bila berdua), komisi sales 3%, slip gaji | ⏭️ Berikutnya | – | – | – |
-| 7 | Laporan | Penjualan, laba rugi, terlaris, export Excel | ⬜ Belum | – | – | – |
+| 6 | Gaji | Khusus owner (PIN). Karyawan (teknisi/sales, gaji pokok, makan, aktif), slip per periode 27–26: pokok + makan + insentif per pekerjaan (berdua = ½) + tunjangan kerja sales 3% omzet (bisa dikoreksi) + lembur + bonus − potongan, rincian insentif per invoice/mobil, bayar dari rekening + bukti (slip dibeku), batalkan pembayaran | ✅ Selesai | 7 | 8 temuan → 6 diperbaiki | `HASH` |
+| 7 | Laporan | Penjualan, laba rugi, terlaris, export Excel | ⏭️ Berikutnya | – | – | – |
 
-Total test saat ini: **42 lulus**. Importer dicoba dengan file asli client: produk 68 masuk / 1 ditolak (SKU kembar CB/001); customer 142 masuk / 6 digabung (no. HP sama: IQBAL–INDRO, JAHLIL×2, JAUHAR–JOHAN, NAFI–NAVI, UMAR×2, YAQIN) — semua sesuai temuan analisis awal.
+Total test saat ini: **49 lulus**. Importer dicoba dengan file asli client: produk 68 masuk / 1 ditolak (SKU kembar CB/001); customer 142 masuk / 6 digabung (no. HP sama: IQBAL–INDRO, JAHLIL×2, JAUHAR–JOHAN, NAFI–NAVI, UMAR×2, YAQIN) — semua sesuai temuan analisis awal.
 
 ## Backlog (diminta, belum dikerjakan)
 
@@ -38,6 +38,7 @@ Total test saat ini: **42 lulus**. Importer dicoba dengan file asli client: prod
 - **Penjualan:** invoice & pemesanan satu tabel (`kind`); total/terbayar/status dihitung (tidak disimpan); DP tetap di pemesanan dan ikut dihitung di invoice turunannya; nomor otomatis melompati nomor yang sudah dipakai transaksi lama; stok boleh minus (dengan peringatan).
 - **Kas:** saldo tidak disimpan (saldo awal + SUM kas); transfer = 2 baris saling menunjuk `refId`, dihapus berpasangan; transaksi dari modul lain hanya diubah di modulnya. Rekening aktif dicek di satu tempat (`AppDb.requireActiveAccount`).
 - **Biaya:** tidak ada tabel biaya — biaya = baris `cash_entries` jenis `expense`, `refId` = kategori. Pribadi/operasional mengikuti kategori (ubah tanda kategori = ikut mengubah biaya lama). Kategori awal di-seed sekali (batch) saat tabel kosong.
+- **Gaji:** slip = tabel `payslips` (unik per karyawan+awal periode); dibayar = ada `cash_entries` kind `salary` refId=slip. Komponen otomatis null selama belum dibayar (ikut data terbaru), dibekukan saat bayar. Akhir periode selalu diturunkan dari `payroll_start_day` di repo; bayar ditolak bila bertumpuk dengan slip lain yang sudah dibayar. Insentif hanya dari invoice tidak batal (pemesanan tidak dihitung, transaksi lama dihitung). **Laporan (Modul 7): gaji = kind `salary` → masuk biaya operasional.** Komisi: tiap sales dapat % × omzet toko (client 1 sales).
 - **UI bersama** (`core/ui.dart`): `runAction`, `dateField`, `proofRow`, `accountField`, `MonthNav`.
 - **Format:** lebar 120 dipatok di `analysis_options.yaml`; jangan `dart format` file `*.g.dart` (build_runner tetap 80).
 - **Log error:** `~/Library/Logs/Garage ERP/app.log`.

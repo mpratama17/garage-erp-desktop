@@ -37,7 +37,7 @@ class CashEntries extends Table {
   IntColumn get accountId => integer().references(Accounts, #id)();
   IntColumn get amount => integer()();
   // purchase | payment (bayar/DP invoice, refId=invoices.id) | refund (balikan saat invoice batal)
-  // | expense (refId=expense_categories.id) | salary | transfer | capital | income
+  // | expense (refId=expense_categories.id) | salary (refId=payslips.id) | transfer | capital | income
   TextColumn get kind => text()();
   IntColumn get refId => integer().nullable()();
   TextColumn get description => text()();
@@ -136,6 +136,30 @@ class Purchases extends Table {
   TextColumn get note => text().withDefault(const Constant(''))();
 }
 
+/// Slip gaji per karyawan per periode (mis. 27 Sep – 26 Okt). Dibayar = ada cash_entries kind=salary, refId=id.
+/// Komponen otomatis (gaji pokok, makan, insentif, komisi) bernilai null selama belum dibayar → selalu ikut
+/// data terbaru; saat dibayar dibekukan. [commissionOverride] = koreksi tunjangan kerja sales oleh owner.
+class Payslips extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  IntColumn get employeeId => integer().references(Employees, #id)();
+  DateTimeColumn get periodStart => dateTime()();
+  DateTimeColumn get periodEnd => dateTime()(); // eksklusif
+  IntColumn get baseSalary => integer().nullable()();
+  IntColumn get mealAllowance => integer().nullable()();
+  IntColumn get incentive => integer().nullable()();
+  IntColumn get commission => integer().nullable()();
+  IntColumn get commissionOverride => integer().nullable()();
+  IntColumn get overtime => integer().withDefault(const Constant(0))();
+  IntColumn get bonus => integer().withDefault(const Constant(0))();
+  IntColumn get deduction => integer().withDefault(const Constant(0))();
+  TextColumn get note => text().withDefault(const Constant(''))();
+
+  @override
+  List<Set<Column>> get uniqueKeys => [
+    {employeeId, periodStart},
+  ];
+}
+
 /// Kategori biaya. [personal] = pengeluaran rumah/pribadi: dicatat, tapi di laba rugi
 /// tampil di bawah laba bersih usaha (bukan biaya operasional).
 class ExpenseCategories extends Table {
@@ -200,6 +224,7 @@ Future<File> dbFile() async => File(p.join((await getApplicationSupportDirectory
     Invoices,
     InvoiceLines,
     ExpenseCategories,
+    Payslips,
   ],
 )
 class AppDb extends _$AppDb {

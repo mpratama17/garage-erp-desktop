@@ -5093,6 +5093,771 @@ class ExpenseCategoriesCompanion extends UpdateCompanion<ExpenseCategory> {
   }
 }
 
+class $PayslipsTable extends Payslips with TableInfo<$PayslipsTable, Payslip> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $PayslipsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _employeeIdMeta = const VerificationMeta(
+    'employeeId',
+  );
+  @override
+  late final GeneratedColumn<int> employeeId = GeneratedColumn<int>(
+    'employee_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES employees (id)',
+    ),
+  );
+  static const VerificationMeta _periodStartMeta = const VerificationMeta(
+    'periodStart',
+  );
+  @override
+  late final GeneratedColumn<DateTime> periodStart = GeneratedColumn<DateTime>(
+    'period_start',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _periodEndMeta = const VerificationMeta(
+    'periodEnd',
+  );
+  @override
+  late final GeneratedColumn<DateTime> periodEnd = GeneratedColumn<DateTime>(
+    'period_end',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _baseSalaryMeta = const VerificationMeta(
+    'baseSalary',
+  );
+  @override
+  late final GeneratedColumn<int> baseSalary = GeneratedColumn<int>(
+    'base_salary',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _mealAllowanceMeta = const VerificationMeta(
+    'mealAllowance',
+  );
+  @override
+  late final GeneratedColumn<int> mealAllowance = GeneratedColumn<int>(
+    'meal_allowance',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _incentiveMeta = const VerificationMeta(
+    'incentive',
+  );
+  @override
+  late final GeneratedColumn<int> incentive = GeneratedColumn<int>(
+    'incentive',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _commissionMeta = const VerificationMeta(
+    'commission',
+  );
+  @override
+  late final GeneratedColumn<int> commission = GeneratedColumn<int>(
+    'commission',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _commissionOverrideMeta =
+      const VerificationMeta('commissionOverride');
+  @override
+  late final GeneratedColumn<int> commissionOverride = GeneratedColumn<int>(
+    'commission_override',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _overtimeMeta = const VerificationMeta(
+    'overtime',
+  );
+  @override
+  late final GeneratedColumn<int> overtime = GeneratedColumn<int>(
+    'overtime',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _bonusMeta = const VerificationMeta('bonus');
+  @override
+  late final GeneratedColumn<int> bonus = GeneratedColumn<int>(
+    'bonus',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _deductionMeta = const VerificationMeta(
+    'deduction',
+  );
+  @override
+  late final GeneratedColumn<int> deduction = GeneratedColumn<int>(
+    'deduction',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _noteMeta = const VerificationMeta('note');
+  @override
+  late final GeneratedColumn<String> note = GeneratedColumn<String>(
+    'note',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    employeeId,
+    periodStart,
+    periodEnd,
+    baseSalary,
+    mealAllowance,
+    incentive,
+    commission,
+    commissionOverride,
+    overtime,
+    bonus,
+    deduction,
+    note,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'payslips';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<Payslip> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('employee_id')) {
+      context.handle(
+        _employeeIdMeta,
+        employeeId.isAcceptableOrUnknown(data['employee_id']!, _employeeIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_employeeIdMeta);
+    }
+    if (data.containsKey('period_start')) {
+      context.handle(
+        _periodStartMeta,
+        periodStart.isAcceptableOrUnknown(
+          data['period_start']!,
+          _periodStartMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_periodStartMeta);
+    }
+    if (data.containsKey('period_end')) {
+      context.handle(
+        _periodEndMeta,
+        periodEnd.isAcceptableOrUnknown(data['period_end']!, _periodEndMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_periodEndMeta);
+    }
+    if (data.containsKey('base_salary')) {
+      context.handle(
+        _baseSalaryMeta,
+        baseSalary.isAcceptableOrUnknown(data['base_salary']!, _baseSalaryMeta),
+      );
+    }
+    if (data.containsKey('meal_allowance')) {
+      context.handle(
+        _mealAllowanceMeta,
+        mealAllowance.isAcceptableOrUnknown(
+          data['meal_allowance']!,
+          _mealAllowanceMeta,
+        ),
+      );
+    }
+    if (data.containsKey('incentive')) {
+      context.handle(
+        _incentiveMeta,
+        incentive.isAcceptableOrUnknown(data['incentive']!, _incentiveMeta),
+      );
+    }
+    if (data.containsKey('commission')) {
+      context.handle(
+        _commissionMeta,
+        commission.isAcceptableOrUnknown(data['commission']!, _commissionMeta),
+      );
+    }
+    if (data.containsKey('commission_override')) {
+      context.handle(
+        _commissionOverrideMeta,
+        commissionOverride.isAcceptableOrUnknown(
+          data['commission_override']!,
+          _commissionOverrideMeta,
+        ),
+      );
+    }
+    if (data.containsKey('overtime')) {
+      context.handle(
+        _overtimeMeta,
+        overtime.isAcceptableOrUnknown(data['overtime']!, _overtimeMeta),
+      );
+    }
+    if (data.containsKey('bonus')) {
+      context.handle(
+        _bonusMeta,
+        bonus.isAcceptableOrUnknown(data['bonus']!, _bonusMeta),
+      );
+    }
+    if (data.containsKey('deduction')) {
+      context.handle(
+        _deductionMeta,
+        deduction.isAcceptableOrUnknown(data['deduction']!, _deductionMeta),
+      );
+    }
+    if (data.containsKey('note')) {
+      context.handle(
+        _noteMeta,
+        note.isAcceptableOrUnknown(data['note']!, _noteMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  List<Set<GeneratedColumn>> get uniqueKeys => [
+    {employeeId, periodStart},
+  ];
+  @override
+  Payslip map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return Payslip(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      employeeId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}employee_id'],
+      )!,
+      periodStart: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}period_start'],
+      )!,
+      periodEnd: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}period_end'],
+      )!,
+      baseSalary: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}base_salary'],
+      ),
+      mealAllowance: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}meal_allowance'],
+      ),
+      incentive: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}incentive'],
+      ),
+      commission: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}commission'],
+      ),
+      commissionOverride: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}commission_override'],
+      ),
+      overtime: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}overtime'],
+      )!,
+      bonus: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}bonus'],
+      )!,
+      deduction: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}deduction'],
+      )!,
+      note: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}note'],
+      )!,
+    );
+  }
+
+  @override
+  $PayslipsTable createAlias(String alias) {
+    return $PayslipsTable(attachedDatabase, alias);
+  }
+}
+
+class Payslip extends DataClass implements Insertable<Payslip> {
+  final int id;
+  final int employeeId;
+  final DateTime periodStart;
+  final DateTime periodEnd;
+  final int? baseSalary;
+  final int? mealAllowance;
+  final int? incentive;
+  final int? commission;
+  final int? commissionOverride;
+  final int overtime;
+  final int bonus;
+  final int deduction;
+  final String note;
+  const Payslip({
+    required this.id,
+    required this.employeeId,
+    required this.periodStart,
+    required this.periodEnd,
+    this.baseSalary,
+    this.mealAllowance,
+    this.incentive,
+    this.commission,
+    this.commissionOverride,
+    required this.overtime,
+    required this.bonus,
+    required this.deduction,
+    required this.note,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['employee_id'] = Variable<int>(employeeId);
+    map['period_start'] = Variable<DateTime>(periodStart);
+    map['period_end'] = Variable<DateTime>(periodEnd);
+    if (!nullToAbsent || baseSalary != null) {
+      map['base_salary'] = Variable<int>(baseSalary);
+    }
+    if (!nullToAbsent || mealAllowance != null) {
+      map['meal_allowance'] = Variable<int>(mealAllowance);
+    }
+    if (!nullToAbsent || incentive != null) {
+      map['incentive'] = Variable<int>(incentive);
+    }
+    if (!nullToAbsent || commission != null) {
+      map['commission'] = Variable<int>(commission);
+    }
+    if (!nullToAbsent || commissionOverride != null) {
+      map['commission_override'] = Variable<int>(commissionOverride);
+    }
+    map['overtime'] = Variable<int>(overtime);
+    map['bonus'] = Variable<int>(bonus);
+    map['deduction'] = Variable<int>(deduction);
+    map['note'] = Variable<String>(note);
+    return map;
+  }
+
+  PayslipsCompanion toCompanion(bool nullToAbsent) {
+    return PayslipsCompanion(
+      id: Value(id),
+      employeeId: Value(employeeId),
+      periodStart: Value(periodStart),
+      periodEnd: Value(periodEnd),
+      baseSalary: baseSalary == null && nullToAbsent
+          ? const Value.absent()
+          : Value(baseSalary),
+      mealAllowance: mealAllowance == null && nullToAbsent
+          ? const Value.absent()
+          : Value(mealAllowance),
+      incentive: incentive == null && nullToAbsent
+          ? const Value.absent()
+          : Value(incentive),
+      commission: commission == null && nullToAbsent
+          ? const Value.absent()
+          : Value(commission),
+      commissionOverride: commissionOverride == null && nullToAbsent
+          ? const Value.absent()
+          : Value(commissionOverride),
+      overtime: Value(overtime),
+      bonus: Value(bonus),
+      deduction: Value(deduction),
+      note: Value(note),
+    );
+  }
+
+  factory Payslip.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return Payslip(
+      id: serializer.fromJson<int>(json['id']),
+      employeeId: serializer.fromJson<int>(json['employeeId']),
+      periodStart: serializer.fromJson<DateTime>(json['periodStart']),
+      periodEnd: serializer.fromJson<DateTime>(json['periodEnd']),
+      baseSalary: serializer.fromJson<int?>(json['baseSalary']),
+      mealAllowance: serializer.fromJson<int?>(json['mealAllowance']),
+      incentive: serializer.fromJson<int?>(json['incentive']),
+      commission: serializer.fromJson<int?>(json['commission']),
+      commissionOverride: serializer.fromJson<int?>(json['commissionOverride']),
+      overtime: serializer.fromJson<int>(json['overtime']),
+      bonus: serializer.fromJson<int>(json['bonus']),
+      deduction: serializer.fromJson<int>(json['deduction']),
+      note: serializer.fromJson<String>(json['note']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'employeeId': serializer.toJson<int>(employeeId),
+      'periodStart': serializer.toJson<DateTime>(periodStart),
+      'periodEnd': serializer.toJson<DateTime>(periodEnd),
+      'baseSalary': serializer.toJson<int?>(baseSalary),
+      'mealAllowance': serializer.toJson<int?>(mealAllowance),
+      'incentive': serializer.toJson<int?>(incentive),
+      'commission': serializer.toJson<int?>(commission),
+      'commissionOverride': serializer.toJson<int?>(commissionOverride),
+      'overtime': serializer.toJson<int>(overtime),
+      'bonus': serializer.toJson<int>(bonus),
+      'deduction': serializer.toJson<int>(deduction),
+      'note': serializer.toJson<String>(note),
+    };
+  }
+
+  Payslip copyWith({
+    int? id,
+    int? employeeId,
+    DateTime? periodStart,
+    DateTime? periodEnd,
+    Value<int?> baseSalary = const Value.absent(),
+    Value<int?> mealAllowance = const Value.absent(),
+    Value<int?> incentive = const Value.absent(),
+    Value<int?> commission = const Value.absent(),
+    Value<int?> commissionOverride = const Value.absent(),
+    int? overtime,
+    int? bonus,
+    int? deduction,
+    String? note,
+  }) => Payslip(
+    id: id ?? this.id,
+    employeeId: employeeId ?? this.employeeId,
+    periodStart: periodStart ?? this.periodStart,
+    periodEnd: periodEnd ?? this.periodEnd,
+    baseSalary: baseSalary.present ? baseSalary.value : this.baseSalary,
+    mealAllowance: mealAllowance.present
+        ? mealAllowance.value
+        : this.mealAllowance,
+    incentive: incentive.present ? incentive.value : this.incentive,
+    commission: commission.present ? commission.value : this.commission,
+    commissionOverride: commissionOverride.present
+        ? commissionOverride.value
+        : this.commissionOverride,
+    overtime: overtime ?? this.overtime,
+    bonus: bonus ?? this.bonus,
+    deduction: deduction ?? this.deduction,
+    note: note ?? this.note,
+  );
+  Payslip copyWithCompanion(PayslipsCompanion data) {
+    return Payslip(
+      id: data.id.present ? data.id.value : this.id,
+      employeeId: data.employeeId.present
+          ? data.employeeId.value
+          : this.employeeId,
+      periodStart: data.periodStart.present
+          ? data.periodStart.value
+          : this.periodStart,
+      periodEnd: data.periodEnd.present ? data.periodEnd.value : this.periodEnd,
+      baseSalary: data.baseSalary.present
+          ? data.baseSalary.value
+          : this.baseSalary,
+      mealAllowance: data.mealAllowance.present
+          ? data.mealAllowance.value
+          : this.mealAllowance,
+      incentive: data.incentive.present ? data.incentive.value : this.incentive,
+      commission: data.commission.present
+          ? data.commission.value
+          : this.commission,
+      commissionOverride: data.commissionOverride.present
+          ? data.commissionOverride.value
+          : this.commissionOverride,
+      overtime: data.overtime.present ? data.overtime.value : this.overtime,
+      bonus: data.bonus.present ? data.bonus.value : this.bonus,
+      deduction: data.deduction.present ? data.deduction.value : this.deduction,
+      note: data.note.present ? data.note.value : this.note,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('Payslip(')
+          ..write('id: $id, ')
+          ..write('employeeId: $employeeId, ')
+          ..write('periodStart: $periodStart, ')
+          ..write('periodEnd: $periodEnd, ')
+          ..write('baseSalary: $baseSalary, ')
+          ..write('mealAllowance: $mealAllowance, ')
+          ..write('incentive: $incentive, ')
+          ..write('commission: $commission, ')
+          ..write('commissionOverride: $commissionOverride, ')
+          ..write('overtime: $overtime, ')
+          ..write('bonus: $bonus, ')
+          ..write('deduction: $deduction, ')
+          ..write('note: $note')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    employeeId,
+    periodStart,
+    periodEnd,
+    baseSalary,
+    mealAllowance,
+    incentive,
+    commission,
+    commissionOverride,
+    overtime,
+    bonus,
+    deduction,
+    note,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is Payslip &&
+          other.id == this.id &&
+          other.employeeId == this.employeeId &&
+          other.periodStart == this.periodStart &&
+          other.periodEnd == this.periodEnd &&
+          other.baseSalary == this.baseSalary &&
+          other.mealAllowance == this.mealAllowance &&
+          other.incentive == this.incentive &&
+          other.commission == this.commission &&
+          other.commissionOverride == this.commissionOverride &&
+          other.overtime == this.overtime &&
+          other.bonus == this.bonus &&
+          other.deduction == this.deduction &&
+          other.note == this.note);
+}
+
+class PayslipsCompanion extends UpdateCompanion<Payslip> {
+  final Value<int> id;
+  final Value<int> employeeId;
+  final Value<DateTime> periodStart;
+  final Value<DateTime> periodEnd;
+  final Value<int?> baseSalary;
+  final Value<int?> mealAllowance;
+  final Value<int?> incentive;
+  final Value<int?> commission;
+  final Value<int?> commissionOverride;
+  final Value<int> overtime;
+  final Value<int> bonus;
+  final Value<int> deduction;
+  final Value<String> note;
+  const PayslipsCompanion({
+    this.id = const Value.absent(),
+    this.employeeId = const Value.absent(),
+    this.periodStart = const Value.absent(),
+    this.periodEnd = const Value.absent(),
+    this.baseSalary = const Value.absent(),
+    this.mealAllowance = const Value.absent(),
+    this.incentive = const Value.absent(),
+    this.commission = const Value.absent(),
+    this.commissionOverride = const Value.absent(),
+    this.overtime = const Value.absent(),
+    this.bonus = const Value.absent(),
+    this.deduction = const Value.absent(),
+    this.note = const Value.absent(),
+  });
+  PayslipsCompanion.insert({
+    this.id = const Value.absent(),
+    required int employeeId,
+    required DateTime periodStart,
+    required DateTime periodEnd,
+    this.baseSalary = const Value.absent(),
+    this.mealAllowance = const Value.absent(),
+    this.incentive = const Value.absent(),
+    this.commission = const Value.absent(),
+    this.commissionOverride = const Value.absent(),
+    this.overtime = const Value.absent(),
+    this.bonus = const Value.absent(),
+    this.deduction = const Value.absent(),
+    this.note = const Value.absent(),
+  }) : employeeId = Value(employeeId),
+       periodStart = Value(periodStart),
+       periodEnd = Value(periodEnd);
+  static Insertable<Payslip> custom({
+    Expression<int>? id,
+    Expression<int>? employeeId,
+    Expression<DateTime>? periodStart,
+    Expression<DateTime>? periodEnd,
+    Expression<int>? baseSalary,
+    Expression<int>? mealAllowance,
+    Expression<int>? incentive,
+    Expression<int>? commission,
+    Expression<int>? commissionOverride,
+    Expression<int>? overtime,
+    Expression<int>? bonus,
+    Expression<int>? deduction,
+    Expression<String>? note,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (employeeId != null) 'employee_id': employeeId,
+      if (periodStart != null) 'period_start': periodStart,
+      if (periodEnd != null) 'period_end': periodEnd,
+      if (baseSalary != null) 'base_salary': baseSalary,
+      if (mealAllowance != null) 'meal_allowance': mealAllowance,
+      if (incentive != null) 'incentive': incentive,
+      if (commission != null) 'commission': commission,
+      if (commissionOverride != null) 'commission_override': commissionOverride,
+      if (overtime != null) 'overtime': overtime,
+      if (bonus != null) 'bonus': bonus,
+      if (deduction != null) 'deduction': deduction,
+      if (note != null) 'note': note,
+    });
+  }
+
+  PayslipsCompanion copyWith({
+    Value<int>? id,
+    Value<int>? employeeId,
+    Value<DateTime>? periodStart,
+    Value<DateTime>? periodEnd,
+    Value<int?>? baseSalary,
+    Value<int?>? mealAllowance,
+    Value<int?>? incentive,
+    Value<int?>? commission,
+    Value<int?>? commissionOverride,
+    Value<int>? overtime,
+    Value<int>? bonus,
+    Value<int>? deduction,
+    Value<String>? note,
+  }) {
+    return PayslipsCompanion(
+      id: id ?? this.id,
+      employeeId: employeeId ?? this.employeeId,
+      periodStart: periodStart ?? this.periodStart,
+      periodEnd: periodEnd ?? this.periodEnd,
+      baseSalary: baseSalary ?? this.baseSalary,
+      mealAllowance: mealAllowance ?? this.mealAllowance,
+      incentive: incentive ?? this.incentive,
+      commission: commission ?? this.commission,
+      commissionOverride: commissionOverride ?? this.commissionOverride,
+      overtime: overtime ?? this.overtime,
+      bonus: bonus ?? this.bonus,
+      deduction: deduction ?? this.deduction,
+      note: note ?? this.note,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (employeeId.present) {
+      map['employee_id'] = Variable<int>(employeeId.value);
+    }
+    if (periodStart.present) {
+      map['period_start'] = Variable<DateTime>(periodStart.value);
+    }
+    if (periodEnd.present) {
+      map['period_end'] = Variable<DateTime>(periodEnd.value);
+    }
+    if (baseSalary.present) {
+      map['base_salary'] = Variable<int>(baseSalary.value);
+    }
+    if (mealAllowance.present) {
+      map['meal_allowance'] = Variable<int>(mealAllowance.value);
+    }
+    if (incentive.present) {
+      map['incentive'] = Variable<int>(incentive.value);
+    }
+    if (commission.present) {
+      map['commission'] = Variable<int>(commission.value);
+    }
+    if (commissionOverride.present) {
+      map['commission_override'] = Variable<int>(commissionOverride.value);
+    }
+    if (overtime.present) {
+      map['overtime'] = Variable<int>(overtime.value);
+    }
+    if (bonus.present) {
+      map['bonus'] = Variable<int>(bonus.value);
+    }
+    if (deduction.present) {
+      map['deduction'] = Variable<int>(deduction.value);
+    }
+    if (note.present) {
+      map['note'] = Variable<String>(note.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('PayslipsCompanion(')
+          ..write('id: $id, ')
+          ..write('employeeId: $employeeId, ')
+          ..write('periodStart: $periodStart, ')
+          ..write('periodEnd: $periodEnd, ')
+          ..write('baseSalary: $baseSalary, ')
+          ..write('mealAllowance: $mealAllowance, ')
+          ..write('incentive: $incentive, ')
+          ..write('commission: $commission, ')
+          ..write('commissionOverride: $commissionOverride, ')
+          ..write('overtime: $overtime, ')
+          ..write('bonus: $bonus, ')
+          ..write('deduction: $deduction, ')
+          ..write('note: $note')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDb extends GeneratedDatabase {
   _$AppDb(QueryExecutor e) : super(e);
   $AppDbManager get managers => $AppDbManager(this);
@@ -5108,6 +5873,7 @@ abstract class _$AppDb extends GeneratedDatabase {
   late final $InvoiceLinesTable invoiceLines = $InvoiceLinesTable(this);
   late final $ExpenseCategoriesTable expenseCategories =
       $ExpenseCategoriesTable(this);
+  late final $PayslipsTable payslips = $PayslipsTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -5124,6 +5890,7 @@ abstract class _$AppDb extends GeneratedDatabase {
     invoices,
     invoiceLines,
     expenseCategories,
+    payslips,
   ];
 }
 
@@ -7557,6 +8324,30 @@ typedef $$EmployeesTableUpdateCompanionBuilder = EmployeesCompanion Function({
   Value<bool> active,
 });
 
+final class $$EmployeesTableReferences
+    extends BaseReferences<_$AppDb, $EmployeesTable, Employee> {
+  $$EmployeesTableReferences(super.$_db, super.$_table, super.$_typedResult);
+
+  static MultiTypedResultKey<$PayslipsTable, List<Payslip>> _payslipsRefsTable(
+    _$AppDb db,
+  ) => MultiTypedResultKey.fromTable(
+    db.payslips,
+    aliasName: 'employees__id__payslips__employee_id',
+  );
+
+  $$PayslipsTableProcessedTableManager get payslipsRefs {
+    final manager = $$PayslipsTableTableManager(
+      $_db,
+      $_db.payslips,
+    ).filter((f) => f.employeeId.id.sqlEquals($_itemColumn<int>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_payslipsRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+}
+
 class $$EmployeesTableFilterComposer
     extends Composer<_$AppDb, $EmployeesTable> {
   $$EmployeesTableFilterComposer({
@@ -7595,6 +8386,31 @@ class $$EmployeesTableFilterComposer
     column: $table.active,
     builder: (column) => ColumnFilters(column),
   );
+
+  Expression<bool> payslipsRefs(
+    Expression<bool> Function($$PayslipsTableFilterComposer f) f,
+  ) {
+    final $$PayslipsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.payslips,
+      getReferencedColumn: (t) => t.employeeId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$PayslipsTableFilterComposer(
+            $db: $db,
+            $table: $db.payslips,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
 }
 
 class $$EmployeesTableOrderingComposer
@@ -7667,6 +8483,31 @@ class $$EmployeesTableAnnotationComposer
 
   GeneratedColumn<bool> get active =>
       $composableBuilder(column: $table.active, builder: (column) => column);
+
+  Expression<T> payslipsRefs<T extends Object>(
+    Expression<T> Function($$PayslipsTableAnnotationComposer a) f,
+  ) {
+    final $$PayslipsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.payslips,
+      getReferencedColumn: (t) => t.employeeId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$PayslipsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.payslips,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
 }
 
 class $$EmployeesTableTableManager
@@ -7680,9 +8521,9 @@ class $$EmployeesTableTableManager
           $$EmployeesTableAnnotationComposer,
           $$EmployeesTableCreateCompanionBuilder,
           $$EmployeesTableUpdateCompanionBuilder,
-          (Employee, BaseReferences<_$AppDb, $EmployeesTable, Employee>),
+          (Employee, $$EmployeesTableReferences),
           Employee,
-          PrefetchHooks Function()
+          PrefetchHooks Function({bool payslipsRefs})
         > {
   $$EmployeesTableTableManager(_$AppDb db, $EmployeesTable table)
     : super(
@@ -7731,15 +8572,40 @@ class $$EmployeesTableTableManager
               .map(
                 (e) => (
                   e.readTable<$EmployeesTable, Employee>(table),
-                  BaseReferences<_$AppDb, $EmployeesTable, Employee>(
-                    db,
-                    table,
-                    e,
-                  ),
+                  $$EmployeesTableReferences(db, table, e),
                 ),
               )
               .toList(),
-          prefetchHooksCallback: null,
+          prefetchHooksCallback: ({payslipsRefs = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [if (payslipsRefs) db.payslips],
+              addJoins: null,
+              getPrefetchedDataCallback: (items) async {
+                return [
+                  if (payslipsRefs)
+                    await $_getPrefetchedData<
+                      Employee,
+                      $EmployeesTable,
+                      Payslip
+                    >(
+                      currentTable: table,
+                      referencedTable: $$EmployeesTableReferences
+                          ._payslipsRefsTable(db),
+                      managerFromTypedResult: (p0) =>
+                          $$EmployeesTableReferences(
+                            db,
+                            table,
+                            p0,
+                          ).payslipsRefs,
+                      referencedItemsForCurrentItem: (item, referencedItems) =>
+                          referencedItems.where((e) => e.employeeId == item.id),
+                      typedResults: items,
+                    ),
+                ];
+              },
+            );
+          },
         ),
       );
 }
@@ -7754,9 +8620,9 @@ typedef $$EmployeesTableProcessedTableManager =
       $$EmployeesTableAnnotationComposer,
       $$EmployeesTableCreateCompanionBuilder,
       $$EmployeesTableUpdateCompanionBuilder,
-      (Employee, BaseReferences<_$AppDb, $EmployeesTable, Employee>),
+      (Employee, $$EmployeesTableReferences),
       Employee,
-      PrefetchHooks Function()
+      PrefetchHooks Function({bool payslipsRefs})
     >;
 typedef $$InvoicesTableCreateCompanionBuilder = InvoicesCompanion Function({
   Value<int> id,
@@ -9212,6 +10078,474 @@ typedef $$ExpenseCategoriesTableProcessedTableManager =
       ExpenseCategory,
       PrefetchHooks Function()
     >;
+typedef $$PayslipsTableCreateCompanionBuilder = PayslipsCompanion Function({
+  Value<int> id,
+  required int employeeId,
+  required DateTime periodStart,
+  required DateTime periodEnd,
+  Value<int?> baseSalary,
+  Value<int?> mealAllowance,
+  Value<int?> incentive,
+  Value<int?> commission,
+  Value<int?> commissionOverride,
+  Value<int> overtime,
+  Value<int> bonus,
+  Value<int> deduction,
+  Value<String> note,
+});
+typedef $$PayslipsTableUpdateCompanionBuilder = PayslipsCompanion Function({
+  Value<int> id,
+  Value<int> employeeId,
+  Value<DateTime> periodStart,
+  Value<DateTime> periodEnd,
+  Value<int?> baseSalary,
+  Value<int?> mealAllowance,
+  Value<int?> incentive,
+  Value<int?> commission,
+  Value<int?> commissionOverride,
+  Value<int> overtime,
+  Value<int> bonus,
+  Value<int> deduction,
+  Value<String> note,
+});
+
+final class $$PayslipsTableReferences
+    extends BaseReferences<_$AppDb, $PayslipsTable, Payslip> {
+  $$PayslipsTableReferences(super.$_db, super.$_table, super.$_typedResult);
+
+  static $EmployeesTable _employeeIdTable(_$AppDb db) =>
+      db.employees.createAlias('payslips__employee_id__employees__id');
+
+  $$EmployeesTableProcessedTableManager get employeeId {
+    final $_column = $_itemColumn<int>('employee_id')!;
+
+    final manager = $$EmployeesTableTableManager(
+      $_db,
+      $_db.employees,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_employeeIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$PayslipsTableFilterComposer extends Composer<_$AppDb, $PayslipsTable> {
+  $$PayslipsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get periodStart => $composableBuilder(
+    column: $table.periodStart,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get periodEnd => $composableBuilder(
+    column: $table.periodEnd,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get baseSalary => $composableBuilder(
+    column: $table.baseSalary,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get mealAllowance => $composableBuilder(
+    column: $table.mealAllowance,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get incentive => $composableBuilder(
+    column: $table.incentive,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get commission => $composableBuilder(
+    column: $table.commission,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get commissionOverride => $composableBuilder(
+    column: $table.commissionOverride,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get overtime => $composableBuilder(
+    column: $table.overtime,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get bonus => $composableBuilder(
+    column: $table.bonus,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get deduction => $composableBuilder(
+    column: $table.deduction,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get note => $composableBuilder(
+    column: $table.note,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$EmployeesTableFilterComposer get employeeId {
+    final $$EmployeesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.employeeId,
+      referencedTable: $db.employees,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$EmployeesTableFilterComposer(
+            $db: $db,
+            $table: $db.employees,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$PayslipsTableOrderingComposer
+    extends Composer<_$AppDb, $PayslipsTable> {
+  $$PayslipsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get periodStart => $composableBuilder(
+    column: $table.periodStart,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get periodEnd => $composableBuilder(
+    column: $table.periodEnd,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get baseSalary => $composableBuilder(
+    column: $table.baseSalary,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get mealAllowance => $composableBuilder(
+    column: $table.mealAllowance,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get incentive => $composableBuilder(
+    column: $table.incentive,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get commission => $composableBuilder(
+    column: $table.commission,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get commissionOverride => $composableBuilder(
+    column: $table.commissionOverride,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get overtime => $composableBuilder(
+    column: $table.overtime,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get bonus => $composableBuilder(
+    column: $table.bonus,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get deduction => $composableBuilder(
+    column: $table.deduction,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get note => $composableBuilder(
+    column: $table.note,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$EmployeesTableOrderingComposer get employeeId {
+    final $$EmployeesTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.employeeId,
+      referencedTable: $db.employees,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$EmployeesTableOrderingComposer(
+            $db: $db,
+            $table: $db.employees,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$PayslipsTableAnnotationComposer
+    extends Composer<_$AppDb, $PayslipsTable> {
+  $$PayslipsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get periodStart => $composableBuilder(
+    column: $table.periodStart,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get periodEnd =>
+      $composableBuilder(column: $table.periodEnd, builder: (column) => column);
+
+  GeneratedColumn<int> get baseSalary => $composableBuilder(
+    column: $table.baseSalary,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get mealAllowance => $composableBuilder(
+    column: $table.mealAllowance,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get incentive =>
+      $composableBuilder(column: $table.incentive, builder: (column) => column);
+
+  GeneratedColumn<int> get commission => $composableBuilder(
+    column: $table.commission,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get commissionOverride => $composableBuilder(
+    column: $table.commissionOverride,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get overtime =>
+      $composableBuilder(column: $table.overtime, builder: (column) => column);
+
+  GeneratedColumn<int> get bonus =>
+      $composableBuilder(column: $table.bonus, builder: (column) => column);
+
+  GeneratedColumn<int> get deduction =>
+      $composableBuilder(column: $table.deduction, builder: (column) => column);
+
+  GeneratedColumn<String> get note =>
+      $composableBuilder(column: $table.note, builder: (column) => column);
+
+  $$EmployeesTableAnnotationComposer get employeeId {
+    final $$EmployeesTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.employeeId,
+      referencedTable: $db.employees,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$EmployeesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.employees,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$PayslipsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDb,
+          $PayslipsTable,
+          Payslip,
+          $$PayslipsTableFilterComposer,
+          $$PayslipsTableOrderingComposer,
+          $$PayslipsTableAnnotationComposer,
+          $$PayslipsTableCreateCompanionBuilder,
+          $$PayslipsTableUpdateCompanionBuilder,
+          (Payslip, $$PayslipsTableReferences),
+          Payslip,
+          PrefetchHooks Function({bool employeeId})
+        > {
+  $$PayslipsTableTableManager(_$AppDb db, $PayslipsTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$PayslipsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$PayslipsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$PayslipsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<int> employeeId = const Value.absent(),
+                Value<DateTime> periodStart = const Value.absent(),
+                Value<DateTime> periodEnd = const Value.absent(),
+                Value<int?> baseSalary = const Value.absent(),
+                Value<int?> mealAllowance = const Value.absent(),
+                Value<int?> incentive = const Value.absent(),
+                Value<int?> commission = const Value.absent(),
+                Value<int?> commissionOverride = const Value.absent(),
+                Value<int> overtime = const Value.absent(),
+                Value<int> bonus = const Value.absent(),
+                Value<int> deduction = const Value.absent(),
+                Value<String> note = const Value.absent(),
+              }) => PayslipsCompanion(
+                id: id,
+                employeeId: employeeId,
+                periodStart: periodStart,
+                periodEnd: periodEnd,
+                baseSalary: baseSalary,
+                mealAllowance: mealAllowance,
+                incentive: incentive,
+                commission: commission,
+                commissionOverride: commissionOverride,
+                overtime: overtime,
+                bonus: bonus,
+                deduction: deduction,
+                note: note,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required int employeeId,
+                required DateTime periodStart,
+                required DateTime periodEnd,
+                Value<int?> baseSalary = const Value.absent(),
+                Value<int?> mealAllowance = const Value.absent(),
+                Value<int?> incentive = const Value.absent(),
+                Value<int?> commission = const Value.absent(),
+                Value<int?> commissionOverride = const Value.absent(),
+                Value<int> overtime = const Value.absent(),
+                Value<int> bonus = const Value.absent(),
+                Value<int> deduction = const Value.absent(),
+                Value<String> note = const Value.absent(),
+              }) => PayslipsCompanion.insert(
+                id: id,
+                employeeId: employeeId,
+                periodStart: periodStart,
+                periodEnd: periodEnd,
+                baseSalary: baseSalary,
+                mealAllowance: mealAllowance,
+                incentive: incentive,
+                commission: commission,
+                commissionOverride: commissionOverride,
+                overtime: overtime,
+                bonus: bonus,
+                deduction: deduction,
+                note: note,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$PayslipsTable, Payslip>(table),
+                  $$PayslipsTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({employeeId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (employeeId) {
+                      state = state.withJoin(
+                        currentTable: table,
+                        currentColumn: table.employeeId,
+                        referencedTable: $$PayslipsTableReferences
+                            ._employeeIdTable(db),
+                        referencedColumn: $$PayslipsTableReferences
+                            ._employeeIdTable(db)
+                            .id,
+                      ) as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$PayslipsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDb,
+      $PayslipsTable,
+      Payslip,
+      $$PayslipsTableFilterComposer,
+      $$PayslipsTableOrderingComposer,
+      $$PayslipsTableAnnotationComposer,
+      $$PayslipsTableCreateCompanionBuilder,
+      $$PayslipsTableUpdateCompanionBuilder,
+      (Payslip, $$PayslipsTableReferences),
+      Payslip,
+      PrefetchHooks Function({bool employeeId})
+    >;
 
 class $AppDbManager {
   final _$AppDb _db;
@@ -9238,4 +10572,6 @@ class $AppDbManager {
       $$InvoiceLinesTableTableManager(_db, _db.invoiceLines);
   $$ExpenseCategoriesTableTableManager get expenseCategories =>
       $$ExpenseCategoriesTableTableManager(_db, _db.expenseCategories);
+  $$PayslipsTableTableManager get payslips =>
+      $$PayslipsTableTableManager(_db, _db.payslips);
 }
