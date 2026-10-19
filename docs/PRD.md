@@ -235,6 +235,8 @@ Data awal (§4.9) diinput saat R1a dipasang.
 
 **Klarifikasi lanjutan — sudah dijawab (19 Okt):** stok kosong diisi 1 · stok sudah dikurangi penjualan Agu–Okt · 3% sales per periode gaji · pribadi terpisah di bawah laba bersih usaha (setuju) · pembelian stok oleh owner · Mandiri tetap dipakai di setiap transaksi.
 
+**Jawaban 19 Okt (lanjutan):** toko hanya punya **2 teknisi, tidak ada karyawan sales** — owner merangkap sales/marketing/admin (tunjangan 3% hanya berlaku bila ada karyawan berperan Sales) · gaji cukup **export Excel** seperti laporan lain (tanpa slip PDF).
+
 **Belum dijawab (pakai default):** kolom keterangan → ada di setiap transaksi kas dan di data rekening.
 
 **Bisa pakai default kalau tidak dijawab:**

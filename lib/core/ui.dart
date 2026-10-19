@@ -254,3 +254,23 @@ class MonthNav extends StatelessWidget {
     ],
   );
 }
+
+/// Halaman khusus owner: terkunci → pesan + tombol PIN; terbuka → [builder].
+class OwnerGate extends StatelessWidget {
+  const OwnerGate({super.key, required this.message, required this.builder});
+  final String message;
+  final WidgetBuilder builder;
+
+  @override
+  Widget build(BuildContext context) {
+    final owner = Get.find<OwnerController>();
+    return Obx(
+      () => owner.isOwner.value
+          ? builder(context)
+          : EmptyState(
+              message: message,
+              action: FilledButton(onPressed: () => owner.ensure(context), child: const Text('Buka dengan PIN')),
+            ),
+    );
+  }
+}

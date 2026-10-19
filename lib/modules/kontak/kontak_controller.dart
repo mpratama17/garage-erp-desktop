@@ -1,9 +1,9 @@
 import 'dart:async';
-import 'dart:io';
 
 import 'package:file_selector/file_selector.dart';
 import 'package:get/get.dart';
 
+import '../../core/xlsx.dart';
 import '../../db/database.dart';
 import 'kontak_repo.dart';
 
@@ -33,12 +33,7 @@ class KontakController extends GetxController {
 
   static const _xlsx = XTypeGroup(label: 'Excel', extensions: ['xlsx']);
 
-  Future<String?> _save(List<int> bytes, String name) async {
-    final loc = await getSaveLocation(suggestedName: name, acceptedTypeGroups: [_xlsx]);
-    if (loc == null) return null;
-    await File(loc.path).writeAsBytes(bytes);
-    return loc.path;
-  }
+  Future<String?> _save(List<int> bytes, String name) => saveXlsx(bytes, name);
 
   Future<String?> downloadTemplate() async =>
       await _save(buildCustomersXlsx([]), 'template-customer.xlsx') == null ? null : 'Template tersimpan';

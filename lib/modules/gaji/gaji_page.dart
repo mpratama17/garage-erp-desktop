@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart' hide Value;
 
 import '../../core/format.dart';
-import '../../core/owner.dart';
 import '../../core/proof.dart';
 import '../../core/table.dart';
 import '../../core/theme.dart';
@@ -18,26 +17,29 @@ class GajiPage extends StatelessWidget {
   const GajiPage({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    final owner = Get.find<OwnerController>();
-    return Obx(() {
-      if (!owner.isOwner.value) {
-        return EmptyState(
-          message: 'Gaji & insentif hanya untuk owner.',
-          action: FilledButton(onPressed: () => owner.ensure(context), child: const Text('Buka dengan PIN')),
-        );
-      }
-      return const _Gaji();
-    });
-  }
+  Widget build(BuildContext context) =>
+      OwnerGate(message: 'Gaji & insentif hanya untuk owner.', builder: (_) => const _Gaji());
 }
 
-class _Gaji extends StatelessWidget {
+/// Controller hidup selama halaman terbuka & owner terbuka; dihapus saat pindah halaman atau terkunci.
+class _Gaji extends StatefulWidget {
   const _Gaji();
 
   @override
+  State<_Gaji> createState() => _GajiState();
+}
+
+class _GajiState extends State<_Gaji> {
+  final c = Get.put(GajiController(Get.find<AppDb>()));
+
+  @override
+  void dispose() {
+    Get.delete<GajiController>();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final c = Get.put(GajiController(Get.find<AppDb>()));
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -45,6 +47,13 @@ class _Gaji extends StatelessWidget {
           title: 'Gaji',
           subtitle: 'Slip gaji per periode: gaji pokok, makan, insentif teknisi, tunjangan kerja sales.',
           actions: [
+            OutlinedButton(
+              onPressed: () async {
+                final msg = await c.export();
+                if (msg != null && context.mounted) toast(context, msg);
+              },
+              child: const Text('Export Excel'),
+            ),
             OutlinedButton.icon(
               onPressed: () => _employeeDialog(context, c, null),
               icon: const Icon(Icons.add, size: 18),

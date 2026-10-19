@@ -1,9 +1,9 @@
 import 'dart:async';
-import 'dart:io';
 
 import 'package:file_selector/file_selector.dart';
 import 'package:get/get.dart';
 
+import '../../core/xlsx.dart';
 import '../../db/database.dart';
 import 'gudang_repo.dart';
 
@@ -45,12 +45,7 @@ class GudangController extends GetxController {
 
   static const _xlsx = XTypeGroup(label: 'Excel', extensions: ['xlsx']);
 
-  Future<bool> _save(List<int> bytes, String name) async {
-    final loc = await getSaveLocation(suggestedName: name, acceptedTypeGroups: [_xlsx]);
-    if (loc == null) return false;
-    await File(loc.path).writeAsBytes(bytes);
-    return true;
-  }
+  Future<bool> _save(List<int> bytes, String name) async => await saveXlsx(bytes, name) != null;
 
   Future<String?> downloadTemplate() async =>
       await _save(buildProductsXlsx([]), 'template-produk.xlsx') ? 'Template tersimpan' : null;

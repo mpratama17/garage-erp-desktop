@@ -258,6 +258,16 @@ void main() {
     await tester.tap(find.text('Batal').last);
     await settle();
 
+    await tester.tap(find.text('Laporan').first);
+    await settle();
+    await shot('laporan');
+    await tester.tap(find.text('Penjualan').last);
+    await settle();
+    await shot('laporan-penjualan');
+    await tester.tap(find.text('Terlaris'));
+    await settle();
+    await shot('laporan-terlaris');
+
     await tester.tap(find.text('Kontak'));
     await settle();
     await tester.tap(find.text('BUDI SANTOSO').last);

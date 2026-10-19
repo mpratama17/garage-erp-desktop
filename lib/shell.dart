@@ -5,11 +5,11 @@ import 'package:get/get.dart';
 
 import 'core/format.dart';
 import 'core/theme.dart';
-import 'core/ui.dart';
 import 'db/database.dart';
 import 'modules/biaya/biaya_page.dart';
 import 'modules/gaji/gaji_page.dart';
 import 'modules/gudang/gudang_page.dart';
+import 'modules/laporan/laporan_page.dart';
 import 'modules/kas/kas_page.dart';
 import 'modules/kontak/kontak_page.dart';
 import 'modules/pengaturan/pengaturan_page.dart';
@@ -29,7 +29,7 @@ final _menus = <_Menu>[
   const _Menu('Kas & Bank', Icons.account_balance_wallet_outlined, KasPage()),
   const _Menu('Biaya', Icons.payments_outlined, BiayaPage()),
   const _Menu('Gaji', Icons.badge_outlined, GajiPage()),
-  const _Menu('Laporan', Icons.bar_chart_outlined, _Soon('Laporan')),
+  const _Menu('Laporan', Icons.bar_chart_outlined, LaporanPage()),
 ];
 const _settingsIndex = 7;
 
@@ -163,20 +163,5 @@ class _Item extends StatelessWidget {
         ),
       ),
     ),
-  );
-}
-
-/// Placeholder untuk modul yang belum dibangun.
-class _Soon extends StatelessWidget {
-  const _Soon(this.title);
-  final String title;
-
-  @override
-  Widget build(BuildContext context) => Column(
-    crossAxisAlignment: CrossAxisAlignment.stretch,
-    children: [
-      PageHeader(title: title),
-      const Expanded(child: EmptyState(message: 'Modul ini sedang dibangun.')),
-    ],
   );
 }

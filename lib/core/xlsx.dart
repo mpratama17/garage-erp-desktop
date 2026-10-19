@@ -1,4 +1,7 @@
+import 'dart:io';
+
 import 'package:excel/excel.dart';
+import 'package:file_selector/file_selector.dart';
 
 import 'format.dart';
 
@@ -57,21 +60,44 @@ class XlsxTable {
   };
 }
 
+/// Satu sheet untuk [buildXlsxSheets].
+typedef XlsxSheet = (String name, List<String> headers, Iterable<List<Object?>> rows);
+
 /// Buat file .xlsx satu sheet. Nilai: String, int, atau null.
-List<int> buildXlsx(String sheet, List<String> headers, Iterable<List<Object?>> rows) {
+List<int> buildXlsx(String sheet, List<String> headers, Iterable<List<Object?>> rows) =>
+    buildXlsxSheets([(sheet, headers, rows)]);
+
+/// Buat file .xlsx beberapa sheet. Nilai: String, int, atau null.
+List<int> buildXlsxSheets(List<XlsxSheet> sheets) {
   final excel = Excel.createExcel();
-  final name = excel.getDefaultSheet()!;
-  excel.appendRow(name, [for (final h in headers) TextCellValue(h)]);
-  for (final r in rows) {
-    excel.appendRow(name, [
-      for (final v in r)
-        switch (v) {
-          null => null,
-          int() => IntCellValue(v),
-          _ => TextCellValue('$v'),
-        },
-    ]);
+  final first = excel.getDefaultSheet()!;
+  for (final (i, (name, headers, rows)) in sheets.indexed) {
+    final target = i == 0 ? first : name;
+    excel.appendRow(target, [for (final h in headers) TextCellValue(h)]);
+    for (final r in rows) {
+      excel.appendRow(target, [
+        for (final v in r)
+          switch (v) {
+            null => null,
+            int() => IntCellValue(v),
+            _ => TextCellValue('$v'),
+          },
+      ]);
+    }
   }
-  excel.rename(name, sheet);
+  excel.rename(first, sheets.first.$1);
   return excel.encode()!;
+}
+
+/// Dialog "Simpan sebagai" lalu tulis file. Path tujuan, atau null bila dibatalkan.
+Future<String?> saveXlsx(List<int> bytes, String suggestedName) async {
+  final loc = await getSaveLocation(
+    suggestedName: suggestedName,
+    acceptedTypeGroups: const [
+      XTypeGroup(label: 'Excel', extensions: ['xlsx']),
+    ],
+  );
+  if (loc == null) return null;
+  await File(loc.path).writeAsBytes(bytes);
+  return loc.path;
 }

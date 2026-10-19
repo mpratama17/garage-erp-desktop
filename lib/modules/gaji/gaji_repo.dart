@@ -155,6 +155,7 @@ extension GajiRepo on AppDb {
   /// Slip semua karyawan untuk periode yang diawali [start]: karyawan aktif, plus yang nonaktif bila punya
   /// slip atau insentif di periode itu.
   Future<List<Slip>> payroll(DateTime start) async {
+    requireOwner(); // berisi gaji karyawan
     final end = await _periodEnd(start);
     final o = await omzet(start, end), pct = await _commissionPct();
     final out = <Slip>[];
