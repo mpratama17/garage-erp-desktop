@@ -92,11 +92,20 @@ Future<void> _seed(AppDb db) async {
     at: now.subtract(const Duration(days: 3)),
     accountId: bca,
     supplier: 'Toko Lampu Jaya',
+    billNo: 'NOTA-0912',
     note: 'Nota 0912',
     lines: [
       PurchaseLine(productId: canbus.id, qty: 4, unitCost: 95000),
       PurchaseLine(productId: barang.id, qty: 2, unitCost: barang.buyPrice),
     ],
+  );
+  await db.recordPurchase(
+    at: now.subtract(const Duration(days: 1)),
+    accountId: bca,
+    supplier: 'CV Aksesoris',
+    billNo: 'NOTA-0988',
+    paidNow: false,
+    lines: [PurchaseLine(productId: canbus.id, qty: 2, unitCost: 95000)],
   );
   LineInput b() => LineInput(
     productId: barang.id,
@@ -264,6 +273,14 @@ void main() {
     await tester.tap(find.text('Toko Lampu Jaya'));
     await settle();
     await shot('gudang-pembelian');
+    await tester.tap(find.text('CV Aksesoris'));
+    await settle();
+    await shot('gudang-pembelian-belum-bayar');
+    await tester.tap(find.widgetWithText(OutlinedButton, 'Pembelian stok'));
+    await settle();
+    await shot('gudang-pembelian-dialog');
+    await tester.tap(find.text('Batal').last);
+    await settle();
 
     await tester.tap(find.text('Penjualan').first);
     await settle();

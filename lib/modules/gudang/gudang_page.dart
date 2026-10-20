@@ -1,6 +1,7 @@
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter/material.dart';
 import 'package:get/get.dart' hide Value;
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/format.dart';
 import '../../core/owner.dart';
@@ -486,9 +487,7 @@ class _StockHistory extends StatelessWidget {
                       ),
                       SizedBox(
                         width: 24,
-                        child: onTap == null
-                            ? null
-                            : const Icon(Icons.chevron_right, size: 18, color: C.inkMuted),
+                        child: onTap == null ? null : const Icon(Icons.chevron_right, size: 18, color: C.inkMuted),
                       ),
                     ],
                   ),
@@ -515,18 +514,24 @@ class _Purchases extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Expanded(
-            child: AppTable<({Purchase purchase, String account})>(
+            child: AppTable<({Purchase purchase, String account, bool paid})>(
               rows: c.purchases.toList(),
-              searchHint: 'Cari supplier, keterangan…',
-              searchText: (r) => '${r.purchase.supplier} ${r.purchase.note} ${r.account}',
+              searchHint: 'Cari supplier, no. nota, keterangan…',
+              searchText: (r) => '${r.purchase.supplier} ${r.purchase.billNo} ${r.purchase.note} ${r.account}',
               selected: (r) => r.purchase.id == c.purchaseId.value,
               onTap: (r) => c.purchaseId.value = r.purchase.id,
               emptyMessage: 'Belum ada pembelian stok.',
               columns: [
                 Col('Tanggal', (r) => Text(tgl(r.purchase.at)), flex: 2),
-                Col('Supplier', (r) => Text(r.purchase.supplier.isEmpty ? '—' : r.purchase.supplier), flex: 4),
+                Col('Supplier', (r) => Text(r.purchase.supplier.isEmpty ? '—' : r.purchase.supplier), flex: 3),
+                Col('No. nota', (r) => Text(r.purchase.billNo.isEmpty ? '—' : r.purchase.billNo), flex: 2),
                 Col('Dibayar dari', (r) => Text(r.account), flex: 2),
                 Col('Total', (r) => Text(rp(r.purchase.total), style: T.money), flex: 2, numeric: true),
+                Col(
+                  'Status',
+                  (r) => Pill(r.paid ? 'Lunas' : 'Belum bayar', r.paid ? Tone.success : Tone.warning),
+                  flex: 3,
+                ),
               ],
             ),
           ),
@@ -546,7 +551,7 @@ class _Purchases extends StatelessWidget {
 class _PurchasePanel extends StatefulWidget {
   const _PurchasePanel({super.key, required this.c, required this.row});
   final GudangController c;
-  final ({Purchase purchase, String account}) row;
+  final ({Purchase purchase, String account, bool paid}) row;
 
   @override
   State<_PurchasePanel> createState() => _PurchasePanelState();
@@ -568,11 +573,7 @@ class _PurchasePanelState extends State<_PurchasePanel> {
             child: Row(
               children: [
                 Expanded(child: Text('Pembelian ${tgl(p.at)}', style: T.section)),
-                IconButton(
-                  tooltip: 'Tutup',
-                  onPressed: () => c.purchaseId.value = null,
-                  icon: const Icon(Icons.close),
-                ),
+                IconButton(tooltip: 'Tutup', onPressed: () => c.purchaseId.value = null, icon: const Icon(Icons.close)),
               ],
             ),
           ),
@@ -581,14 +582,38 @@ class _PurchasePanelState extends State<_PurchasePanel> {
             child: ListView(
               padding: const EdgeInsets.all(S.xl),
               children: [
-                Text(
-                  [
-                    if (p.supplier.isNotEmpty) p.supplier,
-                    'dibayar dari ${row.account}',
-                  ].join(' · '),
-                  style: T.label,
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        [
+                          if (p.supplier.isNotEmpty) p.supplier,
+                          if (p.billNo.isNotEmpty) 'nota ${p.billNo}',
+                          'dibayar dari ${row.account}',
+                        ].join(' · '),
+                        style: T.label,
+                      ),
+                    ),
+                    Pill(row.paid ? 'Lunas' : 'Belum bayar', row.paid ? Tone.success : Tone.warning),
+                  ],
                 ),
                 if (p.note.isNotEmpty) ...[const SizedBox(height: S.xs), Text(p.note, style: T.label)],
+                if (p.proofPath.isNotEmpty) ...[
+                  const SizedBox(height: S.sm),
+                  OutlinedButton.icon(
+                    onPressed: () => launchUrl(Uri.file(p.proofPath)),
+                    icon: const Icon(Icons.receipt_long_outlined, size: 18),
+                    label: const Text('Lihat nota'),
+                  ),
+                ],
+                if (!row.paid) ...[
+                  const SizedBox(height: S.sm),
+                  FilledButton(
+                    onPressed: () =>
+                        runAction(context, () => c.db.payPurchase(p.id, at: DateTime.now()), 'Pembelian dilunasi'),
+                    child: const Text('Lunasi sekarang'),
+                  ),
+                ],
                 const SizedBox(height: S.lg),
                 FutureBuilder(
                   future: _lines,

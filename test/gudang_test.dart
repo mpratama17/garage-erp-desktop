@@ -235,6 +235,32 @@ void main() {
     expect(await db.select(db.cashEntries).get(), isEmpty);
   });
 
+  test('pembelian belum dibayar: stok & harga beli tetap jalan, tidak ada kas keluar sampai dilunasi', () async {
+    final led = await barang('LED', stock: 1);
+    final bca = (await db.select(db.accounts).get()).firstWhere((a) => a.name == 'BCA').id;
+    final id = await db.recordPurchase(
+      at: DateTime(2026, 10, 18),
+      accountId: bca,
+      supplier: 'Toko Lampu',
+      billNo: 'NOTA-9',
+      paidNow: false,
+      lines: [PurchaseLine(productId: led, qty: 4, unitCost: 120000)],
+    );
+    expect(await db.stockOf(led), 5); // stok & harga beli tetap berjalan walau belum dibayar
+    expect((await (db.select(db.products)..where((p) => p.id.equals(led))).getSingle()).buyPrice, 120000);
+    expect(await db.select(db.cashEntries).get(), isEmpty);
+    expect((await db.watchPurchases().first).single.paid, false);
+
+    await db.payPurchase(id, at: DateTime(2026, 10, 20));
+    final cash = await db.select(db.cashEntries).getSingle();
+    expect((cash.accountId, cash.amount, cash.kind, cash.refId), (bca, -480000, 'purchase', id));
+    expect((await db.watchPurchases().first).single.paid, true);
+    expect(() => db.payPurchase(id, at: DateTime.now()), throwsArgumentError); // sudah lunas
+
+    db.ownerUnlocked = false;
+    expect(() => db.payPurchase(id, at: DateTime.now()), throwsArgumentError);
+  });
+
   test('input Rupiah: format ribuan, kursor tidak melompat, batas digit', () {
     final f = ThousandsFormatter();
     TextEditingValue edit(String old, String now, int cursor) => f.formatEditUpdate(

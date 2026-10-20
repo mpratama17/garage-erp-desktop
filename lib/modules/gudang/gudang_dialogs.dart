@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/format.dart';
 import '../../core/theme.dart';
 import '../../core/ui.dart';
+import '../../core/proof.dart';
 import '../../db/database.dart';
 import 'gudang_controller.dart';
 import 'gudang_repo.dart';
@@ -104,6 +105,9 @@ class _PurchaseDialogState extends State<_PurchaseDialog> {
   late int accountId = widget.accounts.first.id;
   final supplier = TextEditingController();
   final note = TextEditingController();
+  final billNo = TextEditingController();
+  var proof = '';
+  var paidNow = true;
   final lines = [_Line()];
 
   List<StockedProduct> get barang => widget.c.products.where((s) => !s.isService && s.product.active).toList();
@@ -113,6 +117,7 @@ class _PurchaseDialogState extends State<_PurchaseDialog> {
     for (final t in [
       supplier,
       note,
+      billNo,
       for (final l in lines) ...[l.qty, l.cost],
     ]) {
       t.dispose();
@@ -131,6 +136,9 @@ class _PurchaseDialogState extends State<_PurchaseDialog> {
         accountId: accountId,
         supplier: supplier.text,
         note: note.text,
+        billNo: billNo.text,
+        proofPath: proof,
+        paidNow: paidNow,
         lines: [
           for (final l in valid)
             PurchaseLine(
@@ -177,6 +185,8 @@ class _PurchaseDialogState extends State<_PurchaseDialog> {
                   ),
                   const SizedBox(width: S.md),
                   Expanded(child: Labeled('Supplier', TextField(controller: supplier))),
+                  const SizedBox(width: S.md),
+                  SizedBox(width: 170, child: Labeled('No. nota', TextField(controller: billNo))),
                   const SizedBox(width: S.md),
                   SizedBox(
                     width: 170,
@@ -269,6 +279,20 @@ class _PurchaseDialogState extends State<_PurchaseDialog> {
               ),
               const SizedBox(height: S.sm),
               Labeled('Keterangan', TextField(controller: note)),
+              const SizedBox(height: S.sm),
+              proofRow(proof, () async {
+                final p = await pickProof(billNo.text.isEmpty ? 'pembelian' : billNo.text);
+                if (p != null) setState(() => proof = p);
+              }),
+              const SizedBox(height: S.sm),
+              CheckboxListTile(
+                contentPadding: EdgeInsets.zero,
+                controlAffinity: ListTileControlAffinity.leading,
+                value: paidNow,
+                onChanged: (v) => setState(() => paidNow = v!),
+                title: const Text('Sudah dibayar sekarang'),
+                subtitle: const Text('Matikan bila dibayar belakangan (beberapa hari lagi), bisa dilunasi nanti.'),
+              ),
               const SizedBox(height: S.lg),
               Align(
                 alignment: Alignment.centerRight,
@@ -280,7 +304,7 @@ class _PurchaseDialogState extends State<_PurchaseDialog> {
       ),
       actions: [
         OutlinedButton(onPressed: () => Navigator.pop(context), child: const Text('Batal')),
-        FilledButton(onPressed: _save, child: const Text('Simpan pembelian')),
+        FilledButton(onPressed: _save, child: Text(paidNow ? 'Simpan pembelian' : 'Simpan (belum dibayar)')),
       ],
     );
   }

@@ -22,7 +22,7 @@ class GudangController extends GetxController {
   StreamSubscription<List<StockedProduct>>? _sub;
 
   /// Tab Pembelian (khusus owner): daftar kosong saat terkunci; [purchaseId] = pembelian yang dibuka.
-  final purchases = <({Purchase purchase, String account})>[].obs;
+  final purchases = <({Purchase purchase, String account, bool paid})>[].obs;
   final purchaseId = RxnInt();
   StreamSubscription<Object?>? _purchaseSub;
   Worker? _ownerWorker;

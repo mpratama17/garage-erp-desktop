@@ -172,12 +172,21 @@ extension GudangRepo on AppDb {
   }
 
   /// Riwayat pembelian stok + nama rekening pembayar, terbaru dulu. Khusus owner (berisi harga beli).
-  Stream<List<({Purchase purchase, String account})>> watchPurchases() {
+  Stream<List<({Purchase purchase, String account, bool paid})>> watchPurchases() {
     requireOwner();
-    final q = select(purchases).join([innerJoin(accounts, accounts.id.equalsExp(purchases.accountId))])
-      ..orderBy([OrderingTerm.desc(purchases.at), OrderingTerm.desc(purchases.id)]);
+    final q = select(purchases).join([
+      innerJoin(accounts, accounts.id.equalsExp(purchases.accountId)),
+      leftOuterJoin(cashEntries, cashEntries.kind.equals('purchase') & cashEntries.refId.equalsExp(purchases.id)),
+    ])..orderBy([OrderingTerm.desc(purchases.at), OrderingTerm.desc(purchases.id)]);
     return q.watch().map(
-      (rows) => [for (final r in rows) (purchase: r.readTable(purchases), account: r.readTable(accounts).name)],
+      (rows) => [
+        for (final r in rows)
+          (
+            purchase: r.readTable(purchases),
+            account: r.readTable(accounts).name,
+            paid: r.readTableOrNull(cashEntries) != null,
+          ),
+      ],
     );
   }
 
@@ -242,12 +251,17 @@ extension GudangRepo on AppDb {
   }
 
   /// Pembelian stok: stok bertambah, harga beli produk diperbarui, saldo rekening berkurang.
+  /// [paidNow] = false: dicatat belum dibayar (barang & harga beli tetap diperbarui), dilunasi lewat
+  /// [payPurchase]. Client: pembelian selalu lunas penuh, kadang beberapa hari kemudian (tidak dicicil).
   Future<int> recordPurchase({
     required DateTime at,
     required int accountId,
     required List<PurchaseLine> lines,
     String supplier = '',
     String note = '',
+    String billNo = '',
+    String proofPath = '',
+    bool paidNow = true,
   }) {
     requireOwner();
     if (lines.isEmpty) throw ArgumentError('Belum ada barang');
@@ -269,6 +283,8 @@ extension GudangRepo on AppDb {
           total: total,
           supplier: Value(supplier.trim()),
           note: Value(note.trim()),
+          billNo: Value(billNo.trim()),
+          proofPath: Value(proofPath),
         ),
       );
       for (final l in lines) {
@@ -286,7 +302,13 @@ extension GudangRepo on AppDb {
           products,
         )..where((x) => x.id.equals(l.productId))).write(ProductsCompanion(buyPrice: Value(l.unitCost)));
       }
-      await into(cashEntries).insert(
+      if (paidNow) await _payPurchase(id, accountId, total, supplier, at, note);
+      return id;
+    });
+  }
+
+  Future<void> _payPurchase(int id, int accountId, int total, String supplier, DateTime at, String note) =>
+      into(cashEntries).insert(
         CashEntriesCompanion.insert(
           at: at,
           accountId: accountId,
@@ -297,9 +319,19 @@ extension GudangRepo on AppDb {
           note: Value(note.trim()),
         ),
       );
-      return id;
-    });
-  }
+
+  /// Lunasi pembelian yang tadinya [recordPurchase]-nya [paidNow]=false. Dibayar dari rekening yang
+  /// dipilih saat pembelian dicatat (bukan dipilih ulang) — selaras dengan dialog pembelian.
+  Future<void> payPurchase(int purchaseId, {required DateTime at}) => transaction(() async {
+    requireOwner();
+    final p = await (select(purchases)..where((x) => x.id.equals(purchaseId))).getSingle();
+    final already = await (select(
+      cashEntries,
+    )..where((c) => c.kind.equals('purchase') & c.refId.equals(purchaseId))).getSingleOrNull();
+    if (already != null) throw ArgumentError('${p.supplier.isEmpty ? 'Pembelian' : p.supplier} sudah dibayar');
+    await requireActiveAccount(p.accountId);
+    await _payPurchase(purchaseId, p.accountId, p.total, p.supplier, at, '');
+  });
 
   /// Terapkan hasil import: cocokkan ke produk lama via SKU (atau nama bila tanpa SKU).
   /// Barang baru tanpa stok awal diisi 1 (keputusan client). Stok produk lama tidak diubah.
