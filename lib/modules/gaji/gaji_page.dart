@@ -1,5 +1,6 @@
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:get/get.dart' hide Value;
 
 import '../../core/format.dart';
@@ -11,6 +12,7 @@ import '../../db/database.dart';
 import '../penjualan/penjualan_repo.dart';
 import 'gaji_controller.dart';
 import 'gaji_repo.dart';
+import 'slip_pdf.dart';
 
 /// Gaji & insentif — seluruh halaman khusus owner (berisi gaji karyawan).
 class GajiPage extends StatelessWidget {
@@ -322,6 +324,16 @@ Future<void> _slipDialog(BuildContext context, GajiController c, Slip s) async {
                 ),
           children: [
             OutlinedButton(onPressed: () => Navigator.pop(ctx), child: Text(s.paid ? 'Tutup' : 'Batal')),
+            OutlinedButton.icon(
+              onPressed: () => runAction(
+                ctx,
+                () async => launchUrl(Uri.file(await saveSlipPdf(c.db, s))),
+                null,
+                'PDF gagal dibuat atau dibuka. Cek folder simpan file di Pengaturan, lalu coba lagi.',
+              ),
+              icon: const Icon(Icons.picture_as_pdf_outlined, size: 18),
+              label: const Text('Unduh slip'),
+            ),
             if (!s.paid) ...[
               OutlinedButton(
                 onPressed: () => runAction(ctx, () async {

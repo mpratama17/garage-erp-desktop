@@ -1,10 +1,14 @@
 // Render contoh nota ke PDF (lokal): OUT=/path flutter test tool/preview/pdf_preview_test.dart
 import 'dart:io';
 
+import 'package:path/path.dart' as p;
+
 import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:garage_erp_desktop/db/database.dart';
+import 'package:garage_erp_desktop/modules/gaji/gaji_repo.dart';
+import 'package:garage_erp_desktop/modules/gaji/slip_pdf.dart';
 import 'package:garage_erp_desktop/modules/gudang/gudang_repo.dart';
 import 'package:garage_erp_desktop/modules/penjualan/invoice_pdf.dart';
 import 'package:garage_erp_desktop/modules/penjualan/penjualan_repo.dart';
@@ -57,6 +61,38 @@ void main() {
     final path = await saveInvoicePdf(db, inv, dir: Platform.environment['OUT']!);
     // ignore: avoid_print
     print(path);
+    await db.close();
+  });
+
+  test('slip gaji contoh', () async {
+    final db = (AppDb(NativeDatabase.memory())..ownerUnlocked = true);
+    for (final (k, v) in [
+      ('shop_name', 'STAR GARAGE'),
+      if (File('docs/logo-star-garage.png').existsSync())
+        ('logo_path', File('docs/logo-star-garage.png').absolute.path),
+    ]) {
+      await db.setSetting(k, v);
+    }
+    final jasa = await db.saveProduct(
+      ProductsCompanion.insert(name: 'Pasang projector', isService: const Value(true), incentive: const Value(100000)),
+    );
+    final tek = await db.saveEmployee(
+      EmployeesCompanion.insert(name: 'Teknisi A', role: 'teknisi', baseSalary: const Value(2000000)),
+    );
+    final bca = (await db.select(db.accounts).get()).first.id;
+    await db.saveDoc(
+      kind: DocKind.invoice,
+      at: DateTime(2026, 10, 5),
+      lines: [LineInput(productId: jasa, name: 'Pasang projector', qty: 1, price: 300000, incentive: 100000, tech1Id: tek)],
+      payNow: PaymentInput(accountId: bca, amount: 300000, at: DateTime(2026, 10, 5)),
+    );
+    final (start, _) = payrollPeriodOf(DateTime(2026, 10, 19), 27);
+    final slip = (await db.payroll(start)).first;
+    final bytes = await buildSlipPdf(db, slip);
+    final out = File(p.join(Platform.environment['OUT']!, 'slip-contoh.pdf'));
+    await out.writeAsBytes(bytes);
+    // ignore: avoid_print
+    print(out.path);
     await db.close();
   });
 }

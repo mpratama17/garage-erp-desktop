@@ -2,12 +2,14 @@ import 'package:drift/drift.dart' hide isNull;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:garage_erp_desktop/db/database.dart';
+import 'package:garage_erp_desktop/modules/gaji/slip_pdf.dart';
 import 'package:garage_erp_desktop/modules/gaji/gaji_repo.dart';
 import 'package:garage_erp_desktop/modules/gudang/gudang_repo.dart';
 import 'package:garage_erp_desktop/modules/kas/kas_repo.dart';
 import 'package:garage_erp_desktop/modules/penjualan/penjualan_repo.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized(); // rootBundle untuk font PDF
   late AppDb db;
   late int tekA, tekB, sales, jasa, bca;
   // Periode 27 Sep – 26 Okt 2026.
@@ -161,5 +163,11 @@ void main() {
       EmployeesCompanion(id: Value(sales), name: const Value('Sales A'), role: const Value('teknisi')),
     );
     expect((await slipOf(sales)).commission, 0);
+  });
+
+  test('PDF slip gaji terbentuk', () async {
+    await invoice(price: 1000000);
+    final pdf = await buildSlipPdf(db, await slipOf(tekA));
+    expect(String.fromCharCodes(pdf.take(5)), '%PDF-');
   });
 }
