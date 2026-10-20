@@ -117,7 +117,7 @@ final _settings = () {
 /// ikon/teks biru (bukan biru pekat + putih), ikon tipis konsisten, lebih lapang.
 final _sidebarTheme = SidebarXTheme(
   width: 76,
-  padding: const EdgeInsets.symmetric(horizontal: S.sm, vertical: S.md),
+  padding: const EdgeInsets.symmetric(horizontal: S.sm, vertical: S.sm),
   decoration: const BoxDecoration(color: C.surface),
   iconTheme: const IconThemeData(color: C.inkMuted, size: 21),
   selectedIconTheme: const IconThemeData(color: C.primary, size: 21),
@@ -126,12 +126,13 @@ final _sidebarTheme = SidebarXTheme(
   itemDecoration: BoxDecoration(borderRadius: BorderRadius.circular(12)),
   selectedItemDecoration: BoxDecoration(color: C.primarySoft, borderRadius: BorderRadius.circular(12)),
   hoverColor: C.bg,
-  itemPadding: const EdgeInsets.symmetric(horizontal: S.md, vertical: S.sm + 2),
-  selectedItemPadding: const EdgeInsets.symmetric(horizontal: S.md, vertical: S.sm + 2),
+  // Lapang tapi tetap muat 9 menu + status backup tanpa scroll di tinggi jendela minimum (720).
+  itemPadding: const EdgeInsets.symmetric(horizontal: S.md, vertical: S.xs + 2),
+  selectedItemPadding: const EdgeInsets.symmetric(horizontal: S.md, vertical: S.xs + 2),
   itemTextPadding: const EdgeInsets.only(left: S.md),
   selectedItemTextPadding: const EdgeInsets.only(left: S.md),
-  itemMargin: const EdgeInsets.symmetric(vertical: 2),
-  selectedItemMargin: const EdgeInsets.symmetric(vertical: 2),
+  itemMargin: EdgeInsets.zero,
+  selectedItemMargin: EdgeInsets.zero,
 );
 
 final _sidebarExtended = const SidebarXTheme(width: 232);
@@ -152,18 +153,11 @@ class _Sidebar extends StatelessWidget {
           extendedTheme: _sidebarExtended,
           headerBuilder: (_, extended) => _SidebarHeader(s, extended),
           separatorBuilder: (_, _) => const SizedBox(height: 2),
-
+          // Status backup di bawah Pengaturan (bukan item yang bisa diklik) — lewat footerBuilder,
+          // Pengaturan sendiri jadi item biasa paling bawah supaya daftar tidak perlu scroll sendiri.
           footerBuilder: (_, extended) => extended ? _BackupCard(s) : const SizedBox.shrink(),
           items: [
-            for (final p in AppPage.values)
-              if (p != AppPage.pengaturan) SidebarXItem(label: p.label, icon: p.icon, onTap: () => nav.page.value = p),
-          ],
-          footerItems: [
-            SidebarXItem(
-              label: AppPage.pengaturan.label,
-              icon: AppPage.pengaturan.icon,
-              onTap: () => nav.page.value = AppPage.pengaturan,
-            ),
+            for (final p in AppPage.values) SidebarXItem(label: p.label, icon: p.icon, onTap: () => nav.page.value = p),
           ],
         );
       },
