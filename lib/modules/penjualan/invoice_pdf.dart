@@ -217,7 +217,8 @@ Future<Uint8List> buildInvoicePdf(AppDb db, int docId) async {
                     flex: 4,
                     child: pw.Column(
                       children: [
-                        totalRow('Subtotal', rupiah(s.total)),
+                        totalRow('Subtotal', rupiah(s.subtotal)),
+                        for (final (label, v) in s.adjustments) totalRow(label, rupiah(v)),
                         totalRow('Total', rupiah(s.total), big: true),
                         if (s.paid > 0) totalRow('Pembayaran Diterima', rupiah(s.paid)),
                         totalRow('Sisa Tagihan', rupiah(s.remaining < 0 ? 0 : s.remaining)),
@@ -270,24 +271,31 @@ Future<String> saveInvoicePdf(AppDb db, int docId, {String? dir}) async {
   return file.path;
 }
 
-/// Teks pesan WhatsApp untuk customer.
-String waMessage(DocSummary s, Map<String, String> settings) {
-  final b = StringBuffer()
-    ..writeln('Halo ${s.customerName ?? 'Kak'},')
-    ..writeln()
-    ..writeln('Terima kasih sudah mempercayakan mobil Anda ke ${settings['shop_name']}.')
-    ..writeln('${s.isOrder ? 'Pemesanan' : 'Invoice'} ${s.doc.no} — total ${rupiah(s.total)}.');
-  if (s.paid > 0 && s.remaining > 0) b.writeln('Sudah dibayar ${rupiah(s.paid)}, sisa ${rupiah(s.remaining)}.');
-  if (s.remaining <= 0) b.writeln('Status: LUNAS.');
-  b.writeln('Nota PDF kami kirim di chat ini.');
+/// Template pesan WA per keadaan dokumen (key setting, diubah di Pengaturan). Kosong = template bawaan.
+const waTemplateKeys = {'wa_paid': 'Invoice lunas', 'wa_unpaid': 'Invoice belum lunas', 'wa_order': 'Pemesanan / DP'};
+const waPlaceholders = '{nama} {toko} {no} {rincian} {total} {dibayar} {sisa} {review}';
+
+/// Teks pesan WhatsApp untuk customer: template sesuai status, placeholder diganti data dokumen.
+/// {rincian} = baris barang/jasa + diskon/PPN (PDF tidak bisa ikut terlampir lewat link WA).
+String waMessage(DocSummary s, List<InvoiceLine> lines, Map<String, String> settings) {
+  final key = s.isOrder ? 'wa_order' : (s.remaining <= 0 ? 'wa_paid' : 'wa_unpaid');
+  final template = settings[key]!.trim().isEmpty ? settingDefaults[key]! : settings[key]!;
   final review = settings['gmaps_review_url']!;
-  if (review.isNotEmpty) {
-    b
-      ..writeln()
-      ..writeln('Bantu kami dengan ulasan di Google Maps ya 🙏')
-      ..writeln(review);
-  }
-  return b.toString().trim();
+  final values = {
+    '{nama}': s.customerName ?? 'Kak',
+    '{toko}': settings['shop_name']!,
+    '{no}': s.doc.no,
+    '{rincian}': [
+      for (final l in lines) '- ${l.name} ${l.qty}× = ${rupiah(l.qty * l.price - l.discount)}',
+      for (final (label, v) in s.adjustments) '- $label: ${rupiah(v)}',
+    ].join('\n'),
+    '{total}': rupiah(s.total),
+    '{dibayar}': rupiah(s.paid),
+    '{sisa}': rupiah(s.remaining < 0 ? 0 : s.remaining),
+    '{review}': review.isEmpty ? '' : 'Bantu kami dengan ulasan di Google Maps ya 🙏\n$review',
+  };
+  final text = values.entries.fold(template, (t, e) => t.replaceAll(e.key, e.value));
+  return text.replaceAll(RegExp(r'\n{3,}'), '\n\n').trim(); // placeholder kosong tidak meninggalkan baris kosong ganda
 }
 
 /// wa.me memakai format internasional tanpa "+": 0811… -> 62811…

@@ -122,7 +122,7 @@ class PenjualanPage extends StatelessWidget {
         icon: Icons.trending_up,
         tone: Tone.success,
         label: 'Penjualan bulan ini',
-        value: rupiah(sum(month, (d) => d.total)),
+        value: rupiah(sum(month, (d) => d.omzet)), // tanpa PPN, sama dengan Dashboard & Laporan
         hint: '${month.length} invoice',
       ),
       KpiCard(
@@ -407,6 +407,8 @@ class _DocPanel extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: S.md),
+                if (s.adjustments.isNotEmpty) _total('Subtotal', s.subtotal),
+                for (final (label, v) in s.adjustments) _total(label, v),
                 _total('Total', s.total, big: true),
                 _total(s.isOrder ? 'DP / dibayar' : 'Dibayar', s.paid),
                 if (!d.isVoid && s.status != PayStatus.invoiced)
@@ -631,7 +633,7 @@ class _DocPanel extends StatelessWidget {
   }
 }
 
-/// Satu baris rincian: nama, qty × harga, teknisi, dan modal (khusus owner, bisa diisi).
+/// Satu baris rincian: nama, qty × harga, teknisi. Modal tidak tampil di sini (diambil dari harga beli di Gudang).
 class _LineTile extends StatelessWidget {
   const _LineTile({required this.c, required this.l});
   final PenjualanController c;
@@ -665,41 +667,8 @@ class _LineTile extends StatelessWidget {
             ].join(' · '),
             style: T.label,
           ),
-          Row(
-            children: [
-              Text('Modal/unit: ', style: T.label),
-              OwnerOnly(
-                child: InkWell(
-                  onTap: () => _editCost(context),
-                  child: Text(
-                    l.cost == null ? 'belum diisi — klik untuk isi' : rp(l.cost!),
-                    style: T.label.copyWith(color: l.cost == null ? C.danger : C.ink),
-                  ),
-                ),
-              ),
-            ],
-          ),
         ],
       ),
     );
-  }
-
-  Future<void> _editCost(BuildContext context) async {
-    final ctrl = TextEditingController(text: l.cost == null ? '' : rp(l.cost!));
-    final saved = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text('Modal per unit — ${l.name}'),
-        content: SizedBox(
-          width: 300,
-          child: MoneyField(controller: ctrl, label: 'Modal / unit', hint: 'belum diisi'),
-        ),
-        actions: [
-          OutlinedButton(onPressed: () => Navigator.pop(ctx), child: const Text('Batal')),
-          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Simpan')),
-        ],
-      ),
-    );
-    if (saved == true) await c.db.setLineCost(l.id, ctrl.text.trim().isEmpty ? null : parseRupiah(ctrl.text));
   }
 }

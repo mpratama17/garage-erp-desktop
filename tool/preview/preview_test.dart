@@ -124,6 +124,8 @@ Future<void> _seed(AppDb db) async {
     car: budi.car,
     plate: budi.plate,
     lines: [b(), j()],
+    discountPct: 5,
+    taxPct: 11,
     payNow: PaymentInput(accountId: bca, amount: barang.sellPrice + jasa.sellPrice, at: now),
   );
   await db.saveDoc(

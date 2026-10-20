@@ -109,6 +109,12 @@ class Invoices extends Table {
   TextColumn get note => text().withDefault(const Constant(''))();
   BoolColumn get isVoid => boolean().withDefault(const Constant(false))();
   TextColumn get voidReason => text().withDefault(const Constant(''))();
+  // Diskon & PPN tingkat dokumen (v2). Rupiah-nya dihitung sekali saat simpan (`docAdjust`) lalu disimpan,
+  // supaya SQL, layar, dan PDF memakai angka yang sama. [discountPct] null = diskon diketik dalam Rupiah.
+  IntColumn get discountPct => integer().nullable()();
+  IntColumn get discount => integer().withDefault(const Constant(0))();
+  IntColumn get taxPct => integer().withDefault(const Constant(0))();
+  IntColumn get tax => integer().withDefault(const Constant(0))();
 }
 
 class InvoiceLines extends Table {
@@ -134,6 +140,8 @@ class Purchases extends Table {
   IntColumn get accountId => integer().references(Accounts, #id)();
   IntColumn get total => integer()();
   TextColumn get note => text().withDefault(const Constant(''))();
+  TextColumn get billNo => text().withDefault(const Constant(''))(); // no. nota supplier (v2)
+  TextColumn get proofPath => text().withDefault(const Constant(''))(); // foto nota (v2)
 }
 
 /// Slip gaji per karyawan per periode (mis. 27 Sep – 26 Okt). Dibayar = ada cash_entries kind=salary, refId=id.
@@ -210,6 +218,17 @@ const settingDefaults = {
   'backup_schedule': 'close', // lihat backupSchedules
   'export_dir': '', // kosong = ~/Documents/Garage ERP
   'pin_hash': '',
+  'tax_pct': '11', // PPN; dipakai bila invoice dicentang "kena PPN"
+  // Template pesan WA (placeholder: lihat waPlaceholders di invoice_pdf.dart).
+  'wa_paid':
+      'Halo {nama},\n\nTerima kasih sudah mempercayakan mobil Anda ke {toko}.\nInvoice {no} — LUNAS.\n\n'
+      '{rincian}\nTotal: {total}\n\nNota PDF kami kirim di chat ini.\n\n{review}',
+  'wa_unpaid':
+      'Halo {nama},\n\nTerima kasih sudah mempercayakan mobil Anda ke {toko}.\nInvoice {no}:\n\n'
+      '{rincian}\nTotal: {total}\nSudah dibayar: {dibayar}\nSisa tagihan: {sisa}\n\nNota PDF kami kirim di chat ini.',
+  'wa_order':
+      'Halo {nama},\n\nTerima kasih, pemesanan Anda di {toko} sudah kami catat.\nPemesanan {no}:\n\n'
+      '{rincian}\nTotal: {total}\nDP diterima: {dibayar}\nSisa: {sisa}',
 };
 
 /// Jadwal backup otomatis: key setting -> label.
@@ -271,9 +290,9 @@ class AppDb extends _$AppDb {
     return a;
   }
 
-  // ponytail: tetap v1 sampai app terpasang di client; setelah itu tiap perubahan skema = migrasi.
+  // App sudah dipakai client sejak v1: tiap perubahan kolom = naikkan versi + langkah di onUpgrade.
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -281,6 +300,20 @@ class AppDb extends _$AppDb {
       await m.createAll();
       for (final name in defaultAccounts) {
         await into(accounts).insert(AccountsCompanion.insert(name: name));
+      }
+    },
+    onUpgrade: (m, from, to) async {
+      if (from < 2) {
+        for (final c in [invoices.discountPct, invoices.discount, invoices.taxPct, invoices.tax]) {
+          await m.addColumn(invoices, c);
+        }
+        await m.addColumn(purchases, purchases.billNo);
+        await m.addColumn(purchases, purchases.proofPath);
+        // Modal tidak lagi diisi manual: baris lama yang kosong diisi harga beli produk saat ini (jasa = 0).
+        await customStatement(
+          'UPDATE invoice_lines SET cost = (SELECT CASE WHEN p.is_service = 1 THEN 0 '
+          'WHEN p.buy_price > 0 THEN p.buy_price END FROM products p WHERE p.id = product_id) WHERE cost IS NULL',
+        );
       }
     },
     beforeOpen: (details) async {

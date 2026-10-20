@@ -49,6 +49,8 @@ void main() {
         ),
         LineInput(productId: power, name: 'POWER+ V6', qty: 1, price: 550000),
       ],
+      discountPct: 5,
+      taxPct: 11,
       payNow: PaymentInput(accountId: bca, amount: 1350000, at: DateTime(2026, 9, 22)),
     );
     final inv = await db.invoiceFromOrder(so, at: DateTime(2026, 9, 22));

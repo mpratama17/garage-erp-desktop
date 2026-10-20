@@ -110,13 +110,17 @@ extension GajiRepo on AppDb {
     return [for (final r in await q.get()) IncentiveLine(r.readTable(invoices), r.readTable(invoiceLines))];
   }
 
-  /// Omzet = total invoice setelah diskon (barang + jasa), tanpa yang batal.
+  /// Omzet = total invoice setelah diskon baris & diskon invoice (barang + jasa), tanpa PPN dan yang batal.
   Future<int> omzet(DateTime from, DateTime to) async {
     final sum = (invoiceLines.qty * invoiceLines.price - invoiceLines.discount).sum();
     final q = selectOnly(invoiceLines).join([innerJoin(invoices, invoices.id.equalsExp(invoiceLines.invoiceId))])
       ..addColumns([sum])
       ..where(_payrollInvoice(from, to));
-    return (await q.getSingle()).read(sum) ?? 0;
+    final docDiscount = invoices.discount.sum();
+    final d = selectOnly(invoices)
+      ..addColumns([docDiscount])
+      ..where(_payrollInvoice(from, to));
+    return ((await q.getSingle()).read(sum) ?? 0) - ((await d.getSingle()).read(docDiscount) ?? 0);
   }
 
   Future<int> _commissionPct() async => num.tryParse(await setting('sales_commission_pct'))?.toInt() ?? 0;

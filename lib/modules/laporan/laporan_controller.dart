@@ -130,9 +130,9 @@ class LaporanController extends GetxController {
         [
           (
             'Penjualan',
-            ['Periode', 'Jumlah invoice', 'Penjualan bruto', 'Diskon', 'Omzet'],
+            ['Periode', 'Jumlah invoice', 'Penjualan bruto', 'Diskon', 'Omzet', 'PPN'],
             [
-              for (final r in [...s.rows, s.total]) [r.label, r.invoices.length, r.gross, r.discount, r.omzet],
+              for (final r in [...s.rows, s.total]) [r.label, r.invoices.length, r.gross, r.discount, r.omzet, r.tax],
             ],
           ),
           (

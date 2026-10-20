@@ -49,10 +49,10 @@ Jenis: 🐞 bug/salah paham · ✨ fitur · ❓ pertanyaan (cukup dijawab / mung
 
 | # | Modul | Masukan | Jenis | Catatan triase |
 |---|---|---|---|---|
-| C1 | Penjualan | Kirim WA: PDF tidak terlampir | 🐞 | ✅ sebagian: teks pesan tidak lagi bilang "terlampir"; setelah WA terbuka muncul petunjuk "seret PDF dari Finder" (Finder sudah otomatis membuka file-nya). Menunggu jawaban client soal WA Desktop / API. |
-| C2 | Penjualan | Template pesan WA customer | ✨ | Sekarang teks di-hardcode (`waMessage`). Jadikan template di Pengaturan dengan placeholder `{nama} {no} {total} {sisa} {review}`. |
-| C3 | Penjualan | Diskon & pajak di bawah total invoice; sembunyikan bila 0 | ✨ | Diskon per baris sudah ada; diskon total & **pajak belum ada** → kolom baru di `invoices` (boleh selama DB belum di client). PDF + layar. |
-| C4 | Penjualan | "Modal/unit" di rincian invoice untuk apa? | ❓ | Modal per baris (khusus owner) = dasar HPP/laba di Laporan (`laporan_repo.dart:107`). Client: cukup di Gudang → ambil otomatis dari harga beli produk saat invoice dibuat, sembunyikan dari rincian. |
+| C1 | Penjualan | Kirim WA: PDF tidak terlampir | 🐞 | ✅ Client setuju alur seret PDF dari Finder; pesan WA sekarang juga memuat rincian barang/jasa + diskon/PPN + total (`{rincian}`). |
+| C2 | Penjualan | Template pesan WA customer | ✨ | ✅ 3 template (lunas / belum lunas / pemesanan-DP) di Pengaturan → Pesan WhatsApp, placeholder `{nama} {toko} {no} {rincian} {total} {dibayar} {sisa} {review}`; kosong = bawaan. |
+| C3 | Penjualan | Diskon & pajak di bawah total invoice; sembunyikan bila 0 | ✨ | ✅ Diskon invoice Rp atau %, PPN dicentang per invoice (tarif di Pengaturan, default 11%). Disimpan di `invoices` (skema v2 + migrasi). PPN dari subtotal setelah diskon; **omzet = tanpa PPN** (Dashboard, Laporan, komisi), total tagihan = dengan PPN; Laporan Penjualan punya kolom PPN. Layar & PDF: baris Subtotal/Diskon/PPN hanya muncul bila ada. |
+| C4 | Penjualan | "Modal/unit" di rincian invoice untuk apa? | ❓ | ✅ Modal diisi otomatis di repo dari harga beli terakhir produk (Gudang); baris "Modal/unit" & isi manual dihapus. Ubah dokumen = modal lama tetap. Migrasi v2 mengisi modal kosong di baris lama. |
 | C5 | Penjualan→Kontak | Mobil & plat customer baru dari Penjualan tidak masuk Kontak | 🐞 | ✅ Penyebab: dialog Customer baru hanya nama+HP, mobil/plat cuma tersimpan di invoice. Sekarang `saveDoc` mengisi mobil/plat customer yang masih kosong (tidak menimpa yang sudah ada). Satu customer banyak mobil: tunggu client. |
 | C6 | Gaji | Insentif/tunjangan kerja teknisi masih 0 | ❓/🐞 | Insentif = tarif `incentive` di produk/jasa (default 0) × qty — tarif belum diisi (masih menunggu daftar jasa + tarif dari client). Tunjangan kerja 3% hanya untuk karyawan peran Sales (client tidak punya). Konfirmasi ke client; mungkin perlu kolom tarif insentif terlihat di form produk. |
 | C7 | Biaya | Cari di pilihan kategori | ✨ | ✅ Kategori = `DropdownMenu` ketik-untuk-cari. |

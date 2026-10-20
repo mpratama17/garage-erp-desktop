@@ -208,10 +208,21 @@ void main() {
     final pdf = await buildInvoicePdf(db, id);
     expect(String.fromCharCodes(pdf.take(5)), '%PDF-');
     final s = await db.docSummary(id);
-    final msg = waMessage(s, await db.allSettings());
+    final settings = await db.allSettings();
+    final msg = waMessage(s, await db.watchLines(id).first, settings);
     expect(msg, contains('INV/00247'));
-    expect(msg, contains('sisa Rp 1.500.000'));
-    expect(msg, contains('https://g.page/r/contoh/review'));
+    expect(msg, contains('- Hyperion Prime 1× = Rp 2.250.000'));
+    expect(msg, contains('Sisa tagihan: Rp 1.500.000'));
+    expect(msg, isNot(contains('{'))); // semua placeholder terganti
+    // Template per keadaan: lunas (dengan link review), pemesanan/DP; template kosong = bawaan.
+    await db.addPayment(id, PaymentInput(accountId: bca, amount: 1500000, at: d));
+    final paid = waMessage(await db.docSummary(id), [], settings);
+    expect(paid, allOf(contains('LUNAS'), contains('https://g.page/r/contoh/review')));
+    final order = await db.saveDoc(kind: DocKind.order, at: d, lines: [jasaLine()]);
+    await db.setSetting('wa_order', 'DP {no} {dibayar}');
+    expect(waMessage(await db.docSummary(order), [], await db.allSettings()), 'DP SO/00013 Rp 0');
+    await db.setSetting('wa_order', '  ');
+    expect(waMessage(await db.docSummary(order), [], await db.allSettings()), contains('Pemesanan SO/00013'));
     final uri = waUri(s.customerPhone, msg);
     expect(uri.toString(), startsWith('https://wa.me/6281100002222?text='));
   });
@@ -223,33 +234,62 @@ void main() {
       lines: [lampLine(), jasaLine()],
       payNow: PaymentInput(accountId: bca, amount: 100000, at: d),
     );
-    final line = (await db.watchLines(id).first).first;
-    await db.setLineCost(line.id, 1600000);
     db.ownerUnlocked = false;
-    expect(() => db.setLineCost(line.id, 1), throwsArgumentError);
     expect(() => db.voidDoc(id, 'x'), throwsArgumentError);
     // Mengubah invoice yang sudah dibayar butuh owner.
     expect(
       () => db.saveDoc(id: id, kind: DocKind.invoice, at: d, lines: [lampLine(), jasaLine()]),
       throwsArgumentError,
     );
-    // Invoice belum dibayar boleh diubah admin, tapi modal dari admin diabaikan & modal lama tetap.
-    final unpaid = await db.saveDoc(
+  });
+
+  test('modal = harga beli terakhir produk (diisi repo); ubah dokumen mempertahankan modal lama', () async {
+    Future<void> buy(int price) => (db.update(
+      db.products,
+    )..where((p) => p.id.equals(lamp))).write(ProductsCompanion(buyPrice: Value(price)));
+    Future<int?> cost(int id) async => (await db.watchLines(id).first).first.cost;
+    final noBuy = await db.saveDoc(kind: DocKind.invoice, at: d, lines: [lampLine(), jasaLine()]);
+    expect([for (final l in await db.watchLines(noBuy).first) l.cost], [null, 0]); // barang tanpa harga beli = kosong
+    await buy(1500000);
+    final unpaid = await db.saveDoc(kind: DocKind.invoice, at: d, lines: [lampLine()]);
+    expect(await cost(unpaid), 1500000);
+    await buy(1600000);
+    db.ownerUnlocked = false; // admin boleh mengubah invoice belum dibayar; modal lama tetap
+    await db.saveDoc(id: unpaid, kind: DocKind.invoice, at: d, lines: [lampLine(qty: 2)]);
+    expect(await cost(unpaid), 1500000);
+    expect(await cost(await db.saveDoc(kind: DocKind.invoice, at: d, lines: [lampLine()])), 1600000);
+  });
+
+  test('diskon invoice (Rp / %) & PPN: total, omzet, validasi, ikut ke invoice dari pemesanan', () async {
+    // Subtotal 2.500.000; diskon 10% = 250.000; PPN 11% × 2.250.000 = 247.500.
+    final id = await db.saveDoc(
       kind: DocKind.invoice,
       at: d,
-      lines: [LineInput(productId: lamp, name: 'L', qty: 1, price: 1, cost: 5)],
+      lines: [lampLine(), jasaLine()],
+      discountPct: 10,
+      taxPct: 11,
     );
-    expect((await db.watchLines(unpaid).first).single.cost, isNull);
-    db.ownerUnlocked = true;
-    await db.setLineCost((await db.watchLines(unpaid).first).single.id, 1500000);
-    db.ownerUnlocked = false;
-    await db.saveDoc(
-      id: unpaid,
-      kind: DocKind.invoice,
-      at: d,
-      lines: [LineInput(productId: lamp, name: 'L', qty: 2, price: 1, cost: 9)],
+    final s = await db.docSummary(id);
+    expect((s.subtotal, s.doc.discount, s.doc.tax, s.total, s.omzet), (2500000, 250000, 247500, 2497500, 2250000));
+    expect(s.adjustments, [('Diskon 10%', -250000), ('PPN 11%', 247500)]);
+    final plain = await db.docSummary(await db.saveDoc(kind: DocKind.invoice, at: d, lines: [jasaLine()]));
+    expect(plain.adjustments, isEmpty); // tanpa diskon/PPN: tidak tampil
+    expect(plain.total, 250000);
+    final rp = await db.docSummary(
+      await db.saveDoc(kind: DocKind.invoice, at: d, lines: [jasaLine()], discount: 50000),
     );
-    expect((await db.watchLines(unpaid).first).single.cost, 1500000);
+    expect(rp.adjustments, [('Diskon', -50000)]);
+    expect(rp.total, 200000);
+
+    expect(() => db.saveDoc(kind: DocKind.invoice, at: d, lines: [jasaLine()], discount: 250001), throwsArgumentError);
+    expect(() => db.saveDoc(kind: DocKind.invoice, at: d, lines: [jasaLine()], discountPct: 101), throwsArgumentError);
+    // Bayar penuh (dengan PPN) → lunas; tidak boleh lebih.
+    await db.addPayment(id, PaymentInput(accountId: bca, amount: 2497500, at: d));
+    expect((await db.docSummary(id)).status, PayStatus.paid);
+
+    final order = await db.saveDoc(kind: DocKind.order, at: d, lines: [jasaLine()], discount: 50000, taxPct: 11);
+    final inv = await db.docSummary(await db.invoiceFromOrder(order, at: d));
+    expect((inv.doc.discount, inv.doc.tax, inv.total), (50000, 22000, 222000));
   });
 
   test('nomor otomatis melompati nomor yang sudah dipakai transaksi lama', () async {

@@ -10,6 +10,7 @@ import '../../core/owner.dart';
 import '../../core/theme.dart';
 import '../../core/ui.dart';
 import '../../db/database.dart';
+import '../penjualan/invoice_pdf.dart' show waPlaceholders, waTemplateKeys;
 
 /// Field teks yang diedit di halaman ini: key setting -> label.
 const _textFields = {
@@ -27,13 +28,14 @@ const _numFields = {
   'next_so_no': ('No. pemesanan berikutnya', 1, 99999),
   'payroll_start_day': ('Tgl mulai periode gaji', 1, 28),
   'sales_commission_pct': ('Komisi sales (%)', 0, 100),
+  'tax_pct': ('PPN (%)', 0, 100),
 };
 
 class PengaturanController extends GetxController {
   PengaturanController(this.db);
   final AppDb db;
   final ctrl = {
-    for (final k in [..._textFields.keys, ..._numFields.keys]) k: TextEditingController(),
+    for (final k in [..._textFields.keys, ..._numFields.keys, ...waTemplateKeys.keys]) k: TextEditingController(),
   };
   final logoPath = ''.obs; // logo penuh, untuk nota
   final iconPath = ''.obs; // ikon kecil, untuk sidebar
@@ -216,7 +218,15 @@ class _FormState extends State<_Form> {
                         field(e.key, e.value, lines: e.key == 'shop_address' || e.key == 'invoice_note' ? 4 : 1),
                       Text('Tampil di nota PDF. Pesan nota: rekening & syarat garansi.', style: T.label),
                     ]),
-                    _Card('Nomor nota & gaji', [for (final e in _numFields.entries) field(e.key, e.value.$1)]),
+                    _Card('Nomor nota, pajak & gaji', [for (final e in _numFields.entries) field(e.key, e.value.$1)]),
+                    _Card('Pesan WhatsApp', [
+                      for (final e in waTemplateKeys.entries) field(e.key, e.value, lines: 7),
+                      Text(
+                        'Kata dalam kurung kurawal diganti otomatis: $waPlaceholders. '
+                        'Kosongkan untuk kembali ke pesan bawaan.',
+                        style: T.label,
+                      ),
+                    ]),
                     Align(
                       alignment: Alignment.centerRight,
                       child: FilledButton(

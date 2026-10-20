@@ -79,7 +79,8 @@ class PenjualanController extends GetxController {
   Future<void> sendWa(int docId) async {
     final path = await saveInvoicePdf(db, docId);
     final s = await db.docSummary(docId);
-    await launchUrl(waUri(s.customerPhone, waMessage(s, await db.allSettings())));
+    final lines = await db.watchLines(docId).first;
+    await launchUrl(waUri(s.customerPhone, waMessage(s, lines, await db.allSettings())));
     if (Platform.isMacOS) await Process.run('open', ['-R', path]);
   }
 }

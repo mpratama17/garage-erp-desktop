@@ -312,6 +312,7 @@ class _Penjualan extends StatelessWidget {
             Col('Bruto', (r) => Text(rp(r.gross), style: T.money), flex: 3, numeric: true),
             Col('Diskon', (r) => Text(rp(r.discount), style: T.money), flex: 3, numeric: true),
             Col('Omzet', (r) => Text(rp(r.omzet), style: T.money), flex: 3, numeric: true),
+            Col('PPN', (r) => Text(rp(r.tax), style: T.money), flex: 2, numeric: true),
           ],
         ),
       ),

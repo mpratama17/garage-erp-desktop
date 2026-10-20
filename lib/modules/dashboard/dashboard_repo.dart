@@ -16,7 +16,8 @@ extension DashboardRepo on AppDb {
   /// Omzet & jumlah invoice per hari ([monthly] = per bulan) pada [from, to). Invoice tidak batal saja.
   Future<List<SalesPoint>> salesSeries(DateTime from, DateTime to, {bool monthly = false}) async {
     final rows = await customSelect(
-      'SELECT i.at, SUM(l.qty * l.price - l.discount) AS total FROM invoices i '
+      // Omzet per invoice = baris − diskon invoice (tanpa PPN).
+      'SELECT i.at, SUM(l.qty * l.price - l.discount) - i.discount AS total FROM invoices i '
       'JOIN invoice_lines l ON l.invoice_id = i.id '
       "WHERE i.kind = '${DocKind.invoice}' AND i.is_void = 0 AND i.at >= ? AND i.at < ? GROUP BY i.id",
       variables: [Variable.withDateTime(from), Variable.withDateTime(to)],

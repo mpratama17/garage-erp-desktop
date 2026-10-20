@@ -41,7 +41,7 @@ class SalesRow {
   final DateTime start;
   final String label;
   final invoices = <int>{};
-  int gross = 0, discount = 0;
+  int gross = 0, discount = 0, tax = 0; // diskon = per baris + per invoice; PPN bukan omzet
   int get omzet => gross - discount;
 }
 
@@ -59,7 +59,7 @@ class SalesReport {
   final List<ItemRow> byProduct; // terlaris: qty terbanyak dulu
 }
 
-typedef _Line = ({DateTime at, int invoiceId, InvoiceLine line, Product product});
+typedef _Line = ({Invoice doc, InvoiceLine line, Product product});
 
 // ponytail: agregasi di Dart atas semua baris periode; cukup untuk 1 bengkel. Pindah ke GROUP BY bila lambat.
 extension LaporanRepo on AppDb {
@@ -77,12 +77,7 @@ extension LaporanRepo on AppDb {
         );
     return [
       for (final r in await q.get())
-        (
-          at: r.readTable(invoices).at,
-          invoiceId: r.readTable(invoices).id,
-          line: r.readTable(invoiceLines),
-          product: r.readTable(products),
-        ),
+        (doc: r.readTable(invoices), line: r.readTable(invoiceLines), product: r.readTable(products)),
     ];
   }
 
@@ -101,9 +96,11 @@ extension LaporanRepo on AppDb {
     }
 
     var missing = 0;
+    final seen = <int>{};
     for (final l in lines) {
-      final r = row(l.at);
+      final r = row(l.doc.at);
       r.revenue += l.line.qty * l.line.price - l.line.discount;
+      if (seen.add(l.doc.id)) r.revenue -= l.doc.discount; // diskon invoice dihitung sekali per invoice
       r.cogs += l.line.qty * (l.line.cost ?? 0);
       if (l.line.cost == null && !l.product.isService) missing++;
     }
@@ -146,13 +143,18 @@ extension LaporanRepo on AppDb {
     final byStart = <DateTime, SalesRow>{}, byCat = <String, ItemRow>{}, byProduct = <int, ItemRow>{};
     final total = SalesRow(from, 'Total');
     for (final l in lines) {
-      final (start, label) = periodOf(l.at, period);
+      final (start, label) = periodOf(l.doc.at, period);
       final gross = l.line.qty * l.line.price, omzet = gross - l.line.discount;
       for (final r in [byStart.putIfAbsent(start, () => SalesRow(start, label)), total]) {
-        r.invoices.add(l.invoiceId);
+        if (r.invoices.add(l.doc.id)) {
+          r.discount += l.doc.discount;
+          r.tax += l.doc.tax;
+        }
         r.gross += gross;
         r.discount += l.line.discount;
       }
+      // ponytail: per kategori/produk memakai omzet baris (diskon invoice tidak dibagi ke baris);
+      // total di tab Penjualan tetap tepat. Bagi proporsional bila owner butuh margin per produk.
       final category = l.product.category.isEmpty ? 'Tanpa kategori' : l.product.category;
       for (final i in [
         byCat.putIfAbsent(category, () => ItemRow(category, '')),

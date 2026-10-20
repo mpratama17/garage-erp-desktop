@@ -18,7 +18,9 @@ void main() {
   setUp(() async {
     db = AppDb(NativeDatabase.memory())..ownerUnlocked = true;
     bca = (await (db.select(db.accounts)..where((a) => a.name.equals('BCA'))).getSingle()).id;
-    lampu = await db.saveProduct(ProductsCompanion.insert(name: 'Projector', category: const Value('PROJECTOR')));
+    lampu = await db.saveProduct(
+      ProductsCompanion.insert(name: 'Projector', category: const Value('PROJECTOR'), buyPrice: const Value(900000)),
+    );
     kabel = await db.saveProduct(ProductsCompanion.insert(name: 'Kabel set', category: const Value('KABEL')));
     jasa = await db.saveProduct(ProductsCompanion.insert(name: 'Pasang', isService: const Value(true)));
     tek = await db.saveEmployee(
@@ -26,12 +28,12 @@ void main() {
     );
     cat = {for (final k in await db.watchCategories().first) k.name: k.id};
 
-    // Oktober: invoice 2 projector (modal diisi) + jasa, diskon 100rb.
+    // Oktober: invoice 2 projector (modal = harga beli produk) + jasa, diskon 100rb.
     await db.saveDoc(
       kind: DocKind.invoice,
       at: DateTime(2026, 10, 5),
       lines: [
-        LineInput(productId: lampu, name: 'Projector', qty: 2, price: 1500000, discount: 100000, cost: 900000),
+        LineInput(productId: lampu, name: 'Projector', qty: 2, price: 1500000, discount: 100000),
         LineInput(productId: jasa, name: 'Pasang', qty: 1, price: 300000),
       ],
     );
@@ -44,7 +46,7 @@ void main() {
     final batal = await db.saveDoc(
       kind: DocKind.invoice,
       at: DateTime(2026, 11, 3),
-      lines: [LineInput(productId: lampu, name: 'Projector', qty: 1, price: 1500000, cost: 900000)],
+      lines: [LineInput(productId: lampu, name: 'Projector', qty: 1, price: 1500000)],
     );
     await db.voidDoc(batal, 'salah');
     await db.saveDoc(
@@ -99,6 +101,24 @@ void main() {
     expect(s.byProduct.map((p) => (p.name, p.qty)), [('Kabel set', 3), ('Projector', 2), ('Pasang', 1)]);
     final daily = (await db.report(DateTime(2026, 10), DateTime(2026, 11), Period.daily)).sales;
     expect(daily.rows.single.label, '5 Okt 2026');
+  });
+
+  test('diskon invoice mengurangi pendapatan (sekali per invoice); PPN dicatat terpisah, bukan omzet', () async {
+    final des = DateTime(2026, 12, 1);
+    await db.saveDoc(
+      kind: DocKind.invoice,
+      at: DateTime(2026, 12, 5),
+      lines: [
+        LineInput(productId: jasa, name: 'Pasang', qty: 1, price: 300000),
+        LineInput(productId: jasa, name: 'Pasang', qty: 1, price: 200000),
+      ],
+      discount: 100000,
+      taxPct: 11,
+    );
+    final r = await db.report(des, y1, Period.monthly);
+    expect(r.pl.total.revenue, 400000);
+    final t = r.sales.total;
+    expect((t.gross, t.discount, t.omzet, t.tax), (500000, 100000, 400000, 44000));
   });
 
   test('laporan khusus owner (dicek di repo)', () async {

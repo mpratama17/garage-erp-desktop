@@ -24,6 +24,14 @@ class DocSummary {
   final bool hasInvoice; // pemesanan yang sudah dibuatkan invoice
 
   int get remaining => total - paid;
+  int get omzet => total - doc.tax; // pendapatan: setelah semua diskon, tanpa PPN (PPN bukan pendapatan)
+  int get subtotal => omzet + doc.discount; // jumlah baris sebelum diskon invoice
+
+  /// Diskon & PPN dokumen untuk ringkasan di bawah rincian (layar, PDF, WA) — hanya yang ada.
+  List<(String, int)> get adjustments => [
+    if (doc.discount > 0) (doc.discountPct == null ? 'Diskon' : 'Diskon ${doc.discountPct}%', -doc.discount),
+    if (doc.tax > 0) ('PPN ${doc.taxPct}%', doc.tax),
+  ];
   bool get isOrder => doc.kind == DocKind.order;
 
   PayStatus get status {
@@ -49,14 +57,13 @@ class LineInput {
     required this.price,
     this.discount = 0,
     this.incentive = 0,
-    this.cost,
     this.tech1Id,
     this.tech2Id,
   });
   final int productId;
   final String name, description;
   final int qty, price, discount, incentive;
-  final int? cost, tech1Id, tech2Id;
+  final int? tech1Id, tech2Id;
 
   int get total => qty * price - discount;
 
@@ -68,7 +75,6 @@ class LineInput {
     price: l.price,
     discount: l.discount,
     incentive: l.incentive,
-    cost: l.cost,
     tech1Id: l.tech1Id,
     tech2Id: l.tech2Id,
   );
@@ -83,6 +89,13 @@ class PaymentInput {
 
 int linesTotal(Iterable<LineInput> lines) => lines.fold(0, (s, l) => s + l.total);
 
+/// Diskon & PPN tingkat dokumen dari [subtotal] baris. Satu-satunya rumus: dipakai repo (disimpan) dan form.
+/// Diskon persen atau Rupiah; PPN dihitung dari subtotal setelah diskon.
+({int discount, int tax}) docAdjust(int subtotal, {int? discountPct, int discount = 0, int taxPct = 0}) {
+  final d = discountPct == null ? discount : (subtotal * discountPct / 100).round();
+  return (discount: d, tax: ((subtotal - d) * taxPct / 100).round());
+}
+
 /// Insentif satu baris untuk satu teknisi: qty × tarif, dibagi dua bila dikerjakan berdua.
 int lineIncentiveShare(InvoiceLine l) {
   final techs = [l.tech1Id, l.tech2Id].whereType<int>().length;
@@ -91,7 +104,8 @@ int lineIncentiveShare(InvoiceLine l) {
 
 const _summarySql = '''
 SELECT i.*, c.name AS customer_name, c.phone AS customer_phone,
-  COALESCE((SELECT SUM(qty * price - discount) FROM invoice_lines WHERE invoice_id = i.id), 0) AS total,
+  COALESCE((SELECT SUM(qty * price - discount) FROM invoice_lines WHERE invoice_id = i.id), 0)
+    - i.discount + i.tax AS total,
   COALESCE((SELECT SUM(amount) FROM cash_entries WHERE kind IN ('payment', 'refund')
     AND (ref_id = i.id OR (i.is_void = 0 AND i.order_id IS NOT NULL AND ref_id = i.order_id))), 0) AS paid,
   EXISTS (SELECT 1 FROM invoices x WHERE x.order_id = i.id AND x.is_void = 0) AS has_invoice
@@ -166,6 +180,9 @@ extension PenjualanRepo on AppDb {
     String plate = '',
     String note = '',
     required List<LineInput> lines,
+    int? discountPct,
+    int discount = 0,
+    int taxPct = 0,
     String? legacyNo,
     PaymentInput? payNow,
   }) {
@@ -173,12 +190,16 @@ extension PenjualanRepo on AppDb {
     if (lines.isEmpty) throw ArgumentError('Belum ada barang/jasa');
     for (final l in lines) {
       if (l.qty <= 0) throw ArgumentError('Qty "${l.name}" harus lebih dari 0');
-      if (l.price < 0 || l.discount < 0 || l.cost != null && l.cost! < 0) {
-        throw ArgumentError('Harga/diskon/modal "${l.name}" tidak boleh minus');
-      }
+      if (l.price < 0 || l.discount < 0) throw ArgumentError('Harga/diskon "${l.name}" tidak boleh minus');
       if (l.discount > l.qty * l.price) throw ArgumentError('Diskon "${l.name}" melebihi harganya');
       if (l.tech1Id != null && l.tech1Id == l.tech2Id) throw ArgumentError('Teknisi "${l.name}" dipilih dua kali');
     }
+    final subtotal = linesTotal(lines);
+    if (discountPct != null && (discountPct < 0 || discountPct > 100)) throw ArgumentError('Diskon % harus 0–100');
+    if (taxPct < 0 || taxPct > 100) throw ArgumentError('PPN % harus 0–100');
+    final adj = docAdjust(subtotal, discountPct: discountPct, discount: discount, taxPct: taxPct);
+    if (adj.discount < 0 || adj.discount > subtotal) throw ArgumentError('Diskon invoice melebihi subtotal');
+    final grandTotal = subtotal - adj.discount + adj.tax;
     final legacy = legacyNo != null;
     if (legacy && legacyNo.trim().isEmpty) throw ArgumentError('Nomor transaksi lama wajib diisi');
 
@@ -188,7 +209,8 @@ extension PenjualanRepo on AppDb {
       if (items.length != productIds.length) throw ArgumentError('Ada produk yang tidak ditemukan');
 
       final Invoice? old = id == null ? null : await (select(invoices)..where((i) => i.id.equals(id))).getSingle();
-      // Modal hanya boleh ditulis owner. Selain owner: modal lama per produk dipertahankan, baris baru kosong.
+      // Modal = harga beli terakhir produk (Gudang), diisi di sini, bukan dari form. Saat mengubah dokumen,
+      // modal lama per produk dipertahankan supaya laba transaksi lama tidak ikut berubah.
       final oldCost = <int, int?>{};
       if (old != null) {
         if (old.isVoid) throw ArgumentError('${old.no} sudah dibatalkan');
@@ -198,8 +220,8 @@ extension PenjualanRepo on AppDb {
         for (final l in await (select(invoiceLines)..where((l) => l.invoiceId.equals(old.id))).get()) {
           oldCost.putIfAbsent(l.productId, () => l.cost);
         }
-        if (linesTotal(lines) < s.paid) {
-          throw ArgumentError('Total baru (${linesTotal(lines)}) lebih kecil dari yang sudah dibayar (${s.paid})');
+        if (grandTotal < s.paid) {
+          throw ArgumentError('Total baru ($grandTotal) lebih kecil dari yang sudah dibayar (${s.paid})');
         }
       }
 
@@ -211,6 +233,10 @@ extension PenjualanRepo on AppDb {
         car: Value(car.trim()),
         plate: Value(plate.trim().toUpperCase()),
         note: Value(note.trim()),
+        discountPct: Value(discountPct),
+        discount: Value(adj.discount),
+        taxPct: Value(taxPct),
+        tax: Value(adj.tax),
       );
       final int docId;
       if (old == null) {
@@ -261,7 +287,7 @@ extension PenjualanRepo on AppDb {
             qty: l.qty,
             price: l.price,
             discount: Value(l.discount),
-            cost: Value(ownerUnlocked ? l.cost : oldCost[l.productId]),
+            cost: Value(oldCost[l.productId] ?? _cost(items[l.productId]!)),
             incentive: Value(l.incentive),
             tech1Id: Value(l.tech1Id),
             tech2Id: Value(l.tech2Id),
@@ -275,6 +301,9 @@ extension PenjualanRepo on AppDb {
       return docId;
     });
   }
+
+  /// Modal per unit dari harga beli terakhir. Barang tanpa harga beli = null (Laporan memberi peringatan).
+  int? _cost(Product p) => p.isService ? 0 : (p.buyPrice > 0 ? p.buyPrice : null);
 
   // Stok boleh minus (keputusan awal: toko sering menjual sebelum pembelian dicatat);
   // form invoice memberi peringatan, Gudang menandai stok minus.
@@ -359,17 +388,13 @@ extension PenjualanRepo on AppDb {
       plate: s.doc.plate,
       note: s.doc.note,
       lines: lines.map(LineInput.from).toList(),
+      discountPct: s.doc.discountPct,
+      discount: s.doc.discount,
+      taxPct: s.doc.taxPct,
     );
     await (update(invoices)..where((i) => i.id.equals(invId))).write(InvoicesCompanion(orderId: Value(orderId)));
     return invId;
   });
-
-  /// Modal per unit satu baris (khusus owner; null = kosongkan).
-  Future<void> setLineCost(int lineId, int? cost) async {
-    requireOwner();
-    if (cost != null && cost < 0) throw ArgumentError('Modal tidak boleh minus');
-    await (update(invoiceLines)..where((l) => l.id.equals(lineId))).write(InvoiceLinesCompanion(cost: Value(cost)));
-  }
 
   /// Statistik customer pada [from, to): pelanggan aktif, % repeat order, top pelanggan.
   /// Aktif = punya ≥1 invoice (bukan batal) di periode. Repeat = aktif yang punya ≥2 invoice sepanjang waktu.
@@ -379,7 +404,7 @@ extension PenjualanRepo on AppDb {
   ) async {
     final rows = await customSelect(
       '''
-      SELECT c.*, SUM(t.total) AS total, COUNT(*) AS cnt,
+      SELECT c.*, SUM(t.total - i.discount + i.tax) AS total, COUNT(*) AS cnt,
         (SELECT COUNT(*) FROM invoices a WHERE a.customer_id = c.id AND a.kind = 'invoice' AND a.is_void = 0) AS all_cnt
       FROM invoices i
       JOIN customers c ON c.id = i.customer_id

@@ -21,13 +21,14 @@ Future<int?> showDocEditor(
   bool legacy = false,
 }) async {
   final lines = existing == null ? <InvoiceLine>[] : await c.db.watchLines(existing.doc.id).first;
+  final taxRate = int.tryParse(await c.db.setting('tax_pct')) ?? 11;
   if (!context.mounted) return null;
   return showDialog<int>(
     context: context,
     barrierDismissible: false,
     builder: (_) => Dialog(
       insetPadding: const EdgeInsets.all(S.xl),
-      child: _DocEditor(c: c, kind: kind, existing: existing, lines: lines, legacy: legacy),
+      child: _DocEditor(c: c, kind: kind, existing: existing, lines: lines, legacy: legacy, taxRate: taxRate),
     ),
   );
 }
@@ -40,14 +41,12 @@ class _Row {
       discount = TextEditingController(text: from == null || from.discount == 0 ? '' : rp(from.discount)),
       name = from?.name ?? item?.product.name ?? '',
       incentive = from?.incentive ?? item?.product.incentive ?? 0,
-      cost = from?.cost,
       tech1 = from?.tech1Id,
       tech2 = from?.tech2Id;
 
   StockedProduct? item;
   String name;
   int incentive;
-  int? cost; // modal yang sudah diisi owner terbawa saat invoice diubah; kosong lagi bila produk diganti
   int? tech1, tech2;
   final TextEditingController description, qty, price, discount;
 
@@ -61,12 +60,20 @@ class _Row {
 }
 
 class _DocEditor extends StatefulWidget {
-  const _DocEditor({required this.c, required this.kind, this.existing, required this.lines, required this.legacy});
+  const _DocEditor({
+    required this.c,
+    required this.kind,
+    this.existing,
+    required this.lines,
+    required this.legacy,
+    required this.taxRate,
+  });
   final PenjualanController c;
   final String kind;
   final DocSummary? existing;
   final List<InvoiceLine> lines;
   final bool legacy;
+  final int taxRate; // PPN dari Pengaturan; dokumen lama memakai tarif yang tersimpan
   @override
   State<_DocEditor> createState() => _DocEditorState();
 }
@@ -92,8 +99,23 @@ class _DocEditorState extends State<_DocEditor> {
   final payAmount = TextEditingController();
   late int? accountId = c.accounts.firstOrNull?.id;
 
+  // Diskon & PPN tingkat dokumen.
+  late bool discountIsPct = doc?.discountPct != null;
+  late final docDiscount = TextEditingController(
+    text: doc == null || doc!.discount == 0
+        ? ''
+        : (doc!.discountPct != null ? '${doc!.discountPct}' : rp(doc!.discount)),
+  );
+  late bool withTax = (doc?.taxPct ?? 0) > 0;
+  late final taxPct = withTax ? doc!.taxPct : widget.taxRate;
+
   bool get isNew => doc == null;
-  int get total => rows.fold(0, (s, r) => s + (r.item == null ? 0 : r.total));
+  int get subtotal => rows.fold(0, (s, r) => s + (r.item == null ? 0 : r.total));
+  int? get discountPct => discountIsPct ? parseRupiah(docDiscount.text) : null;
+  int get discountRp => discountIsPct ? 0 : parseRupiah(docDiscount.text);
+  ({int discount, int tax}) get adj =>
+      docAdjust(subtotal, discountPct: discountPct, discount: discountRp, taxPct: withTax ? taxPct : 0);
+  int get total => subtotal - adj.discount + adj.tax;
 
   @override
   void initState() {
@@ -106,7 +128,7 @@ class _DocEditorState extends State<_DocEditor> {
     for (final r in rows) {
       r.dispose();
     }
-    for (final t in [car, plate, note, legacyNo, payAmount]) {
+    for (final t in [car, plate, note, legacyNo, payAmount, docDiscount]) {
       t.dispose();
     }
     super.dispose();
@@ -173,6 +195,9 @@ class _DocEditorState extends State<_DocEditor> {
         plate: plate.text,
         note: note.text,
         legacyNo: widget.legacy ? legacyNo.text : null,
+        discountPct: discountPct,
+        discount: discountRp,
+        taxPct: withTax ? taxPct : 0,
         lines: [
           for (final r in rows)
             LineInput(
@@ -183,7 +208,6 @@ class _DocEditorState extends State<_DocEditor> {
               price: parseRupiah(r.price.text),
               discount: parseRupiah(r.discount.text),
               incentive: r.incentive,
-              cost: r.cost,
               tech1Id: r.tech1,
               tech2Id: r.tech2,
             ),
@@ -384,7 +408,6 @@ class _DocEditorState extends State<_DocEditor> {
               subtitle: (s) => '${rupiah(s.product.sellPrice)} · ${s.isService ? 'Jasa' : 'Stok ${s.stock}'}',
             ),
             onSelected: (s) => setState(() {
-              if (r.item?.product.id != s.product.id) r.cost = null;
               r.item = s;
               r.name = s.product.name;
               r.incentive = s.product.incentive;
@@ -447,9 +470,65 @@ class _DocEditorState extends State<_DocEditor> {
 
   Widget _totals() {
     final paid = widget.existing?.paid ?? 0;
+    Widget amount(String label, int v) => Row(
+      children: [
+        Text(label),
+        const Spacer(),
+        Text(rupiah(v), style: T.money),
+      ],
+    );
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        amount('Subtotal', subtotal),
+        const SizedBox(height: S.sm),
+        Row(
+          children: [
+            const Text('Diskon'),
+            const SizedBox(width: S.md),
+            Expanded(
+              child: MoneyField(
+                controller: docDiscount,
+                label: '',
+                prefix: '',
+                hint: '0',
+                onChanged: (_) => setState(() {}),
+              ),
+            ),
+            const SizedBox(width: S.sm),
+            SegmentedButton<bool>(
+              showSelectedIcon: false,
+              style: const ButtonStyle(visualDensity: VisualDensity.compact),
+              segments: const [
+                ButtonSegment(value: false, label: Text('Rp')),
+                ButtonSegment(value: true, label: Text('%')),
+              ],
+              selected: {discountIsPct},
+              onSelectionChanged: (v) => setState(() {
+                discountIsPct = v.first;
+                docDiscount.clear();
+              }),
+            ),
+            const SizedBox(width: S.sm),
+            SizedBox(
+              width: 120,
+              child: Text(
+                adj.discount == 0 ? '—' : '-${rupiah(adj.discount)}',
+                textAlign: TextAlign.right,
+                style: T.money,
+              ),
+            ),
+          ],
+        ),
+        Row(
+          children: [
+            Checkbox(value: withTax, onChanged: (v) => setState(() => withTax = v!)),
+            Text('PPN $taxPct%'),
+            const Spacer(),
+            Text(adj.tax == 0 ? '—' : rupiah(adj.tax), style: T.money),
+          ],
+        ),
+        const Divider(),
         Row(
           children: [
             Text('Total', style: T.section),
