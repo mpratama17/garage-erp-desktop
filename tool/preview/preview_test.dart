@@ -244,6 +244,16 @@ void main() {
     owner.isOwner.value = true;
     await settle();
     await shot('dashboard-owner');
+    await tester.tap(find.text('Harian'));
+    await settle();
+    await shot('dashboard-owner-harian');
+    await tester.tap(find.text('Bulanan'));
+    await settle();
+    await tester.tap(find.byIcon(Icons.date_range_outlined));
+    await settle();
+    await shot('dashboard-rentang-dialog');
+    await tester.tap(find.byIcon(Icons.close));
+    await settle();
     owner.isOwner.value = false;
     await settle();
     // Ukuran jendela minimum (design.md §4).

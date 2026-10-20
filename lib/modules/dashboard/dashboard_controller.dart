@@ -16,9 +16,16 @@ class DashboardController extends GetxController {
   DashboardController(this.db);
   final AppDb db;
 
-  final days = <SalesPoint>[].obs; // per hari bulan ini
-  final months = <SalesPoint>[].obs; // per bulan, 12 bulan terakhir (termasuk bulan ini)
+  final days = <SalesPoint>[].obs; // per hari bulan ini (KPI hari ini/bulan ini)
   final top = <TopItem>[].obs;
+
+  // Grafik omzet & pemasukan/pengeluaran (C14-16): period + rentang tanggal, untuk semua pengguna.
+  final chartPeriod = Period.monthly.obs;
+  final chartFrom = Rx<DateTime>(DateTime(DateTime.now().year, DateTime.now().month - 11));
+  final chartTo = Rx<DateTime>(DateTime(DateTime.now().year, DateTime.now().month + 1));
+  final chartPoints = <SalesPoint>[].obs; // omzet per titik
+  final flowPoints = <FlowRow>[].obs; // pemasukan/pengeluaran per titik (bagan)
+  var _chartSeq = 0;
   final unpaid = <DocSummary>[].obs; // invoice belum lunas, lewat tempo dulu
   final lowStock = <StockedProduct>[].obs;
   final balance = RxnInt(); // owner saja
@@ -58,9 +65,10 @@ class DashboardController extends GetxController {
         ),
       )
       ..add(
-        db
-            .tableUpdates(TableUpdateQuery.onAllTables([db.invoices, db.invoiceLines, db.cashEntries]))
-            .listen((_) => _load()),
+        db.tableUpdates(TableUpdateQuery.onAllTables([db.invoices, db.invoiceLines, db.cashEntries])).listen((_) {
+          _load();
+          _loadChart();
+        }),
       );
     _ownerWorker = ever(_owner.isOwner, (_) => _ownerChanged());
     // App bisa terbuka semalaman: muat ulang saat tanggal berganti.
@@ -72,6 +80,7 @@ class DashboardController extends GetxController {
       }
     });
     _ownerChanged();
+    _loadChart();
   }
 
   /// Saldo hanya dimuat saat owner terbuka (bukan sekadar disembunyikan di layar).
@@ -113,19 +122,50 @@ class DashboardController extends GetxController {
       }
     }
 
-    final (d, m, prev, t, p) = await (
+    final (d, prev, t, p) = await (
       db.salesSeries(month, next),
-      db.salesSeries(DateTime(now.year, now.month - 11), next, monthly: true),
       db.salesSeries(DateTime(now.year, now.month - 1), prevTo),
       db.topItems(month, next),
       profitOf(),
     ).wait;
     if (seq != _seq) return;
     days.assignAll(d);
-    months.assignAll(m);
     lastMonthToDate.value = prev.fold<int>(0, (s, x) => s + x.omzet);
     top.assignAll(t);
     profit.value = p;
+  }
+
+  /// Ganti periode grafik: rentang direset ke bentang wajar untuk periode itu (bisa diganti lewat
+  /// [setChartRange]). Harian = bulan ini, bulanan = 12 bulan, tahunan = 5 tahun terakhir.
+  void setChartPeriod(Period p) {
+    chartPeriod.value = p;
+    final now = DateTime.now();
+    final (from, to) = switch (p) {
+      Period.daily => (DateTime(now.year, now.month), DateTime(now.year, now.month + 1)),
+      Period.monthly => (DateTime(now.year, now.month - 11), DateTime(now.year, now.month + 1)),
+      Period.quarterly => (DateTime(now.year - 1, now.month), DateTime(now.year, now.month + 1)),
+      Period.yearly => (DateTime(now.year - 4), DateTime(now.year + 1)),
+    };
+    chartFrom.value = from;
+    chartTo.value = to;
+    _loadChart();
+  }
+
+  void setChartRange(DateTime from, DateTime to) {
+    chartFrom.value = from;
+    chartTo.value = DateTime(to.year, to.month, to.day + 1); // to = inklusif tanggal terakhir
+    _loadChart();
+  }
+
+  Future<void> _loadChart() async {
+    final seq = ++_chartSeq;
+    final (points, flow) = await (
+      db.salesSeries(chartFrom.value, chartTo.value, period: chartPeriod.value),
+      db.cashFlow(chartFrom.value, chartTo.value, chartPeriod.value),
+    ).wait;
+    if (seq != _chartSeq) return;
+    chartPoints.assignAll(points);
+    flowPoints.assignAll(flow);
   }
 
   SalesPoint? get today => days.firstWhereOrNull((p) => p.start == DateUtils.dateOnly(DateTime.now()));

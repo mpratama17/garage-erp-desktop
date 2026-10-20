@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:garage_erp_desktop/db/database.dart';
 import 'package:garage_erp_desktop/modules/dashboard/dashboard_repo.dart';
 import 'package:garage_erp_desktop/modules/gudang/gudang_repo.dart';
+import 'package:garage_erp_desktop/modules/kas/kas_repo.dart';
 import 'package:garage_erp_desktop/modules/penjualan/penjualan_repo.dart';
 
 void main() {
@@ -26,9 +27,12 @@ void main() {
 
     final days = await db.salesSeries(DateTime(2026, 10, 1), DateTime(2026, 10, 4));
     expect(days.map((p) => (p.start.day, p.omzet, p.invoices)), [(1, 0, 0), (2, 240000, 2), (3, 0, 0)]);
-    final months = await db.salesSeries(DateTime(2026, 9), DateTime(2026, 11), monthly: true);
+    final months = await db.salesSeries(DateTime(2026, 9), DateTime(2026, 11), period: Period.monthly);
     expect(months.map((p) => (p.start.month, p.omzet)), [(9, 100000), (10, 240000)]);
     final top = await db.topItems(DateTime(2026, 10), DateTime(2026, 11));
     expect(top, [(name: 'LED', qty: 2, omzet: 190000), (name: 'Pasang', qty: 1, omzet: 50000)]);
+
+    final years = await db.salesSeries(DateTime(2025), DateTime(2027), period: Period.yearly);
+    expect(years.map((p) => (p.start.year, p.label, p.omzet)), [(2025, '2025', 0), (2026, '2026', 340000)]);
   });
 }

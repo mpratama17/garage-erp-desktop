@@ -1,20 +1,23 @@
 import 'package:drift/drift.dart';
 
 import '../../db/database.dart';
+import '../kas/kas_repo.dart' show Period, nextPeriod, periodOf;
 import '../penjualan/penjualan_repo.dart';
 
 /// Angka operasional untuk semua pengguna (tanpa modal/laba — itu lewat `report()` yang khusus owner).
 class SalesPoint {
-  SalesPoint(this.start);
-  final DateTime start; // awal hari/bulan
+  SalesPoint(this.start, this.label);
+  final DateTime start; // awal periode
+  final String label;
   int omzet = 0, invoices = 0;
 }
 
 typedef TopItem = ({String name, int qty, int omzet});
 
 extension DashboardRepo on AppDb {
-  /// Omzet & jumlah invoice per hari ([monthly] = per bulan) pada [from, to). Invoice tidak batal saja.
-  Future<List<SalesPoint>> salesSeries(DateTime from, DateTime to, {bool monthly = false}) async {
+  /// Omzet & jumlah invoice per [period] pada [from, to). Invoice tidak batal saja; titik kosong tetap
+  /// terisi (0) supaya grafik tidak bolong.
+  Future<List<SalesPoint>> salesSeries(DateTime from, DateTime to, {Period period = Period.daily}) async {
     final rows = await customSelect(
       // Omzet per invoice = baris − diskon invoice (tanpa PPN).
       'SELECT i.at, SUM(l.qty * l.price - l.discount) - i.discount AS total FROM invoices i '
@@ -23,18 +26,12 @@ extension DashboardRepo on AppDb {
       variables: [Variable.withDateTime(from), Variable.withDateTime(to)],
       readsFrom: {invoices, invoiceLines},
     ).get();
-    DateTime key(DateTime d) => monthly ? DateTime(d.year, d.month) : DateTime(d.year, d.month, d.day);
-    // Semua titik terisi (termasuk yang 0) supaya grafik tidak bolong.
     final points = <DateTime, SalesPoint>{};
-    for (
-      var d = key(from);
-      d.isBefore(to);
-      d = monthly ? DateTime(d.year, d.month + 1) : DateTime(d.year, d.month, d.day + 1)
-    ) {
-      points[d] = SalesPoint(d);
+    for (var d = periodOf(from, period).$1; d.isBefore(to); d = nextPeriod(d, period)) {
+      points[d] = SalesPoint(d, periodOf(d, period).$2);
     }
     for (final r in rows) {
-      final p = points[key(r.read<DateTime>('at'))];
+      final p = points[periodOf(r.read<DateTime>('at'), period).$1];
       if (p == null) continue;
       p.omzet += r.read<int>('total');
       p.invoices++;

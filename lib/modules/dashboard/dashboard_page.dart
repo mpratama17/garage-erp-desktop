@@ -1,7 +1,8 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:intl/intl.dart';
+
+import '../kas/kas_repo.dart' show Period;
 
 import '../../core/format.dart';
 import '../../core/theme.dart';
@@ -73,43 +74,51 @@ class _DashboardPageState extends State<DashboardPage> {
                   ),
                 ]),
                 const SizedBox(height: S.lg),
+                Row(
+                  children: [
+                    Expanded(
+                      child: KpiCard(
+                        icon: Icons.savings_outlined,
+                        tone: Tone.success,
+                        label: 'Laba bersih bulan ini',
+                        value: c.profit.value == null ? '—' : rupiah(c.profit.value!),
+                        hint: 'Detail di Laporan',
+                        ownerOnly: true,
+                      ),
+                    ),
+                    const SizedBox(width: S.lg),
+                    Expanded(
+                      child: KpiCard(
+                        icon: Icons.account_balance_wallet_outlined,
+                        tone: Tone.info,
+                        label: 'Saldo semua rekening',
+                        value: c.balance.value == null ? '—' : rupiah(c.balance.value!),
+                        hint: 'Detail di Kas & Bank',
+                        ownerOnly: true,
+                      ),
+                    ),
+                    const SizedBox(width: S.lg),
+                    Expanded(
+                      child: KpiCard(
+                        icon: Icons.description_outlined,
+                        tone: Tone.neutral,
+                        label: 'Invoice bulan ini',
+                        value: '${c.monthInvoices}',
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: S.lg),
+                _ChartToolbar(c),
+                const SizedBox(height: S.sm),
                 SizedBox(
-                  height: 320,
+                  height: 300,
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      Expanded(flex: 3, child: _SalesChart(c)),
+                      Expanded(child: _SalesChart(c)),
                       const SizedBox(width: S.lg),
-                      Expanded(
-                        child: Column(
-                          children: [
-                            KpiCard(
-                              icon: Icons.savings_outlined,
-                              tone: Tone.success,
-                              label: 'Laba bersih bulan ini',
-                              value: c.profit.value == null ? '—' : rupiah(c.profit.value!),
-                              hint: 'Detail di Laporan',
-                              ownerOnly: true,
-                            ),
-                            const SizedBox(height: S.lg),
-                            KpiCard(
-                              icon: Icons.account_balance_wallet_outlined,
-                              tone: Tone.info,
-                              label: 'Saldo semua rekening',
-                              value: c.balance.value == null ? '—' : rupiah(c.balance.value!),
-                              hint: 'Detail di Kas & Bank',
-                              ownerOnly: true,
-                            ),
-                            const SizedBox(height: S.lg),
-                            KpiCard(
-                              icon: Icons.description_outlined,
-                              tone: Tone.neutral,
-                              label: 'Invoice bulan ini',
-                              value: '${c.monthInvoices}',
-                            ),
-                          ],
-                        ),
-                      ),
+                      Expanded(child: _FlowChart(c)),
                     ],
                   ),
                 ),
@@ -173,13 +182,58 @@ class _DashboardPageState extends State<DashboardPage> {
   }
 }
 
+class _ChartToolbar extends StatelessWidget {
+  const _ChartToolbar(this.c);
+  final DashboardController c;
+
+  Future<void> _pickRange(BuildContext context) async {
+    final today = DateTime.now();
+    final end = c.chartTo.value.subtract(const Duration(days: 1));
+    final r = await showDateRangePicker(
+      context: context,
+      firstDate: DateTime(2020),
+      lastDate: today,
+      initialDateRange: DateTimeRange(
+        start: c.chartFrom.value.isAfter(today) ? today : c.chartFrom.value,
+        end: end.isAfter(today) ? today : end,
+      ),
+    );
+    if (r != null) c.setChartRange(r.start, r.end);
+  }
+
+  @override
+  Widget build(BuildContext context) => Obx(
+    () => Row(
+      children: [
+        SegmentedButton<Period>(
+          showSelectedIcon: false,
+          segments: const [
+            ButtonSegment(value: Period.daily, label: Text('Harian')),
+            ButtonSegment(value: Period.monthly, label: Text('Bulanan')),
+            ButtonSegment(value: Period.yearly, label: Text('Tahunan')),
+          ],
+          selected: {c.chartPeriod.value},
+          onSelectionChanged: (s) => c.setChartPeriod(s.first),
+        ),
+        const SizedBox(width: S.md),
+        OutlinedButton.icon(
+          onPressed: () => _pickRange(context),
+          icon: const Icon(Icons.date_range_outlined, size: 18),
+          label: Text('${tgl(c.chartFrom.value)} – ${tgl(c.chartTo.value.subtract(const Duration(days: 1)))}'),
+        ),
+      ],
+    ),
+  );
+}
+
+/// Omzet per titik (harian/bulanan/tahunan, rentang bisa diganti) — semua pengguna (C16).
 class _SalesChart extends StatelessWidget {
   const _SalesChart(this.c);
   final DashboardController c;
 
   @override
-  Widget build(BuildContext context) {
-    final points = c.months;
+  Widget build(BuildContext context) => Obx(() {
+    final points = c.chartPoints.toList();
     final maxY = points.fold<int>(0, (m, p) => p.omzet > m ? p.omzet : m);
     return Card(
       child: Padding(
@@ -187,7 +241,7 @@ class _SalesChart extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Omzet 12 bulan', style: T.section),
+            Text('Omzet', style: T.section),
             const SizedBox(height: S.lg),
             Expanded(
               child: points.isEmpty
@@ -217,13 +271,13 @@ class _SalesChart extends StatelessWidget {
                           bottomTitles: AxisTitles(
                             sideTitles: SideTitles(
                               showTitles: true,
-                              interval: 1,
+                              interval: (points.length / 6).ceilToDouble().clamp(1, double.infinity),
                               getTitlesWidget: (v, meta) {
                                 final i = v.round();
                                 if (i < 0 || i >= points.length || v != i) return const SizedBox();
                                 return SideTitleWidget(
                                   meta: meta,
-                                  child: Text(DateFormat('MMM', 'id').format(points[i].start), style: T.label),
+                                  child: Text(points[i].label, style: T.label),
                                 );
                               },
                             ),
@@ -235,7 +289,7 @@ class _SalesChart extends StatelessWidget {
                             getTooltipItems: (spots) => [
                               for (final s in spots)
                                 LineTooltipItem(
-                                  '${DateFormat('MMMM y', 'id').format(points[s.x.round()].start)}\n${rupiah(s.y.round())}',
+                                  '${points[s.x.round()].label}\n${rupiah(s.y.round())}',
                                   T.label.copyWith(color: C.surface),
                                 ),
                             ],
@@ -259,7 +313,120 @@ class _SalesChart extends StatelessWidget {
         ),
       ),
     );
-  }
+  });
+}
+
+/// Bagan pemasukan vs pengeluaran per titik — semua pengguna (saldo tidak ditampilkan, tetap khusus
+/// owner di Kas & Bank). Mencakup penjualan/pembelian & kas-bank sekaligus (C14/C15).
+class _FlowChart extends StatelessWidget {
+  const _FlowChart(this.c);
+  final DashboardController c;
+
+  @override
+  Widget build(BuildContext context) => Obx(() {
+    final rows = c.flowPoints.toList();
+    final maxY = rows.fold<int>(0, (m, f) => [f.income, f.expense, m].reduce((a, b) => a > b ? a : b));
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(S.lg, S.lg, S.xl, S.md),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Text('Pemasukan & pengeluaran', style: T.section),
+                const Spacer(),
+                _Dot(Tone.success.fg, 'Masuk'),
+                const SizedBox(width: S.md),
+                _Dot(C.danger, 'Keluar'),
+              ],
+            ),
+            const SizedBox(height: S.lg),
+            Expanded(
+              child: rows.isEmpty
+                  ? const SizedBox()
+                  : BarChart(
+                      BarChartData(
+                        maxY: maxY == 0 ? 1 : maxY * 1.15,
+                        borderData: FlBorderData(show: false),
+                        gridData: FlGridData(
+                          drawVerticalLine: false,
+                          getDrawingHorizontalLine: (_) => const FlLine(color: C.border, strokeWidth: 1),
+                        ),
+                        titlesData: FlTitlesData(
+                          topTitles: const AxisTitles(),
+                          rightTitles: const AxisTitles(),
+                          leftTitles: AxisTitles(
+                            sideTitles: SideTitles(
+                              showTitles: true,
+                              reservedSize: 52,
+                              getTitlesWidget: (v, meta) => SideTitleWidget(
+                                meta: meta,
+                                child: Text(v == meta.max ? '' : rpShort(v.round()), style: T.label),
+                              ),
+                            ),
+                          ),
+                          bottomTitles: AxisTitles(
+                            sideTitles: SideTitles(
+                              showTitles: true,
+                              interval: (rows.length / 6).ceilToDouble().clamp(1, double.infinity),
+                              getTitlesWidget: (v, meta) {
+                                final i = v.round();
+                                if (i < 0 || i >= rows.length || v != i) return const SizedBox();
+                                return SideTitleWidget(
+                                  meta: meta,
+                                  child: Text(rows[i].label, style: T.label),
+                                );
+                              },
+                            ),
+                          ),
+                        ),
+                        barTouchData: BarTouchData(
+                          touchTooltipData: BarTouchTooltipData(
+                            getTooltipColor: (_) => C.ink,
+                            getTooltipItem: (group, _, rod, _) => BarTooltipItem(
+                              '${rows[group.x].label}\n${rupiah(rod.toY.round())}',
+                              T.label.copyWith(color: C.surface),
+                            ),
+                          ),
+                        ),
+                        barGroups: [
+                          for (final (i, f) in rows.indexed)
+                            BarChartGroupData(
+                              x: i,
+                              barRods: [
+                                BarChartRodData(toY: f.income.toDouble(), color: Tone.success.fg, width: 7),
+                                BarChartRodData(toY: f.expense.toDouble(), color: C.danger, width: 7),
+                              ],
+                            ),
+                        ],
+                      ),
+                    ),
+            ),
+          ],
+        ),
+      ),
+    );
+  });
+}
+
+class _Dot extends StatelessWidget {
+  const _Dot(this.color, this.label);
+  final Color color;
+  final String label;
+  @override
+  Widget build(BuildContext context) => Row(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      Container(
+        width: 8,
+        height: 8,
+        decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+      ),
+      const SizedBox(width: S.xs),
+      Text(label, style: T.label),
+    ],
+  );
 }
 
 class _Line {

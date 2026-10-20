@@ -53,6 +53,14 @@ const _months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 
   Period.yearly => (DateTime(d.year), '${d.year}'),
 };
 
+/// Awal periode berikutnya setelah [start] (dipakai untuk mengisi titik grafik yang kosong).
+DateTime nextPeriod(DateTime start, Period p) => switch (p) {
+  Period.daily => DateTime(start.year, start.month, start.day + 1),
+  Period.monthly => DateTime(start.year, start.month + 1),
+  Period.quarterly => DateTime(start.year, start.month + 3),
+  Period.yearly => DateTime(start.year + 1),
+};
+
 extension KasRepo on AppDb {
   /// Semua rekening (tanpa saldo) — untuk dipilih siapa saja.
   Stream<List<Account>> watchAccounts() =>
