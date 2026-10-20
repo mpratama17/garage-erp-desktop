@@ -182,6 +182,16 @@ class _DashboardPageState extends State<DashboardPage> {
   }
 }
 
+/// Jarak antar label sumbu X supaya tidak sesak (maks. ~6 label).
+double _axisInterval(int n) => (n / 6).ceilToDouble().clamp(1, double.infinity);
+
+/// fl_chart selalu memaksa label di titik terakhir (meta.max) di luar kelipatan [interval] — kalau
+/// dibiarkan, tanda kisi terdekat bertabrakan dengannya. Lewati tanda itu, titik terakhir tetap tampil.
+bool _showAxisLabel(int i, int n, double interval) {
+  if (i == 0 || i == n - 1) return true;
+  return (n - 1 - i) >= interval;
+}
+
 class _ChartToolbar extends StatelessWidget {
   const _ChartToolbar(this.c);
   final DashboardController c;
@@ -271,10 +281,11 @@ class _SalesChart extends StatelessWidget {
                           bottomTitles: AxisTitles(
                             sideTitles: SideTitles(
                               showTitles: true,
-                              interval: (points.length / 6).ceilToDouble().clamp(1, double.infinity),
+                              interval: _axisInterval(points.length),
                               getTitlesWidget: (v, meta) {
                                 final i = v.round();
                                 if (i < 0 || i >= points.length || v != i) return const SizedBox();
+                                if (!_showAxisLabel(i, points.length, meta.appliedInterval)) return const SizedBox();
                                 return SideTitleWidget(
                                   meta: meta,
                                   child: Text(points[i].label, style: T.label),
@@ -369,10 +380,11 @@ class _FlowChart extends StatelessWidget {
                           bottomTitles: AxisTitles(
                             sideTitles: SideTitles(
                               showTitles: true,
-                              interval: (rows.length / 6).ceilToDouble().clamp(1, double.infinity),
+                              interval: _axisInterval(rows.length),
                               getTitlesWidget: (v, meta) {
                                 final i = v.round();
                                 if (i < 0 || i >= rows.length || v != i) return const SizedBox();
+                                if (!_showAxisLabel(i, rows.length, meta.appliedInterval)) return const SizedBox();
                                 return SideTitleWidget(
                                   meta: meta,
                                   child: Text(rows[i].label, style: T.label),

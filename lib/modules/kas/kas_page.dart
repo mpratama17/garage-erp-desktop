@@ -236,7 +236,8 @@ class _Mutasi extends StatelessWidget {
             flex: 2,
             numeric: true,
           ),
-        Col('', (r) => _RowActions(r: r, c: c), flex: 1, numeric: true),
+        // flex 2: sebaris bisa muncul 2 ikon (bukti + hapus) — flex 1 meluber (RenderFlex overflow).
+        Col('', (r) => _RowActions(r: r, c: c), flex: 2, numeric: true),
       ],
     );
   }
@@ -257,10 +258,13 @@ class _RowActions extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Row(
     mainAxisSize: MainAxisSize.min,
+    mainAxisAlignment: MainAxisAlignment.end,
     children: [
       if (r.entry.proofPath.isNotEmpty)
         IconButton(
           tooltip: 'Buka bukti',
+          visualDensity: VisualDensity.compact,
+          constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
           onPressed: () => runAction(
             context,
             () => launchUrl(Uri.file(r.entry.proofPath)),
@@ -272,6 +276,8 @@ class _RowActions extends StatelessWidget {
       if (CashKind.manual.contains(r.entry.kind))
         IconButton(
           tooltip: 'Hapus transaksi',
+          visualDensity: VisualDensity.compact,
+          constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
           onPressed: () async {
             if (!await Get.find<OwnerController>().ensure(context) || !context.mounted) return;
             final ok = await confirmAction(

@@ -229,6 +229,7 @@ Future<void> _slipDialog(BuildContext context, GajiController c, Slip s) async {
           deduction: parseRupiah(deduction.text),
         );
 
+  var busy = false; // guard: cegah klik dobel saat Simpan/Bayar masih menulis ke DB
   await showDialog<void>(
     context: context,
     builder: (ctx) => StatefulBuilder(
@@ -307,47 +308,79 @@ Future<void> _slipDialog(BuildContext context, GajiController c, Slip s) async {
               ? null
               : DangerButton(
                   label: 'Batalkan pembayaran',
-                  onPressed: () async {
-                    final ok = await confirmAction(
-                      ctx,
-                      title: 'Batalkan pembayaran gaji?',
-                      message: '${rupiah(s.total)} kembali ke rekening. Slip kembali mengikuti data terbaru.',
-                      confirmLabel: 'Batalkan pembayaran',
-                      destructive: true,
-                    );
-                    if (!ok || !ctx.mounted) return;
-                    await runAction(ctx, () async {
-                      await c.db.cancelSlipPayment(s.saved!.id);
-                      if (ctx.mounted) Navigator.pop(ctx);
-                    }, 'Pembayaran dibatalkan');
-                  },
+                  onPressed: busy
+                      ? null
+                      : () async {
+                          final ok = await confirmAction(
+                            ctx,
+                            title: 'Batalkan pembayaran gaji?',
+                            message: '${rupiah(s.total)} kembali ke rekening. Slip kembali mengikuti data terbaru.',
+                            confirmLabel: 'Batalkan pembayaran',
+                            destructive: true,
+                          );
+                          if (!ok || !ctx.mounted) return;
+                          setState(() => busy = true);
+                          await runAction(ctx, () async {
+                            await c.db.cancelSlipPayment(s.saved!.id);
+                            if (ctx.mounted) Navigator.pop(ctx);
+                          }, 'Pembayaran dibatalkan');
+                          if (ctx.mounted) setState(() => busy = false);
+                        },
                 ),
           children: [
-            OutlinedButton(onPressed: () => Navigator.pop(ctx), child: Text(s.paid ? 'Tutup' : 'Batal')),
+            OutlinedButton(onPressed: busy ? null : () => Navigator.pop(ctx), child: Text(s.paid ? 'Tutup' : 'Batal')),
             OutlinedButton.icon(
-              onPressed: () => runAction(
-                ctx,
-                () async => launchUrl(Uri.file(await saveSlipPdf(c.db, s))),
-                null,
-                'PDF gagal dibuat atau dibuka. Cek folder simpan file di Pengaturan, lalu coba lagi.',
-              ),
+              onPressed: busy
+                  ? null
+                  : () => runAction(
+                      ctx,
+                      () async => launchUrl(Uri.file(await saveSlipPdf(c.db, s))),
+                      null,
+                      'PDF gagal dibuat atau dibuka. Cek folder simpan file di Pengaturan, lalu coba lagi.',
+                    ),
               icon: const Icon(Icons.picture_as_pdf_outlined, size: 18),
               label: const Text('Unduh slip'),
             ),
             if (!s.paid) ...[
               OutlinedButton(
-                onPressed: () => runAction(ctx, () async {
-                  await save();
-                  if (ctx.mounted) Navigator.pop(ctx);
-                }, 'Slip tersimpan'),
-                child: const Text('Simpan'),
+                onPressed: busy
+                    ? null
+                    : () async {
+                        setState(() => busy = true);
+                        final ok = await runAction(ctx, save, 'Slip tersimpan');
+                        if (!ctx.mounted) return;
+                        if (ok) {
+                          Navigator.pop(ctx);
+                        } else {
+                          setState(() => busy = false);
+                        }
+                      },
+                child: busy
+                    ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                    : const Text('Simpan'),
               ),
               FilledButton(
-                onPressed: () => runAction(ctx, () async {
-                  await save();
-                  if (ctx.mounted && await _payDialog(ctx, c, s) && ctx.mounted) Navigator.pop(ctx);
-                }),
-                child: const Text('Bayar'),
+                onPressed: busy
+                    ? null
+                    : () async {
+                        setState(() => busy = true);
+                        // Gagal simpan = error (toast via runAction). Batal di dialog bayar = normal,
+                        // bukan error — dialog tetap terbuka tanpa pesan "gagal".
+                        final saved = await runAction(ctx, save);
+                        final paid = saved && ctx.mounted && await _payDialog(ctx, c, s);
+                        if (paid && ctx.mounted) {
+                          Navigator.pop(ctx);
+                        } else if (ctx.mounted) {
+                          setState(() => busy = false);
+                        }
+                      },
+                child: busy
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: C.surface),
+                      )
+                    : const Text('Bayar'),
               ),
             ],
           ],
@@ -422,6 +455,7 @@ Future<bool> _payDialog(BuildContext context, GajiController c, Slip s) async {
   int? accountId = accounts.first.id;
   var date = DateTime.now();
   var proof = '';
+  var busy = false;
   final ok = await showDialog<bool>(
     context: context,
     builder: (ctx) => StatefulBuilder(
@@ -448,22 +482,32 @@ Future<bool> _payDialog(BuildContext context, GajiController c, Slip s) async {
           ),
         ),
         actions: [
-          OutlinedButton(onPressed: () => Navigator.pop(ctx), child: const Text('Batal')),
+          OutlinedButton(onPressed: busy ? null : () => Navigator.pop(ctx), child: const Text('Batal')),
           FilledButton(
-            onPressed: () async {
-              if (accountId == null) return warn(ctx, 'Pilih rekening');
-              await runAction(ctx, () async {
-                await c.db.paySlip(
-                  employeeId: s.employee.id,
-                  start: s.start,
-                  accountId: accountId!,
-                  at: date,
-                  proofPath: proof,
-                );
-                if (ctx.mounted) Navigator.pop(ctx, true);
-              }, 'Gaji dibayar');
-            },
-            child: const Text('Bayar'),
+            onPressed: busy
+                ? null
+                : () async {
+                    if (accountId == null) return warn(ctx, 'Pilih rekening');
+                    setState(() => busy = true);
+                    final ok2 = await runAction(ctx, () async {
+                      await c.db.paySlip(
+                        employeeId: s.employee.id,
+                        start: s.start,
+                        accountId: accountId!,
+                        at: date,
+                        proofPath: proof,
+                      );
+                    }, 'Gaji dibayar');
+                    if (!ctx.mounted) return;
+                    if (ok2) {
+                      Navigator.pop(ctx, true);
+                    } else {
+                      setState(() => busy = false);
+                    }
+                  },
+            child: busy
+                ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                : const Text('Bayar'),
           ),
         ],
       ),
@@ -479,6 +523,7 @@ Future<void> _employeeDialog(BuildContext context, GajiController c, Employee? e
       base = TextEditingController(text: e == null ? '' : rp(e.baseSalary)),
       meal = TextEditingController(text: e == null ? '' : rp(e.mealAllowance));
   var role = e?.role ?? 'teknisi', active = e?.active ?? true;
+  var busy = false; // guard: cegah klik dobel saat Simpan/Bayar masih menulis ke DB
   await showDialog<void>(
     context: context,
     builder: (ctx) => StatefulBuilder(
@@ -521,22 +566,34 @@ Future<void> _employeeDialog(BuildContext context, GajiController c, Employee? e
           ),
         ),
         actions: [
-          OutlinedButton(onPressed: () => Navigator.pop(ctx), child: const Text('Batal')),
+          OutlinedButton(onPressed: busy ? null : () => Navigator.pop(ctx), child: const Text('Batal')),
           FilledButton(
-            onPressed: () => runAction(ctx, () async {
-              await c.db.saveEmployee(
-                EmployeesCompanion(
-                  id: e == null ? const Value.absent() : Value(e.id),
-                  name: Value(name.text),
-                  role: Value(role),
-                  baseSalary: Value(parseRupiah(base.text)),
-                  mealAllowance: Value(parseRupiah(meal.text)),
-                  active: Value(active),
-                ),
-              );
-              if (ctx.mounted) Navigator.pop(ctx);
-            }, 'Karyawan tersimpan'),
-            child: const Text('Simpan'),
+            onPressed: busy
+                ? null
+                : () async {
+                    setState(() => busy = true);
+                    final ok = await runAction(ctx, () async {
+                      await c.db.saveEmployee(
+                        EmployeesCompanion(
+                          id: e == null ? const Value.absent() : Value(e.id),
+                          name: Value(name.text),
+                          role: Value(role),
+                          baseSalary: Value(parseRupiah(base.text)),
+                          mealAllowance: Value(parseRupiah(meal.text)),
+                          active: Value(active),
+                        ),
+                      );
+                    }, 'Karyawan tersimpan');
+                    if (!ctx.mounted) return;
+                    if (ok) {
+                      Navigator.pop(ctx);
+                    } else {
+                      setState(() => busy = false);
+                    }
+                  },
+            child: busy
+                ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                : const Text('Simpan'),
           ),
         ],
       ),

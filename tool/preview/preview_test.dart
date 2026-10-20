@@ -191,6 +191,8 @@ Future<void> _seed(AppDb db) async {
     amount: 500000,
     at: now.subtract(const Duration(days: 1)),
     note: 'top up belanja part',
+    // Punya bukti sekaligus bisa dihapus (owner): kolom aksi menampilkan 2 ikon — cek tidak meluber.
+    proofPath: '/tmp/contoh-bukti.jpg',
   );
 
   // Biaya contoh
@@ -320,6 +322,11 @@ void main() {
     await tester.tap(find.text('Kas & Bank'));
     await settle();
     await shot('kas');
+    await tester.drag(find.byType(ListView).last, const Offset(0, -400));
+    await settle();
+    await shot('kas-scroll');
+    await tester.drag(find.byType(ListView).last, const Offset(0, 400));
+    await settle();
     await tester.tap(find.text('BCA').first);
     await settle();
     await shot('kas-bca');
