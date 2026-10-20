@@ -408,6 +408,7 @@ class _Arus extends StatelessWidget {
 // ------------------------------------------------------------------ dialog
 
 Future<void> _transferDialog(BuildContext context, KasController c) async {
+  if (!await Get.find<OwnerController>().ensure(context) || !context.mounted) return;
   final accounts = c.activeAccounts;
   if (accounts.length < 2) return warn(context, 'Butuh minimal 2 rekening aktif');
   int? from = accounts.first.id, to = accounts[1].id;
@@ -486,6 +487,7 @@ Future<void> _transferDialog(BuildContext context, KasController c) async {
 }
 
 Future<void> _incomeDialog(BuildContext context, KasController c) async {
+  if (!await Get.find<OwnerController>().ensure(context) || !context.mounted) return;
   final accounts = c.activeAccounts;
   if (accounts.isEmpty) return warn(context, 'Belum ada rekening aktif');
   int? accountId = accounts.first.id;

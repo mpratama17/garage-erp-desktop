@@ -63,8 +63,16 @@ class PengaturanController extends GetxController {
     lastBackup.value = s['last_backup_at']!;
   }
 
+  /// Semua tulis pengaturan dari halaman ini lewat sini: khusus owner (bukan cuma halamannya yang dikunci).
+  /// Sengaja tidak di `setSetting`: nomor nota kasir & catatan backup otomatis juga menulis pengaturan.
+  Future<void> _set(String key, String value) {
+    db.requireOwner();
+    return db.setSetting(key, value);
+  }
+
   /// null = tersimpan; selain itu pesan error.
   Future<String?> save() async {
+    if (!db.ownerUnlocked) return 'Butuh PIN owner';
     if (ctrl['shop_name']!.text.trim().isEmpty) return 'Nama bengkel wajib diisi';
     for (final e in _numFields.entries) {
       final v = int.tryParse(ctrl[e.key]!.text.trim());
@@ -73,7 +81,7 @@ class PengaturanController extends GetxController {
     }
     await db.transaction(() async {
       for (final e in ctrl.entries) {
-        await db.setSetting(e.key, e.value.text.trim());
+        await _set(e.key, e.value.text.trim());
       }
     });
     return null;
@@ -95,7 +103,7 @@ class PengaturanController extends GetxController {
     );
     await File(f.path).copy(dest);
     final old = target.value;
-    await db.setSetting(key, dest);
+    await _set(key, dest);
     target.value = dest;
     if (old.isNotEmpty && p.isWithin(dir, old)) {
       try {
@@ -109,19 +117,19 @@ class PengaturanController extends GetxController {
   Future<void> pickBackupDir() async {
     final dir = await getDirectoryPath(confirmButtonText: 'Pilih folder');
     if (dir == null) return;
-    await db.setSetting('backup_dir', dir);
+    await _set('backup_dir', dir);
     backupDir.value = dir;
   }
 
   Future<void> setBackupSchedule(String v) async {
-    await db.setSetting('backup_schedule', v);
+    await _set('backup_schedule', v);
     backupSchedule.value = v;
   }
 
   Future<void> pickExportDir() async {
     final dir = await getDirectoryPath(confirmButtonText: 'Pilih folder');
     if (dir == null) return;
-    await db.setSetting('export_dir', dir);
+    await _set('export_dir', dir);
     exportDir.value = await db.exportDir();
   }
 
@@ -359,6 +367,7 @@ class _FormState extends State<_Form> {
       if (context.mounted) warn(context, 'PIN minimal 4 digit dan kedua isian harus sama');
       return;
     }
+    db.requireOwner();
     await db.setPin(pin);
     if (context.mounted) notify(context, 'PIN diganti');
   }

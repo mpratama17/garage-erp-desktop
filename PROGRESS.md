@@ -66,14 +66,14 @@ Jenis: 🐞 bug/salah paham · ✨ fitur · ❓ pertanyaan (cukup dijawab / mung
 | C15 | Dashboard | Grafik kas & bank harian/bulanan/tahunan | ✨ | Khusus owner (saldo terkunci). |
 | C16 | Dashboard | Grafik omzet harian/bulanan/tahunan | ✨ | Perluas grafik yang ada. |
 | C17 | Gaji | Download slip gaji per karyawan per periode (PDF) | ✨ | Sekarang hanya export Excel per periode. Pakai `pdf` yang sudah dipakai invoice. |
-| C18 | Semua | Mode terkunci (bukan owner) = hanya lihat; kasir hanya boleh tambah penjualan & customer | ✨ | **Ubah aturan**: sekarang catat biaya, kontak, dll boleh tanpa PIN. Harus dicek di repo (`requireOwner`), bukan cuma tombol disembunyikan. |
+| C18 | Semua | Mode terkunci (bukan owner) = hanya lihat; kasir hanya boleh tambah penjualan & customer | ✨ | ✅ Terkunci = hanya lihat. Kasir boleh: invoice/pemesanan + DP, pembayaran, buat invoice dari pemesanan, tambah & ubah customer, catat biaya baru, lihat grafik. Selain itu `requireOwner()` di repo (produk, ubah dokumen apa pun, hapus customer, import, transfer, uang masuk, rekening, biaya ubah/hapus, kategori, karyawan, gaji, pengaturan lewat `PengaturanController._set`). Tombol terkait minta PIN dulu. Test: `test/akses_test.dart`. |
 
 ## Catatan teknis
 
 - **Struktur:** `lib/core/` (theme, format, owner/PIN, ui, table, xlsx), `lib/db/database.dart` (semua tabel), `lib/modules/<modul>/` (repo = aturan bisnis + test, controller GetX, page, dialogs), `lib/shell.dart`.
 - **Alat:** preview UI ke PNG `flutter test tool/preview --update-goldens`; cek import file asli `IMPORT_FILE=… flutter test tool/check_import_test.dart`; rilis `sh tool/release_macos.sh` (panduan `docs/rilis-macos.md`).
 - **Skema:** schemaVersion tetap 1 sampai terpasang di client; tabel baru otomatis dibuat di DB lama (`CREATE TABLE IF NOT EXISTS`). Perubahan **kolom** = hapus DB dev (`~/Library/Application Support/com.mpratama.garageErp/`) selama belum di client.
-- **Aturan bisnis di repo, bukan di UI** (pelajaran sirviu): aturan owner dicek lewat `AppDb.requireOwner()` (sesi PIN) di repo — modal, batal, ubah invoice berbayar, pembelian, opname, import produk; pembelian hanya barang & rekening aktif.
+- **Aturan bisnis di repo, bukan di UI** (pelajaran sirviu): aturan owner dicek lewat `AppDb.requireOwner()` (sesi PIN) di repo. Sejak R2 (C18) kebalikannya: tanpa PIN hanya boleh tambah penjualan/pemesanan/pembayaran, customer (tambah/ubah), biaya baru — daftar lengkap di `test/akses_test.dart`. Pembelian hanya barang & rekening aktif. `setSetting` sengaja tidak dikunci (nomor nota kasir, catatan backup).
 - **Penjualan:** invoice & pemesanan satu tabel (`kind`); total/terbayar/status dihitung (tidak disimpan); DP tetap di pemesanan dan ikut dihitung di invoice turunannya; nomor otomatis melompati nomor yang sudah dipakai transaksi lama; stok boleh minus (dengan peringatan).
 - **Kas:** saldo tidak disimpan (saldo awal + SUM kas); transfer = 2 baris saling menunjuk `refId`, dihapus berpasangan; transaksi dari modul lain hanya diubah di modulnya. Rekening aktif dicek di satu tempat (`AppDb.requireActiveAccount`).
 - **Biaya:** tidak ada tabel biaya — biaya = baris `cash_entries` jenis `expense`, `refId` = kategori. Pribadi/operasional mengikuti kategori (ubah tanda kategori = ikut mengubah biaya lama). Kategori awal di-seed sekali (batch) saat tabel kosong.

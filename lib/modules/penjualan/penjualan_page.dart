@@ -379,8 +379,8 @@ class _DocPanel extends StatelessWidget {
                     if (editable)
                       OutlinedButton(
                         onPressed: () async {
-                          // Mengubah invoice yang sudah dibayar butuh PIN owner (PRD PJ-9).
-                          if (s.paid > 0 && !await owner.ensure(context)) return;
+                          // Mengubah dokumen butuh PIN owner (kasir hanya menambah — C18).
+                          if (!await owner.ensure(context)) return;
                           if (!context.mounted) return;
                           final id = await showDocEditor(context, c, kind: d.kind, existing: s);
                           if (id != null && context.mounted) notify(context, 'Perubahan tersimpan');

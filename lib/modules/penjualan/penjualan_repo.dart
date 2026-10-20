@@ -216,7 +216,7 @@ extension PenjualanRepo on AppDb {
         if (old.isVoid) throw ArgumentError('${old.no} sudah dibatalkan');
         final s = await docSummary(old.id);
         if (s.hasInvoice) throw ArgumentError('${old.no} sudah dibuatkan invoice, tidak bisa diubah');
-        if (s.paid > 0) requireOwner(); // PRD PJ-9: ubah dokumen yang sudah dibayar
+        requireOwner(); // mode terkunci: kasir hanya menambah dokumen & pembayaran, tidak mengubah (C18)
         for (final l in await (select(invoiceLines)..where((l) => l.invoiceId.equals(old.id))).get()) {
           oldCost.putIfAbsent(l.productId, () => l.cost);
         }

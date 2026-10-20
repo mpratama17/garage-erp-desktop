@@ -113,6 +113,7 @@ extension KontakRepo on AppDb {
   /// Hapus customer yang belum pernah bertransaksi. Yang punya invoice/pemesanan tidak bisa dihapus
   /// (riwayat & laporan tetap utuh) — ubah datanya saja.
   Future<void> deleteCustomer(int id) => transaction(() async {
+    requireOwner();
     final used =
         await (select(invoices)
               ..where((i) => i.customerId.equals(id))
@@ -129,6 +130,7 @@ extension KontakRepo on AppDb {
   /// - baris tanpa HP -> customer TANPA HP dengan nama sama.
   /// - selain itu customer baru. Nama lama tidak ditimpa; kolom kosong di file tidak menimpa.
   Future<({int created, int updated})> applyCustomerImport(List<CustomerRow> rows) => transaction(() async {
+    requireOwner();
     var created = 0, updated = 0;
     final byPhone = <String, Customer>{};
     final noPhoneByName = <String, Customer>{};

@@ -112,6 +112,7 @@ extension KasRepo on AppDb {
     String note = '',
     String proofPath = '',
   }) => transaction(() async {
+    requireOwner();
     if (fromId == toId) throw ArgumentError('Rekening asal dan tujuan sama');
     if (amount <= 0) throw ArgumentError('Nominal harus lebih dari 0');
     final from = await requireActiveAccount(fromId), to = await requireActiveAccount(toId);
@@ -151,6 +152,7 @@ extension KasRepo on AppDb {
     String note = '',
     String proofPath = '',
   }) async {
+    requireOwner();
     if (kind != CashKind.capital && kind != CashKind.income) throw ArgumentError('Jenis pemasukan tidak dikenal');
     if (amount <= 0) throw ArgumentError('Nominal harus lebih dari 0');
     if (description.trim().isEmpty) throw ArgumentError('Keterangan wajib diisi');

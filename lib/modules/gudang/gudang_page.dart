@@ -59,7 +59,9 @@ class GudangPage extends StatelessWidget {
               child: const Text('Pembelian stok'),
             ),
             FilledButton.icon(
-              onPressed: () => c.panelId.value = 0,
+              onPressed: () async {
+                if (await owner.ensure(context)) c.panelId.value = 0;
+              },
               icon: const Icon(Icons.add, size: 18),
               label: const Text('Produk'),
             ),
@@ -246,7 +248,7 @@ class _ProductPanelState extends State<ProductPanel> {
   }
 
   Future<void> _save() async {
-    final owner = Get.find<OwnerController>().isOwner.value;
+    if (!await Get.find<OwnerController>().ensure(context) || !mounted) return;
     final data = ProductsCompanion(
       id: p == null ? const Value.absent() : Value(p!.id),
       name: Value(name.text),
@@ -255,8 +257,7 @@ class _ProductPanelState extends State<ProductPanel> {
       unit: Value(unit.text.trim().isEmpty ? 'PCS' : unit.text.trim().toUpperCase()),
       isService: Value(isService),
       sellPrice: Value(parseRupiah(sell.text)),
-      // Harga beli hanya ditulis bila owner yang menyimpan (admin tidak melihat nilainya).
-      buyPrice: owner ? Value(parseRupiah(buy.text)) : const Value.absent(),
+      buyPrice: Value(parseRupiah(buy.text)),
       minStock: Value(isService ? 0 : parseRupiah(minStock.text)),
       incentive: Value(parseRupiah(incentive.text)),
       active: Value(active),

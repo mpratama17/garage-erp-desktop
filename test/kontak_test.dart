@@ -21,7 +21,7 @@ CellValue? _t(String? v) => v == null ? null : TextCellValue(v);
 
 void main() {
   late AppDb db;
-  setUp(() => db = AppDb(NativeDatabase.memory()));
+  setUp(() => db = AppDb(NativeDatabase.memory())..ownerUnlocked = true); // akses kasir: akses_test.dart
   tearDown(() => db.close());
 
   test('normalisasi: plat, no. HP valid', () {
@@ -134,7 +134,7 @@ void main() {
   });
 
   test('hapus customer: hanya yang belum bertransaksi', () async {
-    final db = AppDb(NativeDatabase.memory());
+    final db = AppDb(NativeDatabase.memory())..ownerUnlocked = true;
     addTearDown(db.close);
     final a = await db.saveCustomer(CustomersCompanion.insert(name: 'A'));
     final b = await db.saveCustomer(CustomersCompanion.insert(name: 'B'));

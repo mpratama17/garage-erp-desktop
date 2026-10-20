@@ -254,7 +254,6 @@ void main() {
     final unpaid = await db.saveDoc(kind: DocKind.invoice, at: d, lines: [lampLine()]);
     expect(await cost(unpaid), 1500000);
     await buy(1600000);
-    db.ownerUnlocked = false; // admin boleh mengubah invoice belum dibayar; modal lama tetap
     await db.saveDoc(id: unpaid, kind: DocKind.invoice, at: d, lines: [lampLine(qty: 2)]);
     expect(await cost(unpaid), 1500000);
     expect(await cost(await db.saveDoc(kind: DocKind.invoice, at: d, lines: [lampLine()])), 1600000);

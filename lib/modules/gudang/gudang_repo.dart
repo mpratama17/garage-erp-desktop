@@ -193,12 +193,11 @@ extension GudangRepo on AppDb {
   /// Simpan produk baru/lama. Untuk barang baru, [openingStock] > 0 dicatat sebagai stok awal.
   /// Melempar [ArgumentError] dengan pesan untuk pengguna bila data tidak valid.
   Future<int> saveProduct(ProductsCompanion p, {int openingStock = 0}) async {
+    requireOwner(); // mode terkunci = hanya lihat (C18)
     final name = p.name.value.trim();
     if (name.isEmpty) throw ArgumentError('Nama produk wajib diisi');
     final sku = p.sku.present ? p.sku.value?.trim() : null;
-    var clean = p.copyWith(name: Value(name), sku: Value(sku == null || sku.isEmpty ? null : sku));
-    // Harga beli hanya boleh ditulis owner; dari admin diabaikan.
-    if (!ownerUnlocked) clean = clean.copyWith(buyPrice: const Value.absent());
+    final clean = p.copyWith(name: Value(name), sku: Value(sku == null || sku.isEmpty ? null : sku));
     if (clean.sku.value != null) {
       final dup =
           await (select(products)..where(

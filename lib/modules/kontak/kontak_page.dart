@@ -170,6 +170,7 @@ class _CustomerPanelState extends State<_CustomerPanel> {
   }
 
   Future<void> _delete() async {
+    if (!await Get.find<OwnerController>().ensure(context) || !mounted) return;
     final ok = await confirmAction(
       context,
       title: 'Hapus ${x!.name}?',
