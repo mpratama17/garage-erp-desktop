@@ -279,10 +279,20 @@ class _History extends StatelessWidget {
       final all = snap.data ?? const <DocSummary>[];
       final valid = all.where((s) => !s.doc.isVoid).toList();
       final total = valid.fold(0, (t, s) => t + s.total);
+      // Mobil/plat yang pernah dipakai customer ini (data saat ini di Kontak mengikuti invoice terbaru).
+      final cars = <String>{
+        for (final s in valid)
+          if (s.doc.car.isNotEmpty || s.doc.plate.isNotEmpty)
+            [s.doc.car, s.doc.plate].where((x) => x.isNotEmpty).join(' · '),
+      };
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text('Riwayat belanja', style: T.section),
+          if (cars.length > 1) ...[
+            const SizedBox(height: S.xs),
+            Wrap(spacing: S.xs, runSpacing: S.xs, children: [for (final c in cars) Pill(c, Tone.neutral)]),
+          ],
           const SizedBox(height: S.sm),
           Text(
             valid.isEmpty

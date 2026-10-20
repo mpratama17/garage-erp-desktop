@@ -137,6 +137,16 @@ Future<void> _seed(AppDb db) async {
     taxPct: 11,
     payNow: PaymentInput(accountId: bca, amount: barang.sellPrice + jasa.sellPrice, at: now),
   );
+  // BUDI pernah bawa mobil lain: riwayat mobil/plat tampil di Kontak.
+  await db.saveDoc(
+    kind: DocKind.invoice,
+    at: now.subtract(const Duration(days: 10)),
+    customerId: budi.id,
+    car: 'HONDA JAZZ',
+    plate: 'N 5678 CD',
+    lines: [j()],
+    payNow: PaymentInput(accountId: bca, amount: jasa.sellPrice, at: now),
+  );
   await db.saveDoc(
     kind: DocKind.invoice,
     at: now,
@@ -252,6 +262,9 @@ void main() {
     await tester.tap(find.text('BUDI SANTOSO').last);
     await settle();
     await shot('cari-buka');
+    await tester.drag(find.byType(ListView).last, const Offset(0, -200));
+    await settle();
+    await shot('kontak-riwayat-mobil');
 
     await tester.tap(find.text('Gudang'));
     await settle();

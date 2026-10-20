@@ -265,12 +265,13 @@ extension PenjualanRepo on AppDb {
         await (delete(stockMoves)..where((m) => m.kind.equals('sale') & m.refId.equals(docId))).go();
       }
 
-      // Dokumen baru: mobil/plat customer yang masih kosong diisi dari dokumen (customer baru dibuat dari kasir).
+      // Dokumen baru: mobil/plat customer diperbarui ke yang terbaru (customer baru dibuat dari kasir,
+      // atau customer lama ganti plat/mobil — keputusan client). Riwayat mobil/plat lama tetap ada di
+      // tiap invoice; Kontak menampilkannya dari situ (tidak ada tabel mobil terpisah).
       if (old == null && customerId != null) {
-        final cust = await (select(customers)..where((c) => c.id.equals(customerId))).getSingle();
         final fill = CustomersCompanion(
-          car: cust.car.isEmpty && data.car.value.isNotEmpty ? data.car : const Value.absent(),
-          plate: cust.plate.isEmpty && data.plate.value.isNotEmpty ? data.plate : const Value.absent(),
+          car: data.car.value.isEmpty ? const Value.absent() : data.car,
+          plate: data.plate.value.isEmpty ? const Value.absent() : data.plate,
         );
         if (fill.car.present || fill.plate.present) {
           await (update(customers)..where((c) => c.id.equals(customerId))).write(fill);
