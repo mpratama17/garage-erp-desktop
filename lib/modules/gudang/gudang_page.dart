@@ -152,7 +152,7 @@ class GudangPage extends StatelessWidget {
                           flex: 2,
                         ),
                         Col('Nama', (s) => _Name(s), flex: 5),
-                        Col('Kategori', (s) => Text(s.product.category), flex: 3),
+                        Col('Kategori', (s) => Text(s.product.category), flex: 2),
                         Col(
                           'Harga beli',
                           (s) => OwnerOnly(child: Text(rp(s.product.buyPrice), style: T.money)),
@@ -160,10 +160,9 @@ class GudangPage extends StatelessWidget {
                           numeric: true,
                         ),
                         Col('Harga jual', (s) => Text(rp(s.product.sellPrice), style: T.money), flex: 2, numeric: true),
-                        if (isJasa)
-                          Col('Insentif', (s) => Text(rp(s.product.incentive), style: T.money), flex: 2, numeric: true)
-                        else
-                          Col('Stok', (s) => StockPill(s), flex: 2, numeric: true),
+                        // Insentif berlaku untuk barang maupun jasa (keputusan client: tergantung yang dipasang).
+                        Col('Insentif', (s) => Text(rp(s.product.incentive), style: T.money), flex: 2, numeric: true),
+                        if (!isJasa) Col('Stok', (s) => StockPill(s), flex: 2, numeric: true),
                       ],
                     ),
                   ),
