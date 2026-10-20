@@ -87,6 +87,17 @@ Future<void> _seed(AppDb db) async {
   final siti = custs.firstWhere((c) => c.name == 'SITI AMINAH');
   final bca = (await db.select(db.accounts).get()).first.id;
   final now = DateTime.now();
+  final canbus = all.firstWhere((s) => s.product.name == 'CANBUS LED 15').product;
+  await db.recordPurchase(
+    at: now.subtract(const Duration(days: 3)),
+    accountId: bca,
+    supplier: 'Toko Lampu Jaya',
+    note: 'Nota 0912',
+    lines: [
+      PurchaseLine(productId: canbus.id, qty: 4, unitCost: 95000),
+      PurchaseLine(productId: barang.id, qty: 2, unitCost: barang.buyPrice),
+    ],
+  );
   LineInput b() => LineInput(
     productId: barang.id,
     name: barang.name,
@@ -239,10 +250,18 @@ void main() {
     await tester.tap(find.text('CANBUS LED 15'));
     await settle();
     await shot('gudang-panel');
+    await tester.drag(find.byType(ListView).last, const Offset(0, -800));
+    await settle();
+    await shot('gudang-riwayat');
 
     await tester.tap(find.text('Jasa').first);
     await settle();
     await shot('gudang-jasa');
+    await tester.tap(find.text('Pembelian').first);
+    await settle();
+    await tester.tap(find.text('Toko Lampu Jaya'));
+    await settle();
+    await shot('gudang-pembelian');
 
     await tester.tap(find.text('Penjualan').first);
     await settle();
@@ -272,6 +291,12 @@ void main() {
     await tester.tap(find.text('Token listrik bengkel'));
     await settle();
     await shot('biaya-ubah');
+    // Ubah biaya: menu kategori tetap menampilkan semua kategori (filter baru jalan saat mengetik).
+    await tester.tap(find.byType(DropdownMenu<int>));
+    await settle();
+    await shot('biaya-ubah-kategori');
+    await tester.tap(find.byIcon(Icons.arrow_drop_up));
+    await settle();
     // Hapus = konfirmasi dengan tombol merah berlabel jelas.
     await tester.tap(find.widgetWithText(DangerButton, 'Hapus'));
     await settle();
@@ -290,6 +315,12 @@ void main() {
     await settle();
     await shot('notif-peringatan');
     await tester.pump(const Duration(seconds: 9)); // biarkan notifikasi hilang sendiri
+    // Kategori dicari dengan mengetik.
+    await tester.tap(find.byType(DropdownMenu<int>));
+    await settle();
+    await tester.enterText(find.descendant(of: find.byType(DropdownMenu<int>), matching: find.byType(TextField)), 'list');
+    await settle();
+    await shot('biaya-cari-kategori');
     await tester.tap(find.text('Batal').last);
     await settle();
     await tester.tap(find.widgetWithText(OutlinedButton, 'Kategori'));

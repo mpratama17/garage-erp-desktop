@@ -279,7 +279,7 @@ String waMessage(DocSummary s, Map<String, String> settings) {
     ..writeln('${s.isOrder ? 'Pemesanan' : 'Invoice'} ${s.doc.no} — total ${rupiah(s.total)}.');
   if (s.paid > 0 && s.remaining > 0) b.writeln('Sudah dibayar ${rupiah(s.paid)}, sisa ${rupiah(s.remaining)}.');
   if (s.remaining <= 0) b.writeln('Status: LUNAS.');
-  b.writeln('Nota PDF terlampir.');
+  b.writeln('Nota PDF kami kirim di chat ini.');
   final review = settings['gmaps_review_url']!;
   if (review.isNotEmpty) {
     b

@@ -8,6 +8,7 @@ import '../../core/table.dart';
 import '../../core/theme.dart';
 import '../../core/ui.dart';
 import '../../db/database.dart';
+import '../../shell.dart' show openDoc;
 import 'kontak_controller.dart';
 import '../penjualan/penjualan_page.dart' show statusPill;
 import '../penjualan/penjualan_repo.dart';
@@ -40,7 +41,7 @@ class KontakPage extends StatelessWidget {
                   final msg = await c.downloadTemplate();
                   if (msg != null && context.mounted) notify(context, msg);
                 },
-                child: const Text('Template'),
+                child: const Text('Template import'),
               ),
               OutlinedButton(
                 onPressed: () => ownerAction(() async {
@@ -290,24 +291,28 @@ class _History extends StatelessWidget {
           ),
           const SizedBox(height: S.sm),
           for (final s in all)
-            Container(
-              padding: const EdgeInsets.symmetric(vertical: S.sm),
-              decoration: const BoxDecoration(
-                border: Border(bottom: BorderSide(color: C.border)),
-              ),
-              child: Row(
-                children: [
-                  SizedBox(width: 88, child: Text(tgl(s.doc.at), style: T.label)),
-                  Expanded(
-                    child: Text(
-                      [s.doc.no, s.doc.plate].where((x) => x.isNotEmpty).join(' · '),
-                      overflow: TextOverflow.ellipsis,
+            InkWell(
+              onTap: () => openDoc(s.doc),
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: S.sm),
+                decoration: const BoxDecoration(
+                  border: Border(bottom: BorderSide(color: C.border)),
+                ),
+                child: Row(
+                  children: [
+                    SizedBox(width: 88, child: Text(tgl(s.doc.at), style: T.label)),
+                    Expanded(
+                      child: Text(
+                        [s.doc.no, s.doc.plate].where((x) => x.isNotEmpty).join(' · '),
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
-                  ),
-                  statusPill(s),
-                  const SizedBox(width: S.sm),
-                  Text(rp(s.total), style: T.money),
-                ],
+                    statusPill(s),
+                    const SizedBox(width: S.sm),
+                    Text(rp(s.total), style: T.money),
+                    const Icon(Icons.chevron_right, size: 18, color: C.inkMuted),
+                  ],
+                ),
               ),
             ),
         ],

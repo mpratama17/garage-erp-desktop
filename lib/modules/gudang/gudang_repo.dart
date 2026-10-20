@@ -13,6 +13,15 @@ class StockedProduct {
   bool get isLow => !isService && stock <= product.minStock;
 }
 
+/// Satu baris riwayat stok + asalnya: invoice & customer (penjualan/batal) atau pembelian.
+class MoveRow {
+  MoveRow(this.move, {this.doc, this.customer, this.purchase});
+  final StockMove move;
+  final Invoice? doc;
+  final String? customer; // null = tanpa customer (UMUM)
+  final Purchase? purchase;
+}
+
 class PurchaseLine {
   PurchaseLine({required this.productId, required this.qty, required this.unitCost});
   final int productId;
@@ -140,11 +149,46 @@ extension GudangRepo on AppDb {
     return row.read(sum) ?? 0;
   }
 
-  Stream<List<StockMove>> watchMoves(int productId) =>
-      (select(stockMoves)
-            ..where((m) => m.productId.equals(productId))
-            ..orderBy([(m) => OrderingTerm.desc(m.at), (m) => OrderingTerm.desc(m.id)]))
-          .watch();
+  Stream<List<MoveRow>> watchMoves(int productId) {
+    final q =
+        select(stockMoves).join([
+            leftOuterJoin(invoices, invoices.id.equalsExp(stockMoves.refId) & stockMoves.kind.isIn(['sale', 'void'])),
+            leftOuterJoin(customers, customers.id.equalsExp(invoices.customerId)),
+            leftOuterJoin(purchases, purchases.id.equalsExp(stockMoves.refId) & stockMoves.kind.equals('purchase')),
+          ])
+          ..where(stockMoves.productId.equals(productId))
+          ..orderBy([OrderingTerm.desc(stockMoves.at), OrderingTerm.desc(stockMoves.id)]);
+    return q.watch().map(
+      (rows) => [
+        for (final r in rows)
+          MoveRow(
+            r.readTable(stockMoves),
+            doc: r.readTableOrNull(invoices),
+            customer: r.readTableOrNull(customers)?.name,
+            purchase: r.readTableOrNull(purchases),
+          ),
+      ],
+    );
+  }
+
+  /// Riwayat pembelian stok + nama rekening pembayar, terbaru dulu. Khusus owner (berisi harga beli).
+  Stream<List<({Purchase purchase, String account})>> watchPurchases() {
+    requireOwner();
+    final q = select(purchases).join([innerJoin(accounts, accounts.id.equalsExp(purchases.accountId))])
+      ..orderBy([OrderingTerm.desc(purchases.at), OrderingTerm.desc(purchases.id)]);
+    return q.watch().map(
+      (rows) => [for (final r in rows) (purchase: r.readTable(purchases), account: r.readTable(accounts).name)],
+    );
+  }
+
+  /// Rincian barang satu pembelian (qty & harga beli per unit). Khusus owner.
+  Future<List<({StockMove move, Product product})>> purchaseLines(int purchaseId) async {
+    requireOwner();
+    final q = select(stockMoves).join([innerJoin(products, products.id.equalsExp(stockMoves.productId))])
+      ..where(stockMoves.kind.equals('purchase') & stockMoves.refId.equals(purchaseId))
+      ..orderBy([OrderingTerm.asc(stockMoves.id)]);
+    return [for (final r in await q.get()) (move: r.readTable(stockMoves), product: r.readTable(products))];
+  }
 
   /// Simpan produk baru/lama. Untuk barang baru, [openingStock] > 0 dicatat sebagai stok awal.
   /// Melempar [ArgumentError] dengan pesan untuk pengguna bila data tidak valid.

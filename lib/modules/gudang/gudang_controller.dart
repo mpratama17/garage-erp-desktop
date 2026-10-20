@@ -3,11 +3,12 @@ import 'dart:async';
 import 'package:file_selector/file_selector.dart';
 import 'package:get/get.dart';
 
+import '../../core/owner.dart';
 import '../../core/xlsx.dart';
 import '../../db/database.dart';
 import 'gudang_repo.dart';
 
-enum GudangTab { barang, jasa, ready }
+enum GudangTab { barang, jasa, ready, pembelian }
 
 class GudangController extends GetxController {
   GudangController(this.db);
@@ -20,15 +21,33 @@ class GudangController extends GetxController {
   final panelId = RxnInt();
   StreamSubscription<List<StockedProduct>>? _sub;
 
+  /// Tab Pembelian (khusus owner): daftar kosong saat terkunci; [purchaseId] = pembelian yang dibuka.
+  final purchases = <({Purchase purchase, String account})>[].obs;
+  final purchaseId = RxnInt();
+  StreamSubscription<Object?>? _purchaseSub;
+  Worker? _ownerWorker;
+
   @override
   void onInit() {
     super.onInit();
     _sub = db.watchProducts().listen(products.assignAll);
+    _ownerWorker = ever(Get.find<OwnerController>().isOwner, (_) => _ownerChanged());
+    _ownerChanged();
+  }
+
+  void _ownerChanged() {
+    _purchaseSub?.cancel();
+    _purchaseSub = null;
+    purchases.clear();
+    purchaseId.value = null;
+    if (Get.find<OwnerController>().isOwner.value) _purchaseSub = db.watchPurchases().listen(purchases.assignAll);
   }
 
   @override
   void onClose() {
     _sub?.cancel();
+    _purchaseSub?.cancel();
+    _ownerWorker?.dispose();
     super.onClose();
   }
 
@@ -36,6 +55,7 @@ class GudangController extends GetxController {
     GudangTab.barang => products.where((s) => !s.isService).toList(),
     GudangTab.jasa => products.where((s) => s.isService).toList(),
     GudangTab.ready => products.where((s) => !s.isService && s.stock > 0 && s.product.active).toList(),
+    GudangTab.pembelian => const [],
   };
 
   StockedProduct? get opened => products.firstWhereOrNull((s) => s.product.id == panelId.value);

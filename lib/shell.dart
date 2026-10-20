@@ -296,6 +296,15 @@ class _TodayState extends State<_Today> {
   Widget build(BuildContext context) => Text(DateFormat('EEEE, d MMMM y', 'id').format(DateTime.now()), style: T.label);
 }
 
+/// Buka invoice/pemesanan [d] di halaman Penjualan (dari cari global, riwayat stok, riwayat belanja).
+void openDoc(Invoice d) {
+  final c = Get.put(PenjualanController(Get.find<AppDb>()));
+  c.kind.value = d.kind;
+  c.status.value = null;
+  c.panelId.value = d.id;
+  Get.find<Nav>().page.value = AppPage.penjualan;
+}
+
 /// Cari invoice/pemesanan, customer, produk dari mana saja; pilih hasil = buka di halamannya.
 class _GlobalSearch extends StatelessWidget {
   const _GlobalSearch();
@@ -351,7 +360,7 @@ class _GlobalSearch extends StatelessWidget {
               leading: const Icon(Icons.receipt_long_outlined, size: 20),
               title: Text('${d.doc.no} · ${d.customer}'),
               subtitle: Text([tgl(d.doc.at), d.doc.car, d.doc.plate].where((x) => x.isNotEmpty).join(' · ')),
-              onTap: () => go(() => _openDoc(d.doc)),
+              onTap: () => go(() => openDoc(d.doc)),
             ),
           if (r.customers.isNotEmpty) header('Customer'),
           for (final c in r.customers)
@@ -380,14 +389,6 @@ class _GlobalSearch extends StatelessWidget {
 
   static AppDb get _db => Get.find<AppDb>();
   static void _show(AppPage p) => Get.find<Nav>().page.value = p;
-
-  static void _openDoc(Invoice d) {
-    final c = Get.put(PenjualanController(_db));
-    c.kind.value = d.kind;
-    c.status.value = null;
-    c.panelId.value = d.id;
-    _show(AppPage.penjualan);
-  }
 
   static void _openCustomer(int id) {
     Get.put(KontakController(_db)).panelId.value = id;

@@ -8,6 +8,7 @@ import '../../core/table.dart';
 import '../../core/theme.dart';
 import '../../core/ui.dart';
 import '../../db/database.dart';
+import '../../shell.dart' show openDoc;
 import 'gudang_controller.dart';
 import 'gudang_dialogs.dart';
 import 'gudang_repo.dart';
@@ -38,7 +39,7 @@ class GudangPage extends StatelessWidget {
                 final msg = await c.downloadTemplate();
                 if (msg != null && context.mounted) notify(context, msg);
               },
-              child: const Text('Template'),
+              child: const Text('Template import'),
             ),
             OutlinedButton(
               onPressed: () => ownerAction(() async {
@@ -101,7 +102,7 @@ class GudangPage extends StatelessWidget {
           child: Align(
             alignment: Alignment.centerLeft,
             child: SizedBox(
-              width: 480,
+              width: 600,
               child: Obx(
                 () => SegmentedButton<GudangTab>(
                   showSelectedIcon: false,
@@ -109,6 +110,7 @@ class GudangPage extends StatelessWidget {
                     ButtonSegment(value: GudangTab.barang, label: Text('Barang')),
                     ButtonSegment(value: GudangTab.jasa, label: Text('Jasa')),
                     ButtonSegment(value: GudangTab.ready, label: Text('Ready Stock')),
+                    ButtonSegment(value: GudangTab.pembelian, label: Text('Pembelian')),
                   ],
                   selected: {c.tab.value},
                   onSelectionChanged: (s) {
@@ -125,6 +127,7 @@ class GudangPage extends StatelessWidget {
           child: Padding(
             padding: const EdgeInsets.fromLTRB(S.xxl, 0, S.xxl, S.xl),
             child: Obx(() {
+              if (c.tab.value == GudangTab.pembelian) return _Purchases(c);
               final isJasa = c.tab.value == GudangTab.jasa;
               return Row(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -409,6 +412,28 @@ class _StockHistory extends StatelessWidget {
     'adjust': 'Penyesuaian',
   };
 
+  /// Penjualan/batal: no. invoice, customer, plat. Pembelian: supplier.
+  static String _label(MoveRow r) => [
+    _kind[r.move.kind] ?? r.move.kind,
+    if (r.doc != null) ...[r.doc!.no, r.customer ?? 'UMUM', r.doc!.plate],
+    if (r.purchase != null) r.purchase!.supplier,
+    r.move.note,
+  ].where((x) => x.isNotEmpty).join(' · ');
+
+  /// Klik baris: buka invoice di Penjualan, atau pembelian di tab Pembelian (owner).
+  VoidCallback? _open(BuildContext context, MoveRow r) {
+    if (r.doc != null) return () => openDoc(r.doc!);
+    final p = r.purchase;
+    if (p == null) return null;
+    return () async {
+      if (!await Get.find<OwnerController>().ensure(context)) return;
+      controller
+        ..panelId.value = null
+        ..tab.value = GudangTab.pembelian
+        ..purchaseId.value = p.id;
+    };
+  }
+
   @override
   Widget build(BuildContext context) => Column(
     crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -435,33 +460,37 @@ class _StockHistory extends StatelessWidget {
         ),
       ),
       const SizedBox(height: S.sm),
-      StreamBuilder<List<StockMove>>(
+      StreamBuilder<List<MoveRow>>(
         stream: controller.db.watchMoves(item.product.id),
-        builder: (_, snap) => Column(
+        builder: (context, snap) => Column(
           children: [
-            for (final m in snap.data ?? const <StockMove>[])
-              Container(
-                padding: const EdgeInsets.symmetric(vertical: S.sm),
-                decoration: const BoxDecoration(
-                  border: Border(bottom: BorderSide(color: C.border)),
-                ),
-                child: Row(
-                  children: [
-                    SizedBox(width: 88, child: Text(tgl(m.at), style: T.label)),
-                    Expanded(
-                      child: Text(
-                        [_kind[m.kind] ?? m.kind, if (m.note.isNotEmpty) m.note].join(' · '),
-                        overflow: TextOverflow.ellipsis,
+            for (final (r, onTap) in [for (final r in snap.data ?? const <MoveRow>[]) (r, _open(context, r))])
+              InkWell(
+                onTap: onTap,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: S.sm),
+                  decoration: const BoxDecoration(
+                    border: Border(bottom: BorderSide(color: C.border)),
+                  ),
+                  child: Row(
+                    children: [
+                      SizedBox(width: 88, child: Text(tgl(r.move.at), style: T.label)),
+                      Expanded(child: Text(_label(r), overflow: TextOverflow.ellipsis)),
+                      Text(
+                        r.move.qty > 0 ? '+${r.move.qty}' : '${r.move.qty}',
+                        style: T.money.copyWith(
+                          color: r.move.qty > 0 ? Tone.success.fg : C.danger,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
-                    ),
-                    Text(
-                      m.qty > 0 ? '+${m.qty}' : '${m.qty}',
-                      style: T.money.copyWith(
-                        color: m.qty > 0 ? Tone.success.fg : C.danger,
-                        fontWeight: FontWeight.w600,
+                      SizedBox(
+                        width: 24,
+                        child: onTap == null
+                            ? null
+                            : const Icon(Icons.chevron_right, size: 18, color: C.inkMuted),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
           ],
@@ -469,4 +498,136 @@ class _StockHistory extends StatelessWidget {
       ),
     ],
   );
+}
+
+/// Tab Pembelian (owner): riwayat pembelian stok + rincian pembelian yang dibuka.
+class _Purchases extends StatelessWidget {
+  const _Purchases(this.c);
+  final GudangController c;
+
+  @override
+  Widget build(BuildContext context) => OwnerGate(
+    message: 'Riwayat pembelian berisi harga beli, khusus owner.',
+    builder: (_) => Obx(() {
+      final opened = c.purchases.firstWhereOrNull((r) => r.purchase.id == c.purchaseId.value);
+      return Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Expanded(
+            child: AppTable<({Purchase purchase, String account})>(
+              rows: c.purchases.toList(),
+              searchHint: 'Cari supplier, keterangan…',
+              searchText: (r) => '${r.purchase.supplier} ${r.purchase.note} ${r.account}',
+              selected: (r) => r.purchase.id == c.purchaseId.value,
+              onTap: (r) => c.purchaseId.value = r.purchase.id,
+              emptyMessage: 'Belum ada pembelian stok.',
+              columns: [
+                Col('Tanggal', (r) => Text(tgl(r.purchase.at)), flex: 2),
+                Col('Supplier', (r) => Text(r.purchase.supplier.isEmpty ? '—' : r.purchase.supplier), flex: 4),
+                Col('Dibayar dari', (r) => Text(r.account), flex: 2),
+                Col('Total', (r) => Text(rp(r.purchase.total), style: T.money), flex: 2, numeric: true),
+              ],
+            ),
+          ),
+          if (opened != null) ...[
+            const SizedBox(width: S.lg),
+            SizedBox(
+              width: 420,
+              child: _PurchasePanel(key: ValueKey(opened.purchase.id), c: c, row: opened),
+            ),
+          ],
+        ],
+      );
+    }),
+  );
+}
+
+class _PurchasePanel extends StatefulWidget {
+  const _PurchasePanel({super.key, required this.c, required this.row});
+  final GudangController c;
+  final ({Purchase purchase, String account}) row;
+
+  @override
+  State<_PurchasePanel> createState() => _PurchasePanelState();
+}
+
+class _PurchasePanelState extends State<_PurchasePanel> {
+  // Dimuat sekali per pembelian (panel di-key per id), bukan tiap rebuild daftar.
+  late final _lines = widget.c.db.purchaseLines(widget.row.purchase.id);
+
+  @override
+  Widget build(BuildContext context) {
+    final c = widget.c, row = widget.row, p = row.purchase;
+    return Card(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(S.xl, S.lg, S.sm, S.sm),
+            child: Row(
+              children: [
+                Expanded(child: Text('Pembelian ${tgl(p.at)}', style: T.section)),
+                IconButton(
+                  tooltip: 'Tutup',
+                  onPressed: () => c.purchaseId.value = null,
+                  icon: const Icon(Icons.close),
+                ),
+              ],
+            ),
+          ),
+          const Divider(),
+          Expanded(
+            child: ListView(
+              padding: const EdgeInsets.all(S.xl),
+              children: [
+                Text(
+                  [
+                    if (p.supplier.isNotEmpty) p.supplier,
+                    'dibayar dari ${row.account}',
+                  ].join(' · '),
+                  style: T.label,
+                ),
+                if (p.note.isNotEmpty) ...[const SizedBox(height: S.xs), Text(p.note, style: T.label)],
+                const SizedBox(height: S.lg),
+                FutureBuilder(
+                  future: _lines,
+                  builder: (_, snap) => Column(
+                    children: [
+                      if (snap.hasError) Text('Rincian gagal dimuat: ${snap.error}', style: T.label),
+                      for (final l in snap.data ?? const <({StockMove move, Product product})>[])
+                        Container(
+                          padding: const EdgeInsets.symmetric(vertical: S.sm),
+                          decoration: const BoxDecoration(
+                            border: Border(bottom: BorderSide(color: C.border)),
+                          ),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(l.product.name, overflow: TextOverflow.ellipsis),
+                                    Text('${l.move.qty} × ${rp(l.move.unitCost ?? 0)}', style: T.label),
+                                  ],
+                                ),
+                              ),
+                              Text(rp(l.move.qty * (l.move.unitCost ?? 0)), style: T.money),
+                            ],
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: S.md),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: Text('Total ${rupiah(p.total)}', style: T.section),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }

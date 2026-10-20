@@ -70,7 +70,7 @@ Future<void> _savedDialog(BuildContext context, PenjualanController c, int id) a
             onPressed: () => runAction(
               ctx,
               () => c.sendWa(id),
-              null,
+              'WhatsApp terbuka. Seret file PDF dari Finder ke chat, lalu kirim.',
               'WhatsApp tidak bisa dibuka. Cek koneksi internet atau nomor HP customer.',
             ),
             icon: const Icon(Icons.chat_outlined, size: 18),
@@ -356,7 +356,7 @@ class _DocPanel extends StatelessWidget {
                       onPressed: () => runAction(
                         context,
                         () => c.sendWa(d.id),
-                        null,
+                        'WhatsApp terbuka. Seret file PDF dari Finder ke chat, lalu kirim.',
                         'WhatsApp tidak bisa dibuka. Cek koneksi internet atau nomor HP customer.',
                       ),
                       icon: const Icon(Icons.chat_outlined, size: 18),

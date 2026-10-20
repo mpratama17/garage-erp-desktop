@@ -63,6 +63,14 @@ void main() {
     expect((cash.accountId, cash.amount, cash.kind, cash.refId), (bca, 2450000, 'payment', id));
   });
 
+  test('mobil & plat customer yang kosong diisi dari invoice; yang sudah ada tidak ditimpa', () async {
+    await db.saveDoc(kind: DocKind.invoice, at: d, customerId: budi, car: 'Avanza', plate: 'n 1 ab', lines: [jasaLine()]);
+    Future<Customer> get() => (db.select(db.customers)..where((c) => c.id.equals(budi))).getSingle();
+    expect(((await get()).car, (await get()).plate), ('Avanza', 'N 1 AB'));
+    await db.saveDoc(kind: DocKind.invoice, at: d, customerId: budi, car: 'Brio', plate: 'L 2 CD', lines: [jasaLine()]);
+    expect(((await get()).car, (await get()).plate), ('Avanza', 'N 1 AB'));
+  });
+
   test('status: belum lunas -> dibayar sebagian -> lunas; tidak boleh bayar lebih', () async {
     final id = await db.saveDoc(kind: DocKind.invoice, at: d, dueAt: d, lines: [lampLine()]);
     expect((await db.docSummary(id)).status, PayStatus.unpaid);

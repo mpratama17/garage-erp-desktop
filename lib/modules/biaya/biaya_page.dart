@@ -141,7 +141,9 @@ Future<void> _expenseDialog(BuildContext context, BiayaController c, ExpenseRow?
   if (!context.mounted) return;
   if (accounts.isEmpty) return warn(context, 'Belum ada rekening aktif');
   int? accountId = e?.accountId ?? accounts.first.id;
-  int? categoryId = e?.refId;
+  // Kategori diketik/dicari lalu dipilih; yang dipakai = teks yang cocok persis dengan salah satu kategori.
+  final current = categories.firstWhereOrNull((k) => k.id == e?.refId);
+  final category = TextEditingController(text: current == null ? '' : _categoryLabel(current));
   var date = e?.at ?? DateTime.now();
   var proof = e?.proofPath ?? '';
   final name = TextEditingController(text: e?.description),
@@ -168,11 +170,16 @@ Future<void> _expenseDialog(BuildContext context, BiayaController c, ExpenseRow?
               const SizedBox(height: S.md),
               Labeled(
                 'Kategori *',
-                DropdownButtonFormField<int>(
-                  isExpanded: true,
-                  initialValue: categoryId,
-                  items: [for (final k in categories) DropdownMenuItem(value: k.id, child: Text(_categoryLabel(k)))],
-                  onChanged: (v) => categoryId = v,
+                DropdownMenu<int>(
+                  controller: category,
+                  expandedInsets: EdgeInsets.zero,
+                  enableFilter: true,
+                  requestFocusOnTap: true,
+                  menuHeight: 320,
+                  hintText: 'Ketik untuk mencari…',
+                  dropdownMenuEntries: [
+                    for (final k in categories) DropdownMenuEntry(value: k.id, label: _categoryLabel(k)),
+                  ],
                 ),
               ),
               const SizedBox(height: S.md),
@@ -223,14 +230,17 @@ Future<void> _expenseDialog(BuildContext context, BiayaController c, ExpenseRow?
             OutlinedButton(onPressed: () => Navigator.pop(ctx), child: const Text('Batal')),
             FilledButton(
               onPressed: () async {
-                if (categoryId == null) return warn(ctx, 'Pilih kategori');
+                // Nama kategori unik (dicek di repo), jadi cocokkan teks tanpa beda huruf besar/spasi.
+                final typed = category.text.trim().toLowerCase();
+                final categoryId = categories.firstWhereOrNull((k) => _categoryLabel(k).toLowerCase() == typed)?.id;
+                if (categoryId == null) return warn(ctx, 'Pilih kategori dari daftar');
                 if (accountId == null) return warn(ctx, 'Pilih rekening');
                 await runAction(ctx, () async {
                   await c.db.saveExpense(
                     id: e?.id,
                     at: date,
                     accountId: accountId!,
-                    categoryId: categoryId!,
+                    categoryId: categoryId,
                     description: name.text,
                     amount: parseRupiah(amount.text),
                     note: note.text,

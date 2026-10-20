@@ -1,6 +1,6 @@
 # star-garage-erp (repo: garage-erp-desktop) — Progress Snapshot
 
-Last updated: 2026-10-19.
+Last updated: 2026-10-20 (masukan client R2 dicatat).
 
 **Apa:** mini-ERP desktop **macOS** offline (Flutter + SQLite/drift + GetX) untuk Star Garage (bengkel modif lampu, member Yoong Motor Pasuruan), pengganti Kledo + Google Sheet. Dashboard + 7 modul + Pengaturan (`docs/PRD.md` v2.3). Kasir: MacBook Air M1. Ringkasan untuk GitHub: `README.md`.
 
@@ -33,7 +33,7 @@ Last updated: 2026-10-19.
 | Sidebar | Layout rail ikon + panel menu (paket `sidebarx` 0.17.2, pub points 160 / 783 likes); panel bisa diciutkan; status backup di panel; notifikasi belum dibuat (sengaja) | (commit ini) |
 | Palet | Ikuti referensi: biru royal `#2F5BEA` (menu aktif, tombol utama, link, grafik), navy/slate, latar abu kebiruan, KPI pastel penuh (biru/ungu/kuning/mint); oranye hanya di logo; merah hanya bahaya | (commit ini) |
 
-Total test saat ini: **59 lulus**. **Semua modul R1 + upgrade UI selesai** — berikutnya: uji manual end-to-end di Mac, backlog B3, rilis .dmg pertama ke client. Importer dicoba dengan file asli client: produk 68 masuk / 1 ditolak (SKU kembar CB/001); customer 142 masuk / 6 digabung (no. HP sama: IQBAL–INDRO, JAHLIL×2, JAUHAR–JOHAN, NAFI–NAVI, UMAR×2, YAQIN) — semua sesuai temuan analisis awal.
+Total test saat ini: **61 lulus**. **Semua modul R1 + upgrade UI selesai** — berikutnya: uji manual end-to-end di Mac, backlog B3, rilis .dmg pertama ke client. Importer dicoba dengan file asli client: produk 68 masuk / 1 ditolak (SKU kembar CB/001); customer 142 masuk / 6 digabung (no. HP sama: IQBAL–INDRO, JAHLIL×2, JAUHAR–JOHAN, NAFI–NAVI, UMAR×2, YAQIN) — semua sesuai temuan analisis awal.
 
 ## Backlog (diminta, belum dikerjakan)
 
@@ -42,6 +42,31 @@ Total test saat ini: **59 lulus**. **Semua modul R1 + upgrade UI selesai** — b
 | B1 | ~~Pilih lokasi simpan file nota/invoice~~ ✅ | Permintaan 19 Okt | Selesai: Pengaturan → Folder file (nota PDF di `/Nota`, export Excel mulai di `/Export`) + jadwal backup otomatis (harian+tutup / harian / mingguan / nonaktif). |
 | B2 | Backup & bukti pembayaran ke Google Drive | Brief client, ditunda client | Sekarang lokal (`Garage ERP Backup/`, `Garage ERP Bukti/`). |
 | B3 | Error import Gudang saat testing manual | Testing 19 Okt | Belum tereproduksi (import ulang di salinan DB berhasil). Tunggu isi `~/Library/Logs/Garage ERP/app.log`. |
+
+## Masukan client R2 (20 Okt) — belum dikerjakan
+
+Jenis: 🐞 bug/salah paham · ✨ fitur · ❓ pertanyaan (cukup dijawab / mungkin ubah UI).
+
+| # | Modul | Masukan | Jenis | Catatan triase |
+|---|---|---|---|---|
+| C1 | Penjualan | Kirim WA: PDF tidak terlampir | 🐞 | ✅ sebagian: teks pesan tidak lagi bilang "terlampir"; setelah WA terbuka muncul petunjuk "seret PDF dari Finder" (Finder sudah otomatis membuka file-nya). Menunggu jawaban client soal WA Desktop / API. |
+| C2 | Penjualan | Template pesan WA customer | ✨ | Sekarang teks di-hardcode (`waMessage`). Jadikan template di Pengaturan dengan placeholder `{nama} {no} {total} {sisa} {review}`. |
+| C3 | Penjualan | Diskon & pajak di bawah total invoice; sembunyikan bila 0 | ✨ | Diskon per baris sudah ada; diskon total & **pajak belum ada** → kolom baru di `invoices` (boleh selama DB belum di client). PDF + layar. |
+| C4 | Penjualan | "Modal/unit" di rincian invoice untuk apa? | ❓ | Modal per baris (khusus owner) = dasar HPP/laba di Laporan (`laporan_repo.dart:107`). Client: cukup di Gudang → ambil otomatis dari harga beli produk saat invoice dibuat, sembunyikan dari rincian. |
+| C5 | Penjualan→Kontak | Mobil & plat customer baru dari Penjualan tidak masuk Kontak | 🐞 | ✅ Penyebab: dialog Customer baru hanya nama+HP, mobil/plat cuma tersimpan di invoice. Sekarang `saveDoc` mengisi mobil/plat customer yang masih kosong (tidak menimpa yang sudah ada). Satu customer banyak mobil: tunggu client. |
+| C6 | Gaji | Insentif/tunjangan kerja teknisi masih 0 | ❓/🐞 | Insentif = tarif `incentive` di produk/jasa (default 0) × qty — tarif belum diisi (masih menunggu daftar jasa + tarif dari client). Tunjangan kerja 3% hanya untuk karyawan peran Sales (client tidak punya). Konfirmasi ke client; mungkin perlu kolom tarif insentif terlihat di form produk. |
+| C7 | Biaya | Cari di pilihan kategori | ✨ | ✅ Kategori = `DropdownMenu` ketik-untuk-cari. |
+| C8 | Gudang | Tombol "Template" untuk apa? | ❓ | ✅ Label jadi "Template import" (Gudang & Kontak). |
+| C9 | Gudang | Pembelian stok: nota pembelian + pembayaran | ✨ | Tambah no./foto nota supplier + status bayar (lunas/hutang?) — tanya client apakah pembelian bisa hutang. |
+| C10 | Gudang | Menu riwayat pembelian stok | ✨ | ✅ Tab **Pembelian** di Gudang (khusus owner, dicek di repo): daftar + rincian barang/harga beli. Nota & status bayar = C9 (tunggu client). |
+| C11 | Gudang | Riwayat stok: klik baris pembelian → riwayat pembelian itu | ✨ | ✅ Baris pembelian di riwayat stok → buka tab Pembelian (minta PIN). |
+| C12 | Gudang | Riwayat stok: baris penjualan tampilkan customer, invoice, rincian | ✨ | ✅ Baris penjualan/batal menampilkan no. invoice · customer · plat; klik → buka invoice di Penjualan (`openDoc` di `shell.dart`, dipakai bersama cari global). |
+| C13 | Kontak | Riwayat belanja: klik → detail invoice | ✨ | ✅ Klik riwayat belanja → buka invoice di Penjualan. |
+| C14 | Dashboard | Grafik penjualan & pembelian harian/bulanan/tahunan | ✨ | Sekarang hanya omzet 12 bulan. Satu grafik + pilihan periode, dipakai C14–C16. |
+| C15 | Dashboard | Grafik kas & bank harian/bulanan/tahunan | ✨ | Khusus owner (saldo terkunci). |
+| C16 | Dashboard | Grafik omzet harian/bulanan/tahunan | ✨ | Perluas grafik yang ada. |
+| C17 | Gaji | Download slip gaji per karyawan per periode (PDF) | ✨ | Sekarang hanya export Excel per periode. Pakai `pdf` yang sudah dipakai invoice. |
+| C18 | Semua | Mode terkunci (bukan owner) = hanya lihat; kasir hanya boleh tambah penjualan & customer | ✨ | **Ubah aturan**: sekarang catat biaya, kontak, dll boleh tanpa PIN. Harus dicek di repo (`requireOwner`), bukan cuma tombol disembunyikan. |
 
 ## Catatan teknis
 
@@ -63,4 +88,4 @@ Total test saat ini: **59 lulus**. **Semua modul R1 + upgrade UI selesai** — b
 
 **Git:** GitHub **private** [mpratama17/garage-erp-desktop](https://github.com/mpratama17/garage-erp-desktop), branch `main`. File client di `docs/` di-gitignore. Riwayat commit awal masih memuat 1 no. HP customer & 2 nama teknisi asli (sudah diganti di commit terbaru) — jangan jadikan repo ini publik; untuk portofolio buat snapshot bersih terpisah.
 
-**Menunggu dari client:** perbaikan data produk (SKU kembar CB/001, SR800.3 & LED HVT EXPERT H4 dobel, produk yang belum ada: POWER+, switch, kabel, paket) + daftar jasa (harga, tarif insentif); saldo awal 4 rekening; versi macOS di Air M1 (minimal 12); logo versi latar terang.
+**Menunggu dari client:** perbaikan data produk (SKU kembar CB/001, SR800.3 & LED HVT EXPERT H4 dobel, produk yang belum ada: POWER+, switch, kabel, paket) + daftar jasa (harga, tarif insentif); saldo awal 4 rekening; versi macOS di Air M1 (minimal 12). Logo latar terang sudah ada (`docs/logo-star-baru.png`, dipasang lewat Pengaturan).

@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:garage_erp_desktop/core/ui.dart';
 import 'package:garage_erp_desktop/db/database.dart';
 import 'package:garage_erp_desktop/modules/gudang/gudang_repo.dart';
+import 'package:garage_erp_desktop/modules/penjualan/penjualan_repo.dart';
 
 List<int> _xlsx(List<List<CellValue?>> rows) {
   final excel = Excel.createExcel();
@@ -61,12 +62,45 @@ void main() {
     expect(() => db.recordPurchase(at: DateTime.now(), accountId: bca, lines: []), throwsArgumentError);
   });
 
+  test('riwayat stok tahu asalnya (invoice+customer / pembelian); riwayat pembelian khusus owner', () async {
+    final led = await barang('LED H4', stock: 2);
+    final bca = (await db.select(db.accounts).get()).firstWhere((a) => a.name == 'BCA').id;
+    final pid = await db.recordPurchase(
+      at: DateTime(2026, 10, 19),
+      accountId: bca,
+      supplier: 'Toko Lampu',
+      lines: [PurchaseLine(productId: led, qty: 3, unitCost: 120000)],
+    );
+    final budi = await db.into(db.customers).insert(CustomersCompanion.insert(name: 'BUDI'));
+    final inv = await db.saveDoc(
+      kind: DocKind.invoice,
+      at: DateTime(2026, 10, 20),
+      customerId: budi,
+      lines: [LineInput(productId: led, name: 'LED H4', qty: 1, price: 100)],
+    );
+    final moves = await db.watchMoves(led).first;
+    expect([for (final m in moves) (m.move.kind, m.doc?.id, m.customer, m.purchase?.id)], unorderedEquals([
+      ('sale', inv, 'BUDI', null),
+      ('purchase', null, null, pid),
+      ('opening', null, null, null),
+    ]));
+
+    final list = await db.watchPurchases().first;
+    expect((list.single.purchase.supplier, list.single.account), ('Toko Lampu', 'BCA'));
+    final lines = await db.purchaseLines(pid);
+    expect((lines.single.product.name, lines.single.move.qty, lines.single.move.unitCost), ('LED H4', 3, 120000));
+
+    db.ownerUnlocked = false;
+    expect(() => db.watchPurchases(), throwsArgumentError);
+    expect(() => db.purchaseLines(pid), throwsArgumentError);
+  });
+
   test('stok opname mencatat selisih dan wajib alasan', () async {
     final led = await barang('LED H4', stock: 5);
     await db.adjustStock(led, 3, 'hitung ulang');
     expect(await db.stockOf(led), 3);
     final moves = await db.watchMoves(led).first;
-    expect((moves.first.kind, moves.first.qty), ('adjust', -2));
+    expect((moves.first.move.kind, moves.first.move.qty), ('adjust', -2));
     expect(() => db.adjustStock(led, 1, ''), throwsArgumentError);
   });
 
