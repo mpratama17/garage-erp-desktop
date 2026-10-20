@@ -31,6 +31,7 @@ Last updated: 2026-10-20 (masukan client R2 dicatat).
 | Tombol & feedback | Hierarki tombol (1 utama/layar, destruktif terpisah di kiri), konfirmasi berlabel kata kerja, notifikasi Berhasil/Periksa lagi/Gagal di overlay, dialog sukses invoice (PDF/WA) | `00bc081` |
 | Kunci saldo | Saldo Kas & Bank khusus owner (repo menolak tanpa PIN); perbaikan urutan buka PIN (bug: PIN benar tidak membuka modul owner) | `c747716` |
 | Sidebar | Layout rail ikon + panel menu (paket `sidebarx` 0.17.2, pub points 160 / 783 likes); panel bisa diciutkan; status backup di panel; notifikasi belum dibuat (sengaja) | (commit ini) |
+| Sidebar v2 | Pengelompokan menu (Transaksi/Keuangan/Analisis), gaya pil lembut mengikuti referensi; paket `sidebarx` dilepas (tidak mendukung section header) — diganti widget sidebar sendiri, lebih ringkas | `724c7f5`+ |
 | Palet | Ikuti referensi: biru royal `#2F5BEA` (menu aktif, tombol utama, link, grafik), navy/slate, latar abu kebiruan, KPI pastel penuh (biru/ungu/kuning/mint); oranye hanya di logo; merah hanya bahaya | (commit ini) |
 
 Total test saat ini: **61 lulus**. **Semua modul R1 + upgrade UI selesai** — berikutnya: uji manual end-to-end di Mac, backlog B3, rilis .dmg pertama ke client. Importer dicoba dengan file asli client: produk 68 masuk / 1 ditolak (SKU kembar CB/001); customer 142 masuk / 6 digabung (no. HP sama: IQBAL–INDRO, JAHLIL×2, JAUHAR–JOHAN, NAFI–NAVI, UMAR×2, YAQIN) — semua sesuai temuan analisis awal.

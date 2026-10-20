@@ -236,10 +236,10 @@ void main() {
     await settle();
     await shot('dashboard');
     // Panel menu diciutkan → rail ikon saja.
-    await tester.tap(find.byKey(const Key('sidebarx_toggle_button')));
+    await tester.tap(find.byKey(const Key('sidebar_toggle_button')));
     await settle();
     await shot('sidebar-rail');
-    await tester.tap(find.byKey(const Key('sidebarx_toggle_button')));
+    await tester.tap(find.byKey(const Key('sidebar_toggle_button')));
     await settle();
     owner.isOwner.value = true;
     await settle();

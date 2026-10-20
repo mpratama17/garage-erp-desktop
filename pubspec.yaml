@@ -49,7 +49,6 @@ dependencies:
   flutter_localizations:
     sdk: flutter
   fl_chart: ^1.2.0
-  sidebarx: ^0.17.2
 
 dev_dependencies:
   flutter_test:

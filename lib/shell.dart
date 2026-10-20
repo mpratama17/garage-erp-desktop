@@ -3,7 +3,6 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:sidebarx/sidebarx.dart';
 import 'package:intl/intl.dart';
 
 import 'core/format.dart';
@@ -53,23 +52,10 @@ enum AppPage {
   };
 }
 
-/// Halaman aktif; dipakai sidebar dan cari global (buka halaman + record).
+/// Halaman aktif + sidebar ciut/lebar; dipakai sidebar dan cari global (buka halaman + record).
 class Nav extends GetxController {
   final page = AppPage.dashboard.obs;
-  // Indeks controller = indeks AppPage (Pengaturan = item footer, indeks terakhir).
-  final sidebar = SidebarXController(selectedIndex: AppPage.dashboard.index, extended: true);
-
-  @override
-  void onInit() {
-    super.onInit();
-    ever(page, (AppPage p) => sidebar.selectIndex(p.index));
-  }
-
-  @override
-  void onClose() {
-    sidebar.dispose();
-    super.onClose();
-  }
+  final sidebarExpanded = true.obs;
 }
 
 class Shell extends StatelessWidget {
@@ -112,30 +98,15 @@ final _settings = () {
 
 // ------------------------------------------------------------------ sidebar
 
-/// Rail ikon + panel menu (paket `sidebarx`). Panel bisa diciutkan/diperlebar lewat tombol di bawah.
-/// Gaya pil lembut mengikuti referensi (`docs/referensi-ui.jpeg`): item aktif = latar biru pucat +
-/// ikon/teks biru (bukan biru pekat + putih), ikon tipis konsisten, lebih lapang.
-final _sidebarTheme = SidebarXTheme(
-  width: 76,
-  padding: const EdgeInsets.symmetric(horizontal: S.sm, vertical: S.sm),
-  decoration: const BoxDecoration(color: C.surface),
-  iconTheme: const IconThemeData(color: C.inkMuted, size: 21),
-  selectedIconTheme: const IconThemeData(color: C.primary, size: 21),
-  textStyle: T.body.copyWith(color: C.inkMuted, fontWeight: FontWeight.w500),
-  selectedTextStyle: T.body.copyWith(color: C.primary, fontWeight: FontWeight.w600),
-  itemDecoration: BoxDecoration(borderRadius: BorderRadius.circular(12)),
-  selectedItemDecoration: BoxDecoration(color: C.primarySoft, borderRadius: BorderRadius.circular(12)),
-  hoverColor: C.bg,
-  // Lapang tapi tetap muat 9 menu + status backup tanpa scroll di tinggi jendela minimum (720).
-  itemPadding: const EdgeInsets.symmetric(horizontal: S.md, vertical: S.xs + 2),
-  selectedItemPadding: const EdgeInsets.symmetric(horizontal: S.md, vertical: S.xs + 2),
-  itemTextPadding: const EdgeInsets.only(left: S.md),
-  selectedItemTextPadding: const EdgeInsets.only(left: S.md),
-  itemMargin: EdgeInsets.zero,
-  selectedItemMargin: EdgeInsets.zero,
-);
+const _sidebarCollapsedWidth = 76.0, _sidebarExpandedWidth = 232.0;
 
-final _sidebarExtended = const SidebarXTheme(width: 232);
+/// Menu dikelompokkan biar gampang dipindai: Transaksi (kerja harian), Keuangan (uang masuk/keluar),
+/// Analisis (laporan). Dashboard & Pengaturan berdiri sendiri (selalu paling atas / paling bawah).
+const _sidebarGroups = <(String, List<AppPage>)>[
+  ('Transaksi', [AppPage.penjualan, AppPage.gudang, AppPage.kontak]),
+  ('Keuangan', [AppPage.kas, AppPage.biaya, AppPage.gaji]),
+  ('Analisis', [AppPage.laporan]),
+];
 
 class _Sidebar extends StatelessWidget {
   const _Sidebar();
@@ -147,22 +118,137 @@ class _Sidebar extends StatelessWidget {
       stream: _settings,
       builder: (context, snap) {
         final s = snap.data ?? settingDefaults;
-        return SidebarX(
-          controller: nav.sidebar,
-          theme: _sidebarTheme,
-          extendedTheme: _sidebarExtended,
-          headerBuilder: (_, extended) => _SidebarHeader(s, extended),
-          separatorBuilder: (_, _) => const SizedBox(height: 2),
-          // Status backup di bawah Pengaturan (bukan item yang bisa diklik) — lewat footerBuilder,
-          // Pengaturan sendiri jadi item biasa paling bawah supaya daftar tidak perlu scroll sendiri.
-          footerBuilder: (_, extended) => extended ? _BackupCard(s) : const SizedBox.shrink(),
-          items: [
-            for (final p in AppPage.values) SidebarXItem(label: p.label, icon: p.icon, onTap: () => nav.page.value = p),
-          ],
-        );
+        return Obx(() {
+          final extended = nav.sidebarExpanded.value;
+          return AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            width: extended ? _sidebarExpandedWidth : _sidebarCollapsedWidth,
+            color: C.surface,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _SidebarHeader(s, extended),
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.symmetric(horizontal: S.sm),
+                    child: Column(
+                      children: [
+                        _NavItem(AppPage.dashboard, extended: extended),
+                        for (final (label, pages) in _sidebarGroups) ...[
+                          _GroupLabel(label, extended: extended),
+                          for (final p in pages) _NavItem(p, extended: extended),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: S.sm),
+                  child: _NavItem(AppPage.pengaturan, extended: extended),
+                ),
+                if (extended) _BackupCard(s),
+                _ToggleButton(extended: extended, onTap: nav.sidebarExpanded.toggle),
+              ],
+            ),
+          );
+        });
       },
     );
   }
+}
+
+/// Judul kelompok menu (disembunyikan saat sidebar ciut — cuma spasi kecil antar kelompok).
+class _GroupLabel extends StatelessWidget {
+  const _GroupLabel(this.label, {required this.extended});
+  final String label;
+  final bool extended;
+
+  @override
+  Widget build(BuildContext context) => extended
+      ? Padding(
+          padding: const EdgeInsets.fromLTRB(S.md, S.md, S.md, S.xs),
+          child: Text(label.toUpperCase(), style: T.label.copyWith(letterSpacing: 0.4)),
+        )
+      : const SizedBox(height: S.md);
+}
+
+/// Satu menu: ikon + label (label disembunyikan saat ciut), pil lembut saat aktif, hover halus.
+class _NavItem extends StatefulWidget {
+  const _NavItem(this.page, {required this.extended});
+  final AppPage page;
+  final bool extended;
+
+  @override
+  State<_NavItem> createState() => _NavItemState();
+}
+
+class _NavItemState extends State<_NavItem> {
+  var _hovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final nav = Get.find<Nav>();
+    return Obx(() {
+      final selected = nav.page.value == widget.page;
+      final color = selected ? C.primary : C.inkMuted;
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 1),
+        child: MouseRegion(
+          cursor: SystemMouseCursors.click,
+          onEnter: (_) => setState(() => _hovered = true),
+          onExit: (_) => setState(() => _hovered = false),
+          child: GestureDetector(
+            onTap: () => nav.page.value = widget.page,
+            behavior: HitTestBehavior.opaque,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: S.md, vertical: S.xs + 2),
+              decoration: BoxDecoration(
+                color: selected ? C.primarySoft : (_hovered ? C.bg : null),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                mainAxisAlignment: widget.extended ? MainAxisAlignment.start : MainAxisAlignment.center,
+                children: [
+                  Icon(widget.page.icon, size: 21, color: color),
+                  if (widget.extended) ...[
+                    const SizedBox(width: S.md),
+                    Expanded(
+                      child: Text(
+                        widget.page.label,
+                        maxLines: 1,
+                        overflow: TextOverflow.fade,
+                        style: T.body.copyWith(color: color, fontWeight: selected ? FontWeight.w600 : FontWeight.w500),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    });
+  }
+}
+
+/// Ciutkan/lebarkan panel menu.
+class _ToggleButton extends StatelessWidget {
+  const _ToggleButton({required this.extended, required this.onTap});
+  final bool extended;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => InkWell(
+    key: const Key('sidebar_toggle_button'),
+    onTap: onTap,
+    child: Padding(
+      padding: const EdgeInsets.all(14),
+      child: Align(
+        alignment: extended ? Alignment.centerRight : Alignment.center,
+        child: Icon(extended ? Icons.chevron_left : Icons.chevron_right, color: C.inkMuted, size: 20),
+      ),
+    ),
+  );
 }
 
 class _SidebarHeader extends StatelessWidget {
