@@ -29,11 +29,11 @@ enum AppPage {
   dashboard('Dashboard', Icons.space_dashboard_outlined),
   penjualan('Penjualan', Icons.receipt_long_outlined),
   gudang('Gudang', Icons.inventory_2_outlined),
-  kontak('Kontak', Icons.people_outline),
+  kontak('Kontak', Icons.people_alt_outlined),
   kas('Kas & Bank', Icons.account_balance_wallet_outlined),
   biaya('Biaya', Icons.payments_outlined),
   gaji('Gaji', Icons.badge_outlined),
-  laporan('Laporan', Icons.bar_chart_outlined),
+  laporan('Laporan', Icons.insights_outlined),
   pengaturan('Pengaturan', Icons.settings_outlined);
 
   const AppPage(this.label, this.icon);
@@ -113,26 +113,28 @@ final _settings = () {
 // ------------------------------------------------------------------ sidebar
 
 /// Rail ikon + panel menu (paket `sidebarx`). Panel bisa diciutkan/diperlebar lewat tombol di bawah.
+/// Gaya pil lembut mengikuti referensi (`docs/referensi-ui.jpeg`): item aktif = latar biru pucat +
+/// ikon/teks biru (bukan biru pekat + putih), ikon tipis konsisten, lebih lapang.
 final _sidebarTheme = SidebarXTheme(
-  width: 72,
-  padding: const EdgeInsets.all(S.sm),
+  width: 76,
+  padding: const EdgeInsets.symmetric(horizontal: S.sm, vertical: S.md),
   decoration: const BoxDecoration(color: C.surface),
-  iconTheme: const IconThemeData(color: C.inkMuted, size: 20),
-  selectedIconTheme: const IconThemeData(color: C.surface, size: 20),
-  textStyle: T.body.copyWith(fontWeight: FontWeight.w500),
-  selectedTextStyle: T.body.copyWith(color: C.surface, fontWeight: FontWeight.w600),
-  itemDecoration: BoxDecoration(borderRadius: BorderRadius.circular(10)),
-  selectedItemDecoration: BoxDecoration(color: C.primary, borderRadius: BorderRadius.circular(10)),
-  hoverColor: C.primarySoft,
-  itemPadding: const EdgeInsets.symmetric(horizontal: S.md, vertical: S.xs + 2),
-  selectedItemPadding: const EdgeInsets.symmetric(horizontal: S.md, vertical: S.xs + 2),
+  iconTheme: const IconThemeData(color: C.inkMuted, size: 21),
+  selectedIconTheme: const IconThemeData(color: C.primary, size: 21),
+  textStyle: T.body.copyWith(color: C.inkMuted, fontWeight: FontWeight.w500),
+  selectedTextStyle: T.body.copyWith(color: C.primary, fontWeight: FontWeight.w600),
+  itemDecoration: BoxDecoration(borderRadius: BorderRadius.circular(12)),
+  selectedItemDecoration: BoxDecoration(color: C.primarySoft, borderRadius: BorderRadius.circular(12)),
+  hoverColor: C.bg,
+  itemPadding: const EdgeInsets.symmetric(horizontal: S.md, vertical: S.sm + 2),
+  selectedItemPadding: const EdgeInsets.symmetric(horizontal: S.md, vertical: S.sm + 2),
   itemTextPadding: const EdgeInsets.only(left: S.md),
   selectedItemTextPadding: const EdgeInsets.only(left: S.md),
-  itemMargin: EdgeInsets.zero,
-  selectedItemMargin: EdgeInsets.zero,
+  itemMargin: const EdgeInsets.symmetric(vertical: 2),
+  selectedItemMargin: const EdgeInsets.symmetric(vertical: 2),
 );
 
-final _sidebarExtended = const SidebarXTheme(width: 240);
+final _sidebarExtended = const SidebarXTheme(width: 232);
 
 class _Sidebar extends StatelessWidget {
   const _Sidebar();
@@ -150,6 +152,7 @@ class _Sidebar extends StatelessWidget {
           extendedTheme: _sidebarExtended,
           headerBuilder: (_, extended) => _SidebarHeader(s, extended),
           separatorBuilder: (_, _) => const SizedBox(height: 2),
+
           footerBuilder: (_, extended) => extended ? _BackupCard(s) : const SizedBox.shrink(),
           items: [
             for (final p in AppPage.values)
