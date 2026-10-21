@@ -9,7 +9,6 @@ import '../../core/table.dart';
 import '../../core/theme.dart';
 import '../../core/ui.dart';
 import '../../db/database.dart';
-import '../penjualan/penjualan_repo.dart';
 import 'gaji_controller.dart';
 import 'gaji_repo.dart';
 import 'slip_pdf.dart';
@@ -446,7 +445,9 @@ class _IncentiveTable extends StatelessWidget {
 
 /// Pilih rekening & tanggal lalu bayar. true = berhasil dibayar.
 Future<bool> _payDialog(BuildContext context, GajiController c, Slip s) async {
-  final accounts = await c.db.watchActiveAccounts().first;
+  // Query sekali jalan (bukan stream): sama seperti dialog pembelian di Gudang — tidak ada alasan
+  // menunggu event stream di sini, dan itu pernah bikin tombol Bayar macet loading selamanya.
+  final accounts = await (c.db.select(c.db.accounts)..where((a) => a.active.equals(true))).get();
   if (!context.mounted) return false;
   if (accounts.isEmpty) {
     warn(context, 'Belum ada rekening aktif');

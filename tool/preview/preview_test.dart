@@ -384,6 +384,15 @@ void main() {
     await tester.tap(find.text('Teknisi A').last);
     await settle();
     await shot('gaji-slip');
+    await tester.tap(find.widgetWithText(FilledButton, 'Bayar'));
+    // Tombol Bayar luar sengaja tetap berputar selama dialog bayar (nested) ini terbuka — pumpAndSettle
+    // tidak akan pernah diam karena animasi spinner-nya, jadi pump durasi tetap di sini saja.
+    await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 300)));
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.pump(const Duration(milliseconds: 300));
+    await shot('gaji-bayar-dialog');
+    await tester.tap(find.text('Batal').last);
+    await settle();
     await tester.tap(find.text('Batal').last);
     await settle();
     await tester.tap(find.text('Sales A').last);
