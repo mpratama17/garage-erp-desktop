@@ -1,7 +1,6 @@
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter/material.dart';
 import 'package:get/get.dart' hide Value;
-import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/format.dart';
 import '../../core/owner.dart';
@@ -9,7 +8,7 @@ import '../../core/table.dart';
 import '../../core/theme.dart';
 import '../../core/ui.dart';
 import '../../db/database.dart';
-import '../../shell.dart' show openDoc;
+import '../../shell.dart' show openDoc, openPurchase;
 import 'gudang_controller.dart';
 import 'gudang_dialogs.dart';
 import 'gudang_repo.dart';
@@ -35,30 +34,19 @@ class GudangPage extends StatelessWidget {
           title: 'Gudang',
           subtitle: 'Barang, jasa, dan stok.',
           actions: [
-            OutlinedButton(
-              onPressed: () async {
+            ImportButton(
+              onTemplate: () async {
                 final msg = await c.downloadTemplate();
                 if (msg != null && context.mounted) notify(context, msg);
               },
-              child: const Text('Template import'),
-            ),
-            OutlinedButton(
-              onPressed: () => ownerAction(() async {
+              onImport: () => ownerAction(() async {
                 final r = await c.import();
                 if (r == null) return null;
                 if (r.errors.isNotEmpty && context.mounted) await showImportErrors(context, r.summary, r.errors);
                 return r.summary;
               }),
-              child: const Text('Import'),
             ),
             OutlinedButton(onPressed: () => ownerAction(c.export), child: const Text('Export')),
-            OutlinedButton(
-              onPressed: () => ownerAction(() async {
-                final ok = await showPurchaseDialog(context, c);
-                return ok == true ? 'Pembelian tersimpan, stok bertambah' : null;
-              }),
-              child: const Text('Pembelian stok'),
-            ),
             FilledButton.icon(
               onPressed: () async {
                 if (await owner.ensure(context)) c.panelId.value = 0;
@@ -68,44 +56,80 @@ class GudangPage extends StatelessWidget {
             ),
           ],
         ),
+        // Strip info yang bisa digeser ke kanan (stok, HPP, total penjualan & pembelian).
         Obx(() {
-          final active = c.products.where((s) => s.product.active);
-          final goods = active.where((s) => !s.isService).toList();
-          final low = goods.where((s) => s.isLow).length;
+          final goods = c.products.where((s) => s.product.active && !s.isService).toList();
+          final out = goods.where((s) => s.stock <= 0).length;
+          final low = goods.where((s) => s.isLow && s.stock > 0).length;
+          final ok = goods.length - out - low;
+          final units = goods.fold<int>(0, (t, s) => t + (s.stock > 0 ? s.stock : 0));
           // Dihitung hanya saat owner terbuka (harga beli = data owner).
-          final value = owner.isOwner.value
+          final hpp = owner.isOwner.value
               ? goods.fold<int>(0, (t, s) => t + (s.stock > 0 ? s.stock * s.product.buyPrice : 0))
               : 0;
-          return KpiRow([
-            KpiCard(
-              icon: Icons.inventory_2_outlined,
-              tone: Tone.info,
-              label: 'Barang aktif',
-              value: '${goods.length}',
-              hint: '${active.length - goods.length} jasa',
+          Widget card(KpiCard k) => SizedBox(width: 250, child: k);
+          return SizedBox(
+            height: 124,
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.fromLTRB(S.xxl, 0, S.xxl, S.lg),
+              children: [
+                for (final k in [
+                  KpiCard(
+                    icon: Icons.check_circle_outline,
+                    tone: Tone.success,
+                    label: 'Stok tersedia',
+                    value: '$ok produk',
+                    hint: 'di atas batas minimum',
+                  ),
+                  KpiCard(
+                    icon: Icons.warning_amber_rounded,
+                    tone: low == 0 ? Tone.neutral : Tone.warning,
+                    label: 'Stok hampir habis',
+                    value: '$low produk',
+                    hint: low == 0 ? 'Aman' : 'perlu belanja',
+                  ),
+                  KpiCard(
+                    icon: Icons.remove_shopping_cart_outlined,
+                    tone: out == 0 ? Tone.neutral : Tone.danger,
+                    label: 'Stok habis',
+                    value: '$out produk',
+                  ),
+                  KpiCard(icon: Icons.inventory_2_outlined, tone: Tone.info, label: 'Total stok', value: '$units unit'),
+                  KpiCard(
+                    icon: Icons.account_balance_wallet_outlined,
+                    tone: Tone.purple,
+                    label: 'Total HPP',
+                    value: rupiah(hpp),
+                    hint: 'stok × harga beli',
+                    ownerOnly: true,
+                  ),
+                  KpiCard(
+                    icon: Icons.trending_up,
+                    tone: Tone.success,
+                    label: 'Total penjualan',
+                    value: rupiah(c.flow.value.sales),
+                    hint: 'barang, seluruh waktu',
+                  ),
+                  KpiCard(
+                    icon: Icons.shopping_cart_outlined,
+                    tone: Tone.warning,
+                    label: 'Total pembelian',
+                    value: rupiah(c.flow.value.purchases),
+                    hint: 'stok, seluruh waktu',
+                    ownerOnly: true,
+                  ),
+                ]) ...[card(k), const SizedBox(width: S.lg)],
+              ],
             ),
-            KpiCard(
-              icon: Icons.warning_amber_rounded,
-              tone: low == 0 ? Tone.neutral : Tone.warning,
-              label: 'Stok menipis',
-              value: '$low barang',
-              hint: low == 0 ? 'Aman' : 'Lihat tab Ready Stock',
-            ),
-            KpiCard(
-              icon: Icons.account_balance_wallet_outlined,
-              tone: Tone.success,
-              label: 'Nilai stok (harga beli)',
-              value: rupiah(value),
-              ownerOnly: true,
-            ),
-          ]);
+          );
         }),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: S.xxl),
           child: Align(
             alignment: Alignment.centerLeft,
             child: SizedBox(
-              width: 600,
+              width: 450,
               child: Obx(
                 () => SegmentedButton<GudangTab>(
                   showSelectedIcon: false,
@@ -113,7 +137,6 @@ class GudangPage extends StatelessWidget {
                     ButtonSegment(value: GudangTab.barang, label: Text('Barang')),
                     ButtonSegment(value: GudangTab.jasa, label: Text('Jasa')),
                     ButtonSegment(value: GudangTab.ready, label: Text('Ready Stock')),
-                    ButtonSegment(value: GudangTab.pembelian, label: Text('Pembelian')),
                   ],
                   selected: {c.tab.value},
                   onSelectionChanged: (s) {
@@ -130,47 +153,39 @@ class GudangPage extends StatelessWidget {
           child: Padding(
             padding: const EdgeInsets.fromLTRB(S.xxl, 0, S.xxl, S.xl),
             child: Obx(() {
-              if (c.tab.value == GudangTab.pembelian) return _Purchases(c);
               final isJasa = c.tab.value == GudangTab.jasa;
-              return Row(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Expanded(
-                    child: AppTable<StockedProduct>(
-                      rows: c.visible,
-                      searchHint: 'Cari nama, SKU, kategori…',
-                      searchText: (s) => '${s.product.name} ${s.product.sku ?? ''} ${s.product.category}',
-                      selected: (s) => s.product.id == c.panelId.value,
-                      onTap: (s) => c.panelId.value = s.product.id,
-                      emptyMessage: isJasa
-                          ? 'Belum ada jasa.'
-                          : 'Belum ada barang. Tambah produk atau Import dari Excel.',
-                      columns: [
-                        Col(
-                          'Kode',
-                          (s) => Text(s.product.sku ?? '—', style: const TextStyle(fontWeight: FontWeight.w600)),
-                          flex: 2,
-                        ),
-                        Col('Nama', (s) => _Name(s), flex: 5),
-                        Col('Kategori', (s) => Text(s.product.category), flex: 2),
-                        Col(
-                          'Harga beli',
-                          (s) => OwnerOnly(child: Text(rp(s.product.buyPrice), style: T.money)),
-                          flex: 2,
-                          numeric: true,
-                        ),
-                        Col('Harga jual', (s) => Text(rp(s.product.sellPrice), style: T.money), flex: 2, numeric: true),
-                        // Insentif berlaku untuk barang maupun jasa (keputusan client: tergantung yang dipasang).
-                        Col('Insentif', (s) => Text(rp(s.product.incentive), style: T.money), flex: 2, numeric: true),
-                        if (!isJasa) Col('Stok', (s) => StockPill(s), flex: 2, numeric: true),
-                      ],
+              return MasterDetail(
+                panelWidth: 420,
+                list: AppTable<StockedProduct>(
+                  rows: c.visible,
+                  searchHint: 'Cari nama, SKU, kategori…',
+                  searchText: (s) => '${s.product.name} ${s.product.sku ?? ''} ${s.product.category}',
+                  selected: (s) => s.product.id == c.panelId.value,
+                  onTap: (s) => c.panelId.value = s.product.id,
+                  emptyMessage: isJasa ? 'Belum ada jasa.' : 'Belum ada barang. Tambah produk atau Import dari Excel.',
+                  columns: [
+                    Col(
+                      'Kode',
+                      (s) => Text(s.product.sku ?? '—', style: const TextStyle(fontWeight: FontWeight.w600)),
+                      flex: 2,
                     ),
-                  ),
-                  if (c.panelId.value != null) ...[
-                    const SizedBox(width: S.lg),
-                    SizedBox(
-                      width: 420,
-                      child: ProductPanel(
+                    Col('Nama', (s) => _Name(s), flex: 5),
+                    Col('Kategori', (s) => Text(s.product.category), flex: 2),
+                    Col(
+                      'Harga beli',
+                      (s) => OwnerOnly(child: Text(rp(s.product.buyPrice), style: T.money)),
+                      flex: 2,
+                      numeric: true,
+                    ),
+                    Col('Harga jual', (s) => Text(rp(s.product.sellPrice), style: T.money), flex: 2, numeric: true),
+                    // Insentif berlaku untuk barang maupun jasa (keputusan client: tergantung yang dipasang).
+                    Col('Insentif', (s) => Text(rp(s.product.incentive), style: T.money), flex: 2, numeric: true),
+                    if (!isJasa) Col('Stok', (s) => StockPill(s), flex: 2, numeric: true),
+                  ],
+                ),
+                panel: c.panelId.value == null
+                    ? null
+                    : ProductPanel(
                         // Kunci ikut "sudah dimuat": setelah produk baru disimpan, panel dibuat ulang
                         // begitu datanya muncul dari stream (bukan tetap sebagai form kosong).
                         key: ValueKey((c.panelId.value, c.opened?.product)),
@@ -178,9 +193,6 @@ class GudangPage extends StatelessWidget {
                         item: c.opened,
                         newIsService: isJasa,
                       ),
-                    ),
-                  ],
-                ],
               );
             }),
           ),
@@ -421,17 +433,14 @@ class _StockHistory extends StatelessWidget {
     r.move.note,
   ].where((x) => x.isNotEmpty).join(' · ');
 
-  /// Klik baris: buka invoice di Penjualan, atau pembelian di tab Pembelian (owner).
+  /// Klik baris: buka invoice di Penjualan, atau pembelian di halaman Pembelian (owner).
   VoidCallback? _open(BuildContext context, MoveRow r) {
     if (r.doc != null) return () => openDoc(r.doc!);
     final p = r.purchase;
     if (p == null) return null;
     return () async {
       if (!await Get.find<OwnerController>().ensure(context)) return;
-      controller
-        ..panelId.value = null
-        ..tab.value = GudangTab.pembelian
-        ..purchaseId.value = p.id;
+      openPurchase(p.id);
     };
   }
 
@@ -497,162 +506,4 @@ class _StockHistory extends StatelessWidget {
       ),
     ],
   );
-}
-
-/// Tab Pembelian (owner): riwayat pembelian stok + rincian pembelian yang dibuka.
-class _Purchases extends StatelessWidget {
-  const _Purchases(this.c);
-  final GudangController c;
-
-  @override
-  Widget build(BuildContext context) => OwnerGate(
-    message: 'Riwayat pembelian berisi harga beli, khusus owner.',
-    builder: (_) => Obx(() {
-      final opened = c.purchases.firstWhereOrNull((r) => r.purchase.id == c.purchaseId.value);
-      return Row(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Expanded(
-            child: AppTable<({Purchase purchase, String account, bool paid})>(
-              rows: c.purchases.toList(),
-              searchHint: 'Cari supplier, no. nota, keterangan…',
-              searchText: (r) => '${r.purchase.supplier} ${r.purchase.billNo} ${r.purchase.note} ${r.account}',
-              selected: (r) => r.purchase.id == c.purchaseId.value,
-              onTap: (r) => c.purchaseId.value = r.purchase.id,
-              emptyMessage: 'Belum ada pembelian stok.',
-              columns: [
-                Col('Tanggal', (r) => Text(tgl(r.purchase.at)), flex: 2),
-                Col('Supplier', (r) => Text(r.purchase.supplier.isEmpty ? '—' : r.purchase.supplier), flex: 3),
-                Col('No. nota', (r) => Text(r.purchase.billNo.isEmpty ? '—' : r.purchase.billNo), flex: 2),
-                Col('Dibayar dari', (r) => Text(r.account), flex: 2),
-                Col('Total', (r) => Text(rp(r.purchase.total), style: T.money), flex: 2, numeric: true),
-                Col(
-                  'Status',
-                  (r) => Pill(r.paid ? 'Lunas' : 'Belum bayar', r.paid ? Tone.success : Tone.warning),
-                  flex: 3,
-                ),
-              ],
-            ),
-          ),
-          if (opened != null) ...[
-            const SizedBox(width: S.lg),
-            SizedBox(
-              width: 420,
-              child: _PurchasePanel(key: ValueKey(opened.purchase.id), c: c, row: opened),
-            ),
-          ],
-        ],
-      );
-    }),
-  );
-}
-
-class _PurchasePanel extends StatefulWidget {
-  const _PurchasePanel({super.key, required this.c, required this.row});
-  final GudangController c;
-  final ({Purchase purchase, String account, bool paid}) row;
-
-  @override
-  State<_PurchasePanel> createState() => _PurchasePanelState();
-}
-
-class _PurchasePanelState extends State<_PurchasePanel> {
-  // Dimuat sekali per pembelian (panel di-key per id), bukan tiap rebuild daftar.
-  late final _lines = widget.c.db.purchaseLines(widget.row.purchase.id);
-
-  @override
-  Widget build(BuildContext context) {
-    final c = widget.c, row = widget.row, p = row.purchase;
-    return Card(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(S.xl, S.lg, S.sm, S.sm),
-            child: Row(
-              children: [
-                Expanded(child: Text('Pembelian ${tgl(p.at)}', style: T.section)),
-                IconButton(tooltip: 'Tutup', onPressed: () => c.purchaseId.value = null, icon: const Icon(Icons.close)),
-              ],
-            ),
-          ),
-          const Divider(),
-          Expanded(
-            child: ListView(
-              padding: const EdgeInsets.all(S.xl),
-              children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        [
-                          if (p.supplier.isNotEmpty) p.supplier,
-                          if (p.billNo.isNotEmpty) 'nota ${p.billNo}',
-                          'dibayar dari ${row.account}',
-                        ].join(' · '),
-                        style: T.label,
-                      ),
-                    ),
-                    Pill(row.paid ? 'Lunas' : 'Belum bayar', row.paid ? Tone.success : Tone.warning),
-                  ],
-                ),
-                if (p.note.isNotEmpty) ...[const SizedBox(height: S.xs), Text(p.note, style: T.label)],
-                if (p.proofPath.isNotEmpty) ...[
-                  const SizedBox(height: S.sm),
-                  OutlinedButton.icon(
-                    onPressed: () => launchUrl(Uri.file(p.proofPath)),
-                    icon: const Icon(Icons.receipt_long_outlined, size: 18),
-                    label: const Text('Lihat nota'),
-                  ),
-                ],
-                if (!row.paid) ...[
-                  const SizedBox(height: S.sm),
-                  FilledButton(
-                    onPressed: () =>
-                        runAction(context, () => c.db.payPurchase(p.id, at: DateTime.now()), 'Pembelian dilunasi'),
-                    child: const Text('Lunasi sekarang'),
-                  ),
-                ],
-                const SizedBox(height: S.lg),
-                FutureBuilder(
-                  future: _lines,
-                  builder: (_, snap) => Column(
-                    children: [
-                      if (snap.hasError) Text('Rincian gagal dimuat: ${snap.error}', style: T.label),
-                      for (final l in snap.data ?? const <({StockMove move, Product product})>[])
-                        Container(
-                          padding: const EdgeInsets.symmetric(vertical: S.sm),
-                          decoration: const BoxDecoration(
-                            border: Border(bottom: BorderSide(color: C.border)),
-                          ),
-                          child: Row(
-                            children: [
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(l.product.name, overflow: TextOverflow.ellipsis),
-                                    Text('${l.move.qty} × ${rp(l.move.unitCost ?? 0)}', style: T.label),
-                                  ],
-                                ),
-                              ),
-                              Text(rp(l.move.qty * (l.move.unitCost ?? 0)), style: T.money),
-                            ],
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: S.md),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: Text('Total ${rupiah(p.total)}', style: T.section),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 }

@@ -1,6 +1,6 @@
 # star-garage-erp (repo: garage-erp-desktop) — Progress Snapshot
 
-Last updated: 2026-10-20 (masukan client R2 dicatat).
+Last updated: 2026-10-23 (masukan client R3 selesai + close-out review; di-commit, belum di-push/di-build).
 
 **Apa:** mini-ERP desktop **macOS** offline (Flutter + SQLite/drift + GetX) untuk Star Garage (bengkel modif lampu, member Yoong Motor Pasuruan), pengganti Kledo + Google Sheet. Dashboard + 7 modul + Pengaturan (`docs/PRD.md` v2.3). Kasir: MacBook Air M1. Ringkasan untuk GitHub: `README.md`.
 
@@ -34,7 +34,7 @@ Last updated: 2026-10-20 (masukan client R2 dicatat).
 | Sidebar v2 | Pengelompokan menu (Transaksi/Keuangan/Analisis), gaya pil lembut mengikuti referensi; paket `sidebarx` dilepas (tidak mendukung section header) — diganti widget sidebar sendiri, lebih ringkas | `724c7f5`+ |
 | Palet | Ikuti referensi: biru royal `#2F5BEA` (menu aktif, tombol utama, link, grafik), navy/slate, latar abu kebiruan, KPI pastel penuh (biru/ungu/kuning/mint); oranye hanya di logo; merah hanya bahaya | (commit ini) |
 
-Total test saat ini: **61 lulus**. **Semua modul R1 + upgrade UI selesai** — berikutnya: uji manual end-to-end di Mac, backlog B3, rilis .dmg pertama ke client. Importer dicoba dengan file asli client: produk 68 masuk / 1 ditolak (SKU kembar CB/001); customer 142 masuk / 6 digabung (no. HP sama: IQBAL–INDRO, JAHLIL×2, JAUHAR–JOHAN, NAFI–NAVI, UMAR×2, YAQIN) — semua sesuai temuan analisis awal.
+Total test saat ini: **87 lulus** (per R3). **Semua modul R1 + upgrade UI selesai** — berikutnya: uji manual end-to-end di Mac, backlog B3, rilis .dmg pertama ke client. Importer dicoba dengan file asli client: produk 68 masuk / 1 ditolak (SKU kembar CB/001); customer 142 masuk / 6 digabung (no. HP sama: IQBAL–INDRO, JAHLIL×2, JAUHAR–JOHAN, NAFI–NAVI, UMAR×2, YAQIN) — semua sesuai temuan analisis awal.
 
 ## Backlog (diminta, belum dikerjakan)
 
@@ -69,6 +69,42 @@ Jenis: 🐞 bug/salah paham · ✨ fitur · ❓ pertanyaan (cukup dijawab / mung
 | C17 | Gaji | Download slip gaji per karyawan per periode (PDF) | ✨ | ✅ Jawaban client: PDF A4, hanya kolom ttd Finance Star Garage (tanpa kolom tanda terima karyawan), tidak perlu dikirim lewat WA. Tombol "Unduh slip" di dialog slip gaji (`lib/modules/gaji/slip_pdf.dart`, gaya sama dengan nota invoice) — simpan ke folder export/Slip. |
 | C18 | Semua | Mode terkunci (bukan owner) = hanya lihat; kasir hanya boleh tambah penjualan & customer | ✨ | ✅ Terkunci = hanya lihat. Kasir boleh: invoice/pemesanan + DP, pembayaran, buat invoice dari pemesanan, tambah & ubah customer, catat biaya baru, lihat grafik. Selain itu `requireOwner()` di repo (produk, ubah dokumen apa pun, hapus customer, import, transfer, uang masuk, rekening, biaya ubah/hapus, kategori, karyawan, gaji, pengaturan lewat `PengaturanController._set`). Tombol terkait minta PIN dulu. Test: `test/akses_test.dart`. |
 
+## Masukan client R3 (22 Okt) — ✅ dikerjakan & di-commit (belum di-push/di-build)
+
+23 nomor asli (nomor 4 dobel = 24 butir) → 17 pekerjaan (C1–C17) + 1 baru (#23, belum). Pemetaan 23-Okt: semua ✅ kecuali **#4a** (⚠️ lunas→Tagihan masih lewat tombol "Buat invoice", belum otomatis), **#23** (❌ lihat bawah). analyze bersih, 87 test lulus. Jawaban client: pemesanan lunas → jadi invoice di Tagihan; biaya berulang dicatat manual per klik; jurnal otomatis cukup (tanpa input jurnal manual). Skema DB naik ke **v3** (additive; migrasi dites di `test/r3_test.dart`).
+
+| # | Masukan (butir asli) | Hasil |
+|---|---|---|
+| C1 | Split View MacBook (#1) | ✅ `minimumSize` 640×560 (dulu 1280×720); sidebar otomatis ciut <1000 px; panel kanan menggantikan daftar di jendela sempit (`MasterDetail`); toolbar tabel/header membungkus; halaman Kas & Laporan bisa digulir. Dijaga `test/layout_test.dart` (semua halaman & sub-halaman tanpa overflow di 720 & 1440 px) |
+| C2 | Sidebar: garis pemisah, urutan baru, ikon berwarna, dropdown (#2,#3,#4b,#7,#15) | ✅ Beranda │ Penjualan▸(Tagihan, Pemesanan), Pembelian▸(Tagihan Pembelian) │ Gudang, Biaya │ Kontak, Kas & Bank, Gaji │ Laporan; ikon warna per menu |
+| C3 | Popup tanggal kecil 2 bulan (#8) | ✅ `lib/core/range_picker.dart` (`pickRange`/`RangeButton`), dipakai Dashboard, Penjualan, Pembelian, Biaya, Kas & Bank; daftar pilihan cepat di kiri ala Kledo (Kemarin … 2 tahun terakhir; jendela sempit = dibungkus di atas kalender) |
+| C4 | Dashboard rapi, warna grafik soft (#9) | ✅ 2 baris × 3 KPI, grafik pastel, tata letak responsif |
+| C5 | Pengaturan tidak panjang sebelah (#13) | ✅ 3 tab (Bengkel & nota / Pesan WhatsApp / File, backup & PIN), dua kolom seimbang |
+| C6 | Tabel di slip gaji PDF (#10) | ✅ tabel identitas + tabel komponen + baris total |
+| C7 | Stempel LUNAS di invoice (#11) | ✅ pojok kanan bawah blok judul "Invoice", hanya bila lunas |
+| C8 | Template import digabung ke tombol Import (#16,#19) | ✅ `ImportButton` (menu: Unduh template / Pilih file) di Gudang & Kontak |
+| C9 | Info Gudang geser ke kanan (#17) | ✅ 7 kartu: stok tersedia/hampir habis/habis, total stok, HPP, penjualan, pembelian (HPP & pembelian khusus owner) |
+| C10 | Biaya & Kas: rentang tanggal + filter kolom + export (#6,#12) | ✅ filter per kolom di `AppTable` (`Col.text` + `columnFilters`); Kas punya Export mutasi (owner) |
+| C11 | Kontak: Customer/Vendor/Pegawai (#18,#20) | ✅ tab Customer/Vendor/Pegawai; tabel `vendors` baru; form pembelian: vendor dicari/diketik (vendor baru otomatis dibuat); Pegawai memakai tabel karyawan (+ no. HP & catatan) |
+| C12 | Tagihan vs Pemesanan (#3,#4,#14) | ✅ Penjualan dipecah 2 halaman; pemesanan yang sudah dijadikan invoice pindah ke Tagihan; tombol "+ Tagihan" di Tagihan, "+ Pemesanan" di Pemesanan |
+| C13 | Menu Pembelian ▸ Tagihan Pembelian (#4b) | ✅ halaman Pembelian (pindah dari tab Gudang), Tagihan Pembelian = yang belum dibayar |
+| C14 | Riwayat pembelian: tgl input + tgl lunas bila beda hari (#5) | ✅ kolom Tgl beli / Tgl lunas |
+| C15 | Biaya berulang (#22) | ✅ tombol "Biaya berulang" di Biaya: templat (mis. Uang transport Rp20.000 per pegawai), Catat = pilih tanggal + centang pegawai yang masuk → satu biaya per pegawai |
+| C16 | Laporan keuangan, penjualan, pembelian (#21) | ✅ Neraca, Arus kas, Proyeksi arus kas, Laba rugi, Perubahan modal, Ringkasan eksekutif; Detail penjualan & Detail pembelian; semua bisa di-export |
+| C17 | Laporan akuntansi (#21) | ✅ Ringkasan bank, Buku besar, Buku besar pembantu (piutang/utang/persediaan), Jurnal, Trial balance — dari **jurnal turunan** (`akuntansi_repo.dart`: dibangun ulang dari invoice/kas/pembelian/stok, tanpa tabel jurnal). Dites seimbang & cocok dengan Kas & Bank dan Laba Rugi (`test/akuntansi_test.dart`) |
+
+| C18 | Tambah barang baru ke Gudang dari kolom produk/jasa di Tagihan/Pemesanan (#23) | ❌ belum — `doc_editor.dart` hanya Autocomplete cari, tanpa opsi buat. **Tanya client dulu:** (a) `saveProduct` khusus owner → kasir boleh tanpa PIN atau minta PIN? (b) produk baru belum punya harga beli → modal 0, laba terlalu besar; (c) stok awal 0 → baris jadi stok minus (boleh, dengan peringatan) |
+
+**Catatan keputusan:** (1) Pemesanan → invoice masih lewat tombol "Buat invoice" (bukan otomatis saat lunas). (2) Proyeksi arus kas = rata-rata 3 bulan terakhir (metode sederhana; definisi client belum ada). (3) Persediaan di neraca dinilai dari pembelian/modal invoice; stok awal & opname dinilai harga beli saat ini — perlu data produk bersih & saldo awal rekening dari client agar neraca akurat. (4) Laba berjalan di neraca termasuk "Pemasukan lain"; menu Laba rugi lama tetap hanya penjualan.
+
+**Close-out 23 Okt (code-review + simplify):** diperbaiki — semua `watch().first` diganti query sekali jalan (pola `xxxQuery().get()`, termasuk sisa R1/R2 di invoice PDF, editor dokumen, gaji, biaya); pencarian global → customer kembali ke tab Customer; filter kolom `AppTable` per judul kolom (tidak nyasar saat kolom berubah, mati bila baris filter tersembunyi); HPP transaksi lama melawan Modal, bukan Persediaan (neraca tidak minus); nama supplier pembelian = nama baku vendor; biaya berulang menolak pegawai nonaktif/tak dikenal di repo; total Gudang tidak tertimpa hasil query lama; Detail penjualan/pembelian & export mutasi Kas dicek owner di repo/controller; helper rentang tanggal (`thisMonth`, `endExclusive`, `covers`) menggantikan 8 salinan; `MonthNav` & `LapTab` dihapus; Laporan hanya memuat ulang jenis laporan yang tampil; daftar akun buku besar tanpa membangun jurnal.
+**Sengaja dilewati (catatan, bukan bug mendesak):** dua definisi laba (Laba rugi lama = penjualan saja vs jurnal termasuk pemasukan lain — keputusan (4) di atas); `purchases.supplier` masih salinan yang disinkron saat vendor diganti nama; belum ada unique index nama vendor; layout responsif masih breakpoint per halaman; `Nav.pembelianTagihan` di sidebar; jurnal dibangun ulang tiap ganti parameter laporan (data kecil, belum terasa).
+**Pertanyaan untuk owner:** vendor boleh ditambah/diubah kasir tanpa PIN (keputusan lama, dikunci test `r3_test`) padahal C18 tidak menyebut vendor — tetap begitu atau dikunci owner?
+
+**Sebelum build 1.2.0:** uji migrasi v2→v3 terhadap salinan DB asli client (seperti R2) — salinan tidak ada di `docs/`, minta lagi; cek Split View langsung di Mac (sejauh ini hanya `test/layout_test.dart` + preview). `flutter build macos --release` sudah lolos kompilasi.
+
+**Masih menunggu client:** saldo awal 4 rekening, data produk bersih, definisi proyeksi arus kas, hasil testing build 1.1.0+2, keputusan #4a & #23.
+
 ## Catatan teknis
 
 - **Struktur:** `lib/core/` (theme, format, owner/PIN, ui, table, xlsx), `lib/db/database.dart` (semua tabel), `lib/modules/<modul>/` (repo = aturan bisnis + test, controller GetX, page, dialogs), `lib/shell.dart`.
@@ -82,7 +118,7 @@ Jenis: 🐞 bug/salah paham · ✨ fitur · ❓ pertanyaan (cukup dijawab / mung
 - **Laporan:** pendapatan & HPP menurut tanggal invoice (pemesanan/DP tidak dihitung); biaya & gaji menurut tanggal uang keluar; pembelian stok bukan biaya. Terlaris dikelompokkan per produk (nama produk saat ini). Grafik belum dibuat (tabel + Excel cukup untuk PRD).
 - **Owner/PIN:** `ensure()` membuka `db.ownerUnlocked` DULU baru `isOwner` (listener Dashboard/Kas langsung memuat data owner). Saldo, laba, nilai stok, gaji hanya dimuat saat owner terbuka.
 - **Feedback:** `runAction` → sukses/`warn` (ArgumentError = aturan bisnis)/gagal (error sistem → log); `confirmAction` untuk aksi penting; controller teks dialog tidak di-dispose manual (dialog masih beranimasi).
-- **UI bersama** (`core/ui.dart`): `runAction`, `dateField`, `proofRow`, `accountField`, `MonthNav`, `OwnerGate`; `core/xlsx.dart`: `buildXlsxSheets`, `saveXlsx`.
+- **UI bersama** (`core/ui.dart`): `runAction`, `dateField`, `proofRow`, `accountField`, `OwnerGate`; `core/range_picker.dart`: `RangeButton`, `thisMonth()`, `range.endExclusive`/`covers()` (+ `dayAfter` di `format.dart`); `core/xlsx.dart`: `buildXlsxSheets`, `saveXlsx`.
 - **Format:** lebar 120 dipatok di `analysis_options.yaml`; jangan `dart format` file `*.g.dart` (build_runner tetap 80).
 - **Log error:** `~/Library/Logs/Garage ERP/app.log`.
 - Font Inter via `fonts:` pubspec; App Sandbox mati; bundle id `com.mpratama.garageErp` **tidak boleh berubah**; backup Google Drive ditunda.

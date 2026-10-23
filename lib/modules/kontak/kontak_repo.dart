@@ -33,7 +33,9 @@ const customerHeaders = ['Nama', 'NO TELEPON', 'JENIS MOBIL', 'PLAT MOBIL', 'Cat
 CustomerImport parseCustomersXlsx(List<int> bytes) {
   final t = XlsxTable.decode(bytes);
   if (!t.has('Nama') || !t.has('NO TELEPON')) {
-    return CustomerImport([], ['Kolom "Nama" dan "NO TELEPON" wajib ada — pakai template dari tombol Template'], []);
+    return CustomerImport([], [
+      'Kolom "Nama" dan "NO TELEPON" wajib ada — pakai template dari menu Import ▸ Unduh template',
+    ], []);
   }
   final out = <CustomerRow>[];
   final errors = <String>[], merged = <String>[];
@@ -79,6 +81,62 @@ List<int> buildCustomersXlsx(List<Customer> items) => buildXlsx('Customer', cust
 ]);
 
 extension KontakRepo on AppDb {
+  // ---- vendor (v3) ----
+
+  Stream<List<Vendor>> watchVendors() =>
+      (select(vendors)..orderBy([(v) => OrderingTerm(expression: v.name.collate(Collate.noCase))])).watch();
+
+  /// Simpan vendor baru/lama. Nama unik tanpa membedakan huruf besar/kecil. Siapa saja boleh (seperti customer).
+  Future<int> saveVendor(VendorsCompanion v) => transaction(() async {
+    final name = _clean(v.name.value);
+    if (name.isEmpty) throw ArgumentError('Nama vendor wajib diisi');
+    final dup =
+        await (select(vendors)..where(
+              (x) =>
+                  x.name.lower().equals(name.toLowerCase()) &
+                  (v.id.present ? x.id.equals(v.id.value).not() : const Constant(true)),
+            ))
+            .getSingleOrNull();
+    if (dup != null) throw ArgumentError('Vendor "${dup.name}" sudah ada');
+    final data = v.copyWith(
+      name: Value(name),
+      phone: Value(v.phone.present ? v.phone.value.trim() : ''),
+      address: Value(v.address.present ? v.address.value.trim() : ''),
+      note: Value(v.note.present ? v.note.value.trim() : ''),
+    );
+    if (v.id.present) {
+      await (update(vendors)..where((x) => x.id.equals(v.id.value))).write(data);
+      // Nama di pembelian lama ikut berganti supaya riwayat tetap mengacu vendor yang sama.
+      await (update(
+        purchases,
+      )..where((p) => p.vendorId.equals(v.id.value))).write(PurchasesCompanion(supplier: Value(name)));
+      return v.id.value;
+    }
+    return into(vendors).insert(data);
+  });
+
+  /// Hapus vendor yang belum pernah dipakai pembelian (owner).
+  Future<void> deleteVendor(int id) => transaction(() async {
+    requireOwner();
+    final used =
+        await (select(purchases)
+              ..where((p) => p.vendorId.equals(id))
+              ..limit(1))
+            .getSingleOrNull();
+    if (used != null) {
+      throw ArgumentError('Vendor ini sudah punya pembelian, jadi tidak bisa dihapus. Ubah datanya saja.');
+    }
+    await (delete(vendors)..where((x) => x.id.equals(id))).go();
+  });
+
+  /// Vendor dengan nama [name] (tanpa membedakan huruf besar/kecil); dibuat bila belum ada. null bila nama kosong.
+  Future<Vendor?> vendorByName(String name) async {
+    final n = _clean(name);
+    if (n.isEmpty) return null;
+    final found = await (select(vendors)..where((x) => x.name.lower().equals(n.toLowerCase()))).getSingleOrNull();
+    return found ?? await into(vendors).insertReturning(VendorsCompanion.insert(name: n));
+  }
+
   Stream<List<Customer>> watchCustomers() =>
       (select(customers)..orderBy([(c) => OrderingTerm(expression: c.name.collate(Collate.noCase))])).watch();
 

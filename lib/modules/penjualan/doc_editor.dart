@@ -20,7 +20,7 @@ Future<int?> showDocEditor(
   DocSummary? existing,
   bool legacy = false,
 }) async {
-  final lines = existing == null ? <InvoiceLine>[] : await c.db.watchLines(existing.doc.id).first;
+  final lines = existing == null ? <InvoiceLine>[] : await c.db.linesQuery(existing.doc.id).get();
   final taxRate = int.tryParse(await c.db.setting('tax_pct')) ?? 11;
   if (!context.mounted) return null;
   return showDialog<int>(

@@ -183,6 +183,7 @@ class _Form extends StatefulWidget {
 
 class _FormState extends State<_Form> {
   final c = Get.put(PengaturanController(Get.find<AppDb>()));
+  var _tab = 0;
 
   @override
   void dispose() {
@@ -197,142 +198,168 @@ class _FormState extends State<_Form> {
       child: Labeled(label, TextField(controller: c.ctrl[key], minLines: lines, maxLines: lines)),
     );
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(S.xxl, 0, S.xxl, S.xxl),
-      child: Align(
-        alignment: Alignment.topLeft,
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 1200),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Kiri: isian yang disimpan tombol Simpan. Kanan: pengaturan yang langsung tersimpan.
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    _Card('Data bengkel', [
-                      Row(
-                        children: [
-                          _ImagePick('Logo nota', c.logoPath, () => c.pickImage('logo_path', c.logoPath)),
-                          const SizedBox(width: S.xl),
-                          _ImagePick('Ikon sidebar', c.iconPath, () => c.pickImage('logo_icon_path', c.iconPath)),
-                        ],
-                      ),
-                      const SizedBox(height: S.sm),
-                      Text('PNG tanpa latar paling rapi.', style: T.label),
-                      const SizedBox(height: S.lg),
-                      for (final e in _textFields.entries)
-                        field(e.key, e.value, lines: e.key == 'shop_address' || e.key == 'invoice_note' ? 4 : 1),
-                      Text('Tampil di nota PDF. Pesan nota: rekening & syarat garansi.', style: T.label),
-                    ]),
-                    _Card('Nomor nota, pajak & gaji', [for (final e in _numFields.entries) field(e.key, e.value.$1)]),
-                    _Card('Pesan WhatsApp', [
-                      for (final e in waTemplateKeys.entries) field(e.key, e.value, lines: 7),
-                      Text(
-                        'Kata dalam kurung kurawal diganti otomatis: $waPlaceholders. '
-                        'Kosongkan untuk kembali ke pesan bawaan.',
-                        style: T.label,
-                      ),
-                    ]),
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: FilledButton(
-                        onPressed: () async {
-                          final err = await c.save();
-                          if (!context.mounted) return;
-                          err == null ? notify(context, 'Pengaturan tersimpan') : warn(context, err);
-                        },
-                        child: const Text('Simpan'),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: S.lg),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    _Card('Folder file', [
-                      Obx(() => _PathRow(c.exportDir.value)),
-                      const SizedBox(height: S.sm),
-                      Text(
-                        'Nota PDF tersimpan di subfolder Nota; export Excel dimulai di subfolder Export.',
-                        style: T.label,
-                      ),
-                      const SizedBox(height: S.md),
-                      Align(
-                        alignment: Alignment.centerLeft,
-                        child: OutlinedButton(onPressed: c.pickExportDir, child: const Text('Ganti folder')),
-                      ),
-                    ]),
-                    _Card('Backup', [
-                      Obx(
-                        () => Labeled(
-                          'Backup otomatis',
-                          DropdownButtonFormField<String>(
-                            isExpanded: true,
-                            initialValue: c.backupSchedule.value,
-                            items: [
-                              for (final e in backupSchedules.entries)
-                                DropdownMenuItem(value: e.key, child: Text(e.value)),
-                            ],
-                            onChanged: (v) => v == null ? null : c.setBackupSchedule(v),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: S.lg),
-                      Text('Folder backup', style: T.fieldLabel),
-                      const SizedBox(height: 6),
-                      Obx(() => _PathRow(c.backupDir.value)),
-                      const SizedBox(height: S.sm),
-                      Obx(
-                        () => Text(
-                          c.backupSchedule.value == 'off'
-                              ? 'Backup otomatis mati — data hanya aman bila Backup sekarang ditekan rutin.'
-                              : '60 file terbaru disimpan. Folder bisa di flashdisk.',
-                          style: T.label.copyWith(color: c.backupSchedule.value == 'off' ? C.danger : null),
-                        ),
-                      ),
-                      const SizedBox(height: S.md),
-                      Row(
-                        children: [
-                          OutlinedButton(onPressed: c.pickBackupDir, child: const Text('Ganti folder')),
-                          const SizedBox(width: S.sm),
-                          OutlinedButton.icon(
-                            onPressed: () async {
-                              var name = '';
-                              await runAction(
-                                context,
-                                () async => name = await c.backupNow(),
-                                null,
-                                'Backup gagal. Pastikan folder backup tersedia (mis. flashdisk tercolok), lalu coba lagi.',
-                              );
-                              if (name.isNotEmpty && context.mounted) notify(context, 'Backup tersimpan: $name');
-                            },
-                            icon: const Icon(Icons.backup_outlined, size: 18),
-                            label: const Text('Backup sekarang'),
-                          ),
-                        ],
-                      ),
-                    ]),
-                    _Card('PIN owner', [
-                      Align(
-                        alignment: Alignment.centerLeft,
-                        child: OutlinedButton(
-                          onPressed: () => _changePin(context, c.db),
-                          child: const Text('Ganti PIN'),
-                        ),
-                      ),
-                    ]),
-                  ],
-                ),
-              ),
-            ],
+    final bengkel = _Card('Data bengkel', [
+      Row(
+        children: [
+          _ImagePick('Logo nota', c.logoPath, () => c.pickImage('logo_path', c.logoPath)),
+          const SizedBox(width: S.xl),
+          _ImagePick('Ikon sidebar', c.iconPath, () => c.pickImage('logo_icon_path', c.iconPath)),
+        ],
+      ),
+      const SizedBox(height: S.sm),
+      Text('PNG tanpa latar paling rapi.', style: T.label),
+      const SizedBox(height: S.lg),
+      for (final k in ['shop_name', 'shop_address', 'shop_phone', 'shop_email'])
+        field(k, _textFields[k]!, lines: k == 'shop_address' ? 4 : 1),
+    ]);
+    final notaText = _Card('Teks nota & review', [
+      for (final k in ['invoice_note', 'gmaps_review_url'])
+        field(k, _textFields[k]!, lines: k == 'invoice_note' ? 4 : 1),
+      Text('Tampil di nota PDF. Pesan nota: rekening & syarat garansi.', style: T.label),
+    ]);
+    final nomor = _Card('Nomor nota, pajak & gaji', [for (final e in _numFields.entries) field(e.key, e.value.$1)]);
+    final waKeys = waTemplateKeys.entries.toList();
+    final wa = _Card('Pesan invoice', [for (final e in waKeys.take(2)) field(e.key, e.value, lines: 7)]);
+    final wa2 = _Card('Pesan pemesanan', [
+      for (final e in waKeys.skip(2)) field(e.key, e.value, lines: 7),
+      Text(
+        'Kata dalam kurung kurawal diganti otomatis: $waPlaceholders. '
+        'Kosongkan untuk kembali ke pesan bawaan.',
+        style: T.label,
+      ),
+    ]);
+    final folder = _Card('Folder file', [
+      Obx(() => _PathRow(c.exportDir.value)),
+      const SizedBox(height: S.sm),
+      Text('Nota PDF tersimpan di subfolder Nota; export Excel dimulai di subfolder Export.', style: T.label),
+      const SizedBox(height: S.md),
+      Align(
+        alignment: Alignment.centerLeft,
+        child: OutlinedButton(onPressed: c.pickExportDir, child: const Text('Ganti folder')),
+      ),
+    ]);
+    final backup = _Card('Backup', [
+      Obx(
+        () => Labeled(
+          'Backup otomatis',
+          DropdownButtonFormField<String>(
+            isExpanded: true,
+            initialValue: c.backupSchedule.value,
+            items: [for (final e in backupSchedules.entries) DropdownMenuItem(value: e.key, child: Text(e.value))],
+            onChanged: (v) => v == null ? null : c.setBackupSchedule(v),
           ),
         ),
       ),
+      const SizedBox(height: S.lg),
+      Text('Folder backup', style: T.fieldLabel),
+      const SizedBox(height: 6),
+      Obx(() => _PathRow(c.backupDir.value)),
+      const SizedBox(height: S.sm),
+      Obx(
+        () => Text(
+          c.backupSchedule.value == 'off'
+              ? 'Backup otomatis mati — data hanya aman bila Backup sekarang ditekan rutin.'
+              : '60 file terbaru disimpan. Folder bisa di flashdisk.',
+          style: T.label.copyWith(color: c.backupSchedule.value == 'off' ? C.danger : null),
+        ),
+      ),
+      const SizedBox(height: S.md),
+      Row(
+        children: [
+          OutlinedButton(onPressed: c.pickBackupDir, child: const Text('Ganti folder')),
+          const SizedBox(width: S.sm),
+          OutlinedButton.icon(
+            onPressed: () async {
+              var name = '';
+              await runAction(
+                context,
+                () async => name = await c.backupNow(),
+                null,
+                'Backup gagal. Pastikan folder backup tersedia (mis. flashdisk tercolok), lalu coba lagi.',
+              );
+              if (name.isNotEmpty && context.mounted) notify(context, 'Backup tersimpan: $name');
+            },
+            icon: const Icon(Icons.backup_outlined, size: 18),
+            label: const Text('Backup sekarang'),
+          ),
+        ],
+      ),
+    ]);
+    final pin = _Card('PIN owner', [
+      Align(
+        alignment: Alignment.centerLeft,
+        child: OutlinedButton(onPressed: () => _changePin(context, c.db), child: const Text('Ganti PIN')),
+      ),
+    ]);
+
+    // Simpan hanya berlaku untuk isian teks (tab Bengkel & Pesan WA); sisanya langsung tersimpan.
+    final simpan = FilledButton(
+      onPressed: () async {
+        final err = await c.save();
+        if (!context.mounted) return;
+        err == null ? notify(context, 'Pengaturan tersimpan') : warn(context, err);
+      },
+      child: const Text('Simpan'),
+    );
+
+    final (left, right) = switch (_tab) {
+      0 => ([bengkel], [nomor, notaText]),
+      1 => ([wa], [wa2]),
+      _ => ([folder, pin], [backup]),
+    };
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(S.xxl, 0, S.xxl, S.lg),
+          child: Row(
+            children: [
+              Flexible(
+                child: SegmentedButton<int>(
+                  showSelectedIcon: false,
+                  segments: const [
+                    ButtonSegment(value: 0, label: Text('Bengkel & nota')),
+                    ButtonSegment(value: 1, label: Text('Pesan WhatsApp')),
+                    ButtonSegment(value: 2, label: Text('File, backup & PIN')),
+                  ],
+                  selected: {_tab},
+                  onSelectionChanged: (v) => setState(() => _tab = v.first),
+                ),
+              ),
+              const Spacer(),
+              if (_tab != 2) simpan,
+            ],
+          ),
+        ),
+        Expanded(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(S.xxl, 0, S.xxl, S.xxl),
+            child: Align(
+              alignment: Alignment.topLeft,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 1200),
+                // Dua kolom sama lebar; satu kolom bila jendela sempit.
+                child: LayoutBuilder(
+                  builder: (context, box) => box.maxWidth < 820
+                      ? Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [...left, ...right])
+                      : Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: left),
+                            ),
+                            const SizedBox(width: S.lg),
+                            Expanded(
+                              child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: right),
+                            ),
+                          ],
+                        ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 

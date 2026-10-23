@@ -6,6 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../core/format.dart';
 import '../../core/owner.dart';
 import '../../core/proof.dart';
+import '../../core/range_picker.dart';
 import '../../core/table.dart';
 import '../../core/theme.dart';
 import '../../core/ui.dart';
@@ -158,135 +159,85 @@ class PenjualanPage extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        PageHeader(
-          title: 'Penjualan',
-          subtitle: 'Invoice & pemesanan.',
-          actions: [
-            OutlinedButton(
-              onPressed: () async {
-                final kind = await showDialog<String>(
-                  context: context,
-                  builder: (ctx) => SimpleDialog(
-                    title: const Text('Input transaksi lama'),
-                    children: [
-                      SimpleDialogOption(
-                        onPressed: () => Navigator.pop(ctx, DocKind.invoice),
-                        child: const Text('Invoice'),
-                      ),
-                      SimpleDialogOption(
-                        onPressed: () => Navigator.pop(ctx, DocKind.order),
-                        child: const Text('Pemesanan'),
-                      ),
-                    ],
-                  ),
-                );
-                if (kind != null) await create(kind, legacy: true);
-              },
-              child: const Text('Transaksi lama'),
-            ),
-            OutlinedButton(onPressed: () => create(DocKind.order), child: const Text('+ Pemesanan')),
-            FilledButton.icon(
-              onPressed: () => create(DocKind.invoice),
-              icon: const Icon(Icons.point_of_sale, size: 18),
-              label: const Text('Kasir / Invoice'),
-            ),
-          ],
-        ),
-        Obx(() => KpiRow(_kpis(c))),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: S.xxl),
-          child: Align(
-            alignment: Alignment.centerLeft,
-            child: SizedBox(
-              width: 320,
-              child: Obx(
-                () => SegmentedButton<String>(
-                  showSelectedIcon: false,
-                  segments: const [
-                    ButtonSegment(value: DocKind.invoice, label: Text('Invoice')),
-                    ButtonSegment(value: DocKind.order, label: Text('Pemesanan')),
-                  ],
-                  selected: {c.kind.value},
-                  onSelectionChanged: (s) => c.kind.value = s.first,
-                ),
+        Obx(() {
+          final isOrder = c.kind.value == DocKind.order;
+          return PageHeader(
+            title: isOrder ? 'Pemesanan' : 'Tagihan',
+            subtitle: isOrder
+                ? 'Pesanan dengan DP; setelah selesai dibuatkan tagihan.'
+                : 'Tagihan customer, termasuk yang tanpa pemesanan.',
+            actions: [
+              OutlinedButton(onPressed: () => create(c.kind.value, legacy: true), child: const Text('Transaksi lama')),
+              FilledButton.icon(
+                onPressed: () => create(c.kind.value),
+                icon: Icon(isOrder ? Icons.event_note_outlined : Icons.point_of_sale, size: 18),
+                label: Text(isOrder ? '+ Pemesanan' : '+ Tagihan'),
               ),
-            ),
-          ),
-        ),
+            ],
+          );
+        }),
+        Obx(() => KpiRow(_kpis(c))),
         const SizedBox(height: S.lg),
         Expanded(
           child: Padding(
             padding: const EdgeInsets.fromLTRB(S.xxl, 0, S.xxl, S.xl),
             child: Obx(
-              () => Row(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Expanded(
-                    child: AppTable<DocSummary>(
-                      rows: c.visible,
-                      searchHint: 'Cari nomor, customer, HP, plat…',
-                      searchText: (s) => [
-                        s.doc.no,
-                        s.customerName ?? 'UMUM',
-                        s.customerPhone ?? '',
-                        s.doc.car,
-                        s.doc.plate,
-                        s.doc.plate.replaceAll(' ', ''),
-                      ].join(' '),
-                      selected: (s) => s.doc.id == c.panelId.value,
-                      onTap: (s) => c.panelId.value = s.doc.id,
-                      emptyMessage: c.kind.value == DocKind.invoice ? 'Belum ada invoice.' : 'Belum ada pemesanan.',
-                      toolbar: [
-                        DropdownButton<PayStatus?>(
-                          value: c.status.value,
-                          underline: const SizedBox(),
-                          hint: const Text('Semua status'),
-                          items: const [
-                            DropdownMenuItem(value: null, child: Text('Semua status')),
-                            DropdownMenuItem(value: PayStatus.unpaid, child: Text('Belum Lunas')),
-                            DropdownMenuItem(value: PayStatus.partial, child: Text('Dibayar Sebagian')),
-                            DropdownMenuItem(value: PayStatus.paid, child: Text('Lunas')),
-                            DropdownMenuItem(value: PayStatus.invoiced, child: Text('Sudah diinvoice')),
-                            DropdownMenuItem(value: PayStatus.voided, child: Text('Batal')),
-                          ],
-                          onChanged: (v) => c.status.value = v,
-                        ),
+              () => MasterDetail(
+                list: AppTable<DocSummary>(
+                  rows: c.visible,
+                  searchHint: 'Cari nomor, customer, HP, plat…',
+                  searchText: (s) => [
+                    s.doc.no,
+                    s.customerName ?? 'UMUM',
+                    s.customerPhone ?? '',
+                    s.doc.car,
+                    s.doc.plate,
+                    s.doc.plate.replaceAll(' ', ''),
+                  ].join(' '),
+                  selected: (s) => s.doc.id == c.panelId.value,
+                  onTap: (s) => c.panelId.value = s.doc.id,
+                  emptyMessage: c.kind.value == DocKind.invoice ? 'Belum ada invoice.' : 'Belum ada pemesanan.',
+                  toolbar: [
+                    RangeButton(range: c.range.value, onChanged: (r) => c.range.value = r, clearable: true),
+                    const SizedBox(width: S.sm),
+                    DropdownButton<PayStatus?>(
+                      value: c.status.value,
+                      underline: const SizedBox(),
+                      hint: const Text('Semua status'),
+                      items: const [
+                        DropdownMenuItem(value: null, child: Text('Semua status')),
+                        DropdownMenuItem(value: PayStatus.unpaid, child: Text('Belum Lunas')),
+                        DropdownMenuItem(value: PayStatus.partial, child: Text('Dibayar Sebagian')),
+                        DropdownMenuItem(value: PayStatus.paid, child: Text('Lunas')),
+                        DropdownMenuItem(value: PayStatus.invoiced, child: Text('Sudah diinvoice')),
+                        DropdownMenuItem(value: PayStatus.voided, child: Text('Batal')),
                       ],
-                      columns: [
-                        Col(
-                          'Nomor',
-                          (s) => Text(s.doc.no, style: const TextStyle(fontWeight: FontWeight.w600)),
-                          flex: 3,
-                        ),
-                        Col('Tanggal', (s) => Text(tgl(s.doc.at)), flex: 3),
-                        // Plat digabung ke kolom customer supaya tabel tetap terbaca saat panel terbuka.
-                        Col(
-                          'Customer · plat',
-                          (s) => Text([s.customerName ?? 'UMUM', s.doc.plate].where((x) => x.isNotEmpty).join(' · ')),
-                          flex: 4,
-                        ),
-                        Col('Total', (s) => Text(rp(s.total), style: T.money), flex: 2, numeric: true),
-                        Col(
-                          'Sisa',
-                          (s) => Text(
-                            s.doc.isVoid || s.status == PayStatus.invoiced || s.remaining <= 0 ? '—' : rp(s.remaining),
-                            style: T.money,
-                          ),
-                          flex: 2,
-                          numeric: true,
-                        ),
-                        Col('Status', statusPill, flex: 4),
-                      ],
-                    ),
-                  ),
-                  if (c.opened != null) ...[
-                    const SizedBox(width: S.lg),
-                    SizedBox(
-                      width: 400,
-                      child: _DocPanel(c: c, s: c.opened!),
+                      onChanged: (v) => c.status.value = v,
                     ),
                   ],
-                ],
+                  columns: [
+                    Col('Nomor', (s) => Text(s.doc.no, style: const TextStyle(fontWeight: FontWeight.w600)), flex: 3),
+                    Col('Tanggal', (s) => Text(tgl(s.doc.at)), flex: 3),
+                    // Plat digabung ke kolom customer supaya tabel tetap terbaca saat panel terbuka.
+                    Col(
+                      'Customer · plat',
+                      (s) => Text([s.customerName ?? 'UMUM', s.doc.plate].where((x) => x.isNotEmpty).join(' · ')),
+                      flex: 4,
+                    ),
+                    Col('Total', (s) => Text(rp(s.total), style: T.money), flex: 2, numeric: true),
+                    Col(
+                      'Sisa',
+                      (s) => Text(
+                        s.doc.isVoid || s.status == PayStatus.invoiced || s.remaining <= 0 ? '—' : rp(s.remaining),
+                        style: T.money,
+                      ),
+                      flex: 2,
+                      numeric: true,
+                    ),
+                    Col('Status', statusPill, flex: 4),
+                  ],
+                ),
+                panel: c.opened == null ? null : _DocPanel(c: c, s: c.opened!),
               ),
             ),
           ),

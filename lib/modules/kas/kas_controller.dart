@@ -1,9 +1,14 @@
 import 'dart:async';
 
 import 'package:drift/drift.dart' show TableUpdateQuery;
+
+import '../../core/range_picker.dart';
+
 import 'package:get/get.dart';
 
+import '../../core/format.dart';
 import '../../core/owner.dart';
+import '../../core/xlsx.dart';
 import '../../db/database.dart';
 import 'kas_repo.dart';
 
@@ -17,7 +22,8 @@ class KasController extends GetxController {
   final accounts = <Account>[].obs; // semua rekening (siapa saja)
   final balances = <int, int>{}.obs; // accountId -> saldo; kosong saat owner terkunci
   final accountId = RxnInt(); // filter mutasi; null = semua rekening
-  final month = DateTime(DateTime.now().year, DateTime.now().month).obs;
+  /// Rentang tanggal mutasi (inklusif); awalnya bulan ini.
+  final range = thisMonth().obs;
   final entries = <EntryRow>[].obs;
 
   final period = Period.monthly.obs;
@@ -35,7 +41,7 @@ class KasController extends GetxController {
     _subs
       ..add(db.watchAccounts().listen(accounts.assignAll))
       ..add(db.tableUpdates(TableUpdateQuery.onTable(db.cashEntries)).listen((_) => _loadFlow()));
-    everAll([accountId, month], (_) => _listenEntries());
+    everAll([accountId, range], (_) => _listenEntries());
     everAll([period, year], (_) => _loadFlow());
     _ownerWorker = ever(Get.find<OwnerController>().isOwner, (_) => _ownerChanged());
     _ownerChanged();
@@ -66,9 +72,9 @@ class KasController extends GetxController {
 
   void _listenEntries() {
     _entrySub?.cancel();
-    final m = month.value;
+    final r = range.value;
     _entrySub = db
-        .watchEntries(accountId: accountId.value, from: m, to: DateTime(m.year, m.month + 1))
+        .watchEntries(accountId: accountId.value, from: r.start, to: r.endExclusive)
         .listen(entries.assignAll);
   }
 
@@ -83,7 +89,33 @@ class KasController extends GetxController {
     if (seq == _flowSeq) flow.assignAll(rows); // abaikan hasil query lama yang selesai belakangan
   }
 
-  void shiftMonth(int delta) => month.value = DateTime(month.value.year, month.value.month + delta);
+  /// Export mutasi yang sedang tampil (rentang + rekening terpilih) ke .xlsx. Pesan hasil, atau null bila batal.
+  Future<String?> export() async {
+    db.requireOwner(); // export mutasi khusus owner (C10), bukan hanya lewat PIN di tombol
+    final single = accountId.value != null;
+    final withBalance = single && balances.isNotEmpty;
+    final r = range.value;
+    final bytes = buildXlsx(
+      'Mutasi',
+      ['Tanggal', 'Rekening', 'Jenis', 'Keterangan', 'Masuk', 'Keluar', if (withBalance) 'Saldo'],
+      [
+        for (final e in entries)
+          [
+            tgl(e.entry.at),
+            e.accountName,
+            cashKindLabel[e.entry.kind] ?? e.entry.kind,
+            [e.entry.description, if (e.entry.note.isNotEmpty) e.entry.note].join(' · '),
+            e.entry.amount > 0 ? e.entry.amount : null,
+            e.entry.amount < 0 ? -e.entry.amount : null,
+            if (withBalance) e.balanceAfter,
+          ],
+      ],
+    );
+    final name = 'mutasi-kas-${_iso(r.start)}_${_iso(r.end)}.xlsx';
+    return await saveXlsx(db, bytes, name) == null ? null : 'Export tersimpan (${entries.length} transaksi)';
+  }
+
+  static String _iso(DateTime d) => d.toIso8601String().substring(0, 10);
 
   List<Account> get activeAccounts => [
     for (final a in accounts)

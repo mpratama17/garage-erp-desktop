@@ -8,7 +8,7 @@ import '../../core/xlsx.dart';
 import '../../db/database.dart';
 import 'gudang_repo.dart';
 
-enum GudangTab { barang, jasa, ready, pembelian }
+enum GudangTab { barang, jasa, ready }
 
 class GudangController extends GetxController {
   GudangController(this.db);
@@ -16,37 +16,34 @@ class GudangController extends GetxController {
 
   final products = <StockedProduct>[].obs;
   final tab = GudangTab.barang.obs;
+  final flow = (sales: 0, purchases: 0).obs; // total penjualan barang & pembelian stok (strip info)
 
   /// Panel kanan: null = tertutup, 0 = produk baru, >0 = id produk yang dibuka.
   final panelId = RxnInt();
   StreamSubscription<List<StockedProduct>>? _sub;
-
-  /// Tab Pembelian (khusus owner): daftar kosong saat terkunci; [purchaseId] = pembelian yang dibuka.
-  final purchases = <({Purchase purchase, String account, bool paid})>[].obs;
-  final purchaseId = RxnInt();
-  StreamSubscription<Object?>? _purchaseSub;
   Worker? _ownerWorker;
 
   @override
   void onInit() {
     super.onInit();
-    _sub = db.watchProducts().listen(products.assignAll);
-    _ownerWorker = ever(Get.find<OwnerController>().isOwner, (_) => _ownerChanged());
-    _ownerChanged();
+    _sub = db.watchProducts().listen((p) {
+      products.assignAll(p);
+      // Stok berubah karena penjualan/pembelian → ikut segarkan total.
+      _loadFlow();
+    });
+    _ownerWorker = ever(Get.find<OwnerController>().isOwner, (_) => _loadFlow());
   }
 
-  void _ownerChanged() {
-    _purchaseSub?.cancel();
-    _purchaseSub = null;
-    purchases.clear();
-    purchaseId.value = null;
-    if (Get.find<OwnerController>().isOwner.value) _purchaseSub = db.watchPurchases().listen(purchases.assignAll);
+  var _flowSeq = 0;
+  Future<void> _loadFlow() async {
+    final seq = ++_flowSeq;
+    final t = await db.stockFlowTotals();
+    if (seq == _flowSeq) flow.value = t; // abaikan hasil query lama yang selesai belakangan
   }
 
   @override
   void onClose() {
     _sub?.cancel();
-    _purchaseSub?.cancel();
     _ownerWorker?.dispose();
     super.onClose();
   }
@@ -55,7 +52,6 @@ class GudangController extends GetxController {
     GudangTab.barang => products.where((s) => !s.isService).toList(),
     GudangTab.jasa => products.where((s) => s.isService).toList(),
     GudangTab.ready => products.where((s) => !s.isService && s.stock > 0 && s.product.active).toList(),
-    GudangTab.pembelian => const [],
   };
 
   StockedProduct? get opened => products.firstWhereOrNull((s) => s.product.id == panelId.value);

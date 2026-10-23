@@ -56,7 +56,7 @@ class _GajiState extends State<_Gaji> {
               child: const Text('Export Excel'),
             ),
             OutlinedButton.icon(
-              onPressed: () => _employeeDialog(context, c, null),
+              onPressed: () => employeeDialog(context, c.db, null),
               icon: const Icon(Icons.add, size: 18),
               label: const Text('Karyawan'),
             ),
@@ -169,7 +169,7 @@ class _GajiState extends State<_Gaji> {
     searchHint: 'Cari karyawan…',
     searchText: (e) => e.name,
     emptyMessage: 'Belum ada karyawan.',
-    onTap: (e) => _employeeDialog(context, c, e),
+    onTap: (e) => employeeDialog(context, c.db, e),
     columns: [
       Col('Nama', (e) => Text(e.name), flex: 3),
       Col('Peran', (e) => Text(employeeRoles[e.role] ?? e.role), flex: 2),
@@ -519,10 +519,13 @@ Future<bool> _payDialog(BuildContext context, GajiController c, Slip s) async {
 
 // ------------------------------------------------------------------ karyawan
 
-Future<void> _employeeDialog(BuildContext context, GajiController c, Employee? e) async {
+/// Tambah/ubah karyawan (owner). Dipakai juga oleh Kontak ▸ Pegawai.
+Future<void> employeeDialog(BuildContext context, AppDb db, Employee? e) async {
   final name = TextEditingController(text: e?.name),
       base = TextEditingController(text: e == null ? '' : rp(e.baseSalary)),
-      meal = TextEditingController(text: e == null ? '' : rp(e.mealAllowance));
+      meal = TextEditingController(text: e == null ? '' : rp(e.mealAllowance)),
+      phone = TextEditingController(text: e?.phone),
+      note = TextEditingController(text: e?.note);
   var role = e?.role ?? 'teknisi', active = e?.active ?? true;
   var busy = false; // guard: cegah klik dobel saat Simpan/Bayar masih menulis ke DB
   await showDialog<void>(
@@ -555,6 +558,10 @@ Future<void> _employeeDialog(BuildContext context, GajiController c, Employee? e
                   ),
                 ],
               ),
+              const SizedBox(height: S.md),
+              Labeled('No. HP', TextField(controller: phone, keyboardType: TextInputType.phone)),
+              const SizedBox(height: S.md),
+              Labeled('Catatan', TextField(controller: note, maxLines: 2)),
               if (e != null)
                 SwitchListTile(
                   contentPadding: EdgeInsets.zero,
@@ -574,7 +581,7 @@ Future<void> _employeeDialog(BuildContext context, GajiController c, Employee? e
                 : () async {
                     setState(() => busy = true);
                     final ok = await runAction(ctx, () async {
-                      await c.db.saveEmployee(
+                      await db.saveEmployee(
                         EmployeesCompanion(
                           id: e == null ? const Value.absent() : Value(e.id),
                           name: Value(name.text),
@@ -582,6 +589,8 @@ Future<void> _employeeDialog(BuildContext context, GajiController c, Employee? e
                           baseSalary: Value(parseRupiah(base.text)),
                           mealAllowance: Value(parseRupiah(meal.text)),
                           active: Value(active),
+                          phone: Value(phone.text.trim()),
+                          note: Value(note.text.trim()),
                         ),
                       );
                     }, 'Karyawan tersimpan');

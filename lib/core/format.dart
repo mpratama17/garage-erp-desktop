@@ -29,6 +29,9 @@ int parseRupiah(String s) => int.tryParse(s.replaceAll(RegExp(r'[^0-9-]'), '')) 
 
 String tgl(DateTime d) => _date.format(d);
 
+/// Awal hari sesudah [d]: batas eksklusif untuk rentang tanggal inklusif (query memakai [from, to)).
+DateTime dayAfter(DateTime d) => DateTime(d.year, d.month, d.day + 1);
+
 /// 08xxxxxxxx; buang spasi/strip/newline, ubah +62/62 jadi 0.
 String normalizePhone(String raw) {
   var p = raw.replaceAll(RegExp(r'\D'), '');

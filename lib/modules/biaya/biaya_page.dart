@@ -6,11 +6,13 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../core/format.dart';
 import '../../core/owner.dart';
 import '../../core/proof.dart';
+import '../../core/range_picker.dart';
 import '../../core/table.dart';
 import '../../core/theme.dart';
 import '../../core/ui.dart';
 import '../../db/database.dart';
 import 'biaya_controller.dart';
+import 'biaya_recurring.dart';
 import 'biaya_repo.dart';
 
 class BiayaPage extends StatelessWidget {
@@ -27,6 +29,7 @@ class BiayaPage extends StatelessWidget {
           title: 'Biaya',
           subtitle: 'Operasional & pribadi. Stok dicatat di Gudang, gaji di Gaji.',
           actions: [
+            OutlinedButton(onPressed: () => recurringDialog(context, c), child: const Text('Biaya berulang')),
             OutlinedButton(
               onPressed: () async {
                 if (await owner.ensure(context) && context.mounted) await _categoriesDialog(context, c);
@@ -45,7 +48,7 @@ class BiayaPage extends StatelessWidget {
             KpiCard(
               icon: Icons.payments_outlined,
               tone: Tone.info,
-              label: 'Total bulan ini',
+              label: 'Total biaya',
               value: rupiah(c.total()),
               hint: '${c.expenses.length} biaya',
             ),
@@ -79,7 +82,8 @@ class BiayaPage extends StatelessWidget {
     rows: c.shown,
     searchHint: 'Cari biaya…',
     searchText: (r) => '${r.entry.description} ${r.entry.note} ${r.category?.name ?? ''} ${r.accountName}',
-    emptyMessage: 'Tidak ada biaya di bulan ini.',
+    emptyMessage: 'Tidak ada biaya pada rentang ini.',
+    columnFilters: true,
     onTap: (r) => _expenseDialog(context, c, r),
     toolbar: [
       SegmentedButton<BiayaFilter>(
@@ -93,14 +97,24 @@ class BiayaPage extends StatelessWidget {
         onSelectionChanged: (s) => c.filter.value = s.first,
       ),
       const SizedBox(width: S.lg),
-      MonthNav(month: c.month.value, onShift: c.shiftMonth),
+      RangeButton(range: c.range.value, onChanged: (r) => c.range.value = r!),
     ],
     columns: [
-      Col('Tanggal', (r) => Text(tgl(r.entry.at)), flex: 2),
-      Col('Kategori', (r) => Pill(r.category?.name ?? '-', r.personal ? Tone.warning : Tone.neutral), flex: 3),
-      Col('Nama', (r) => Text([r.entry.description, if (r.entry.note.isNotEmpty) r.entry.note].join(' · ')), flex: 5),
-      Col('Rekening', (r) => Text(r.accountName), flex: 2),
-      Col('Nominal', (r) => Text(rp(r.amount), style: T.money), flex: 2, numeric: true),
+      Col('Tanggal', (r) => Text(tgl(r.entry.at)), flex: 2, text: (r) => tgl(r.entry.at)),
+      Col(
+        'Kategori',
+        (r) => Pill(r.category?.name ?? '-', r.personal ? Tone.warning : Tone.neutral),
+        flex: 3,
+        text: (r) => r.category?.name ?? '',
+      ),
+      Col(
+        'Nama',
+        (r) => Text([r.entry.description, if (r.entry.note.isNotEmpty) r.entry.note].join(' · ')),
+        flex: 5,
+        text: (r) => '${r.entry.description} ${r.entry.note}',
+      ),
+      Col('Rekening', (r) => Text(r.accountName), flex: 2, text: (r) => r.accountName),
+      Col('Nominal', (r) => Text(rp(r.amount), style: T.money), flex: 2, numeric: true, text: (r) => rp(r.amount)),
       Col(
         '',
         (r) => r.entry.proofPath.isEmpty
@@ -135,7 +149,7 @@ Future<void> _expenseDialog(BuildContext context, BiayaController c, ExpenseRow?
       if (a.active || a.id == e?.accountId) a,
   ];
   final categories = [
-    for (final k in await c.db.watchCategories().first)
+    for (final k in await c.db.categoriesQuery().get())
       if (k.active || k.id == e?.refId) k,
   ];
   if (!context.mounted) return;

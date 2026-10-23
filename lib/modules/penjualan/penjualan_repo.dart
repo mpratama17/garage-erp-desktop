@@ -123,11 +123,13 @@ extension PenjualanRepo on AppDb {
     hasInvoice: r.read<bool>('has_invoice'),
   );
 
-  Stream<List<DocSummary>> watchDocs(String kind) => customSelect(
+  Selectable<DocSummary> docsQuery(String kind) => customSelect(
     '$_summarySql WHERE i.kind = ? ORDER BY i.at DESC, i.id DESC',
     variables: [Variable.withString(kind)],
     readsFrom: _docTables,
-  ).watch().map((rows) => rows.map(_summary).toList());
+  ).map(_summary);
+
+  Stream<List<DocSummary>> watchDocs(String kind) => docsQuery(kind).watch();
 
   Stream<List<DocSummary>> watchCustomerInvoices(int customerId) => customSelect(
     '$_summarySql WHERE i.kind = ? AND i.customer_id = ? ORDER BY i.at DESC, i.id DESC',
@@ -148,11 +150,11 @@ extension PenjualanRepo on AppDb {
 
   Stream<List<Account>> watchActiveAccounts() => (select(accounts)..where((a) => a.active.equals(true))).watch();
 
-  Stream<List<InvoiceLine>> watchLines(int docId) =>
-      (select(invoiceLines)
-            ..where((l) => l.invoiceId.equals(docId))
-            ..orderBy([(l) => OrderingTerm(expression: l.id)]))
-          .watch();
+  Selectable<InvoiceLine> linesQuery(int docId) => select(invoiceLines)
+    ..where((l) => l.invoiceId.equals(docId))
+    ..orderBy([(l) => OrderingTerm(expression: l.id)]);
+
+  Stream<List<InvoiceLine>> watchLines(int docId) => linesQuery(docId).watch();
 
   /// Pembayaran dokumen ini, termasuk DP pemesanan asalnya (untuk invoice dari pemesanan).
   Stream<List<CashEntry>> watchPayments(Invoice doc) =>

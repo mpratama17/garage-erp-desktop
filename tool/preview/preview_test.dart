@@ -254,7 +254,7 @@ void main() {
     await tester.tap(find.byIcon(Icons.date_range_outlined));
     await settle();
     await shot('dashboard-rentang-dialog');
-    await tester.tap(find.byIcon(Icons.close));
+    await tester.tap(find.text('Batal'));
     await settle();
     owner.isOwner.value = false;
     await settle();
@@ -293,31 +293,40 @@ void main() {
     await tester.tap(find.text('Jasa').first);
     await settle();
     await shot('gudang-jasa');
+
+    // Pembelian (halaman sendiri): riwayat, rincian, tagihan.
     await tester.tap(find.text('Pembelian').first);
     await settle();
+    await shot('pembelian');
     await tester.tap(find.text('Toko Lampu Jaya'));
     await settle();
-    await shot('gudang-pembelian');
+    await shot('pembelian-lunas');
     await tester.tap(find.text('CV Aksesoris'));
     await settle();
-    await shot('gudang-pembelian-belum-bayar');
-    await tester.tap(find.widgetWithText(OutlinedButton, 'Pembelian stok'));
+    await shot('pembelian-belum-bayar');
+    await tester.tap(find.widgetWithText(FilledButton, 'Pembelian stok'));
     await settle();
-    await shot('gudang-pembelian-dialog');
+    await shot('pembelian-dialog');
     await tester.tap(find.text('Batal').last);
     await settle();
+    await tester.tap(find.text('Tagihan Pembelian'));
+    await settle();
+    await shot('pembelian-tagihan');
 
     await tester.tap(find.text('Penjualan').first);
     await settle();
-    await shot('penjualan');
+    await shot('tagihan');
     await tester.tap(find.text('INV/00248'));
     await settle();
-    await shot('penjualan-panel');
-    await tester.tap(find.text('Kasir / Invoice'));
+    await shot('tagihan-panel');
+    await tester.tap(find.text('+ Tagihan'));
     await settle();
-    await shot('penjualan-kasir');
+    await shot('tagihan-kasir');
     await tester.tap(find.text('Batal').last);
     await settle();
+    await tester.tap(find.text('Pemesanan').first);
+    await settle();
+    await shot('pemesanan');
 
     await tester.tap(find.text('Kas & Bank'));
     await settle();

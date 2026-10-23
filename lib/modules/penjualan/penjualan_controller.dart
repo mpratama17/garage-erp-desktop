@@ -1,6 +1,10 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:flutter/material.dart' show DateTimeRange;
+
+import '../../core/range_picker.dart';
+
 import 'package:get/get.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -16,6 +20,7 @@ class PenjualanController extends GetxController {
 
   final kind = DocKind.invoice.obs;
   final status = Rxn<PayStatus>(); // filter; null = semua
+  final range = Rxn<DateTimeRange>(); // filter tanggal dokumen (inklusif); null = semua tanggal
   final docs = <DocSummary>[].obs;
   final panelId = RxnInt();
 
@@ -60,7 +65,16 @@ class PenjualanController extends GetxController {
     super.onClose();
   }
 
-  List<DocSummary> get visible => status.value == null ? docs : docs.where((d) => d.status == status.value).toList();
+  /// Pemesanan yang sudah dibuatkan invoice pindah ke Tagihan: tidak tampil di daftar Pemesanan
+  /// kecuali dipilih lewat filter "Sudah diinvoice".
+  List<DocSummary> get visible {
+    final r = range.value;
+    return docs.where((d) {
+      if (r != null && !r.covers(d.doc.at)) return false;
+      if (status.value != null) return d.status == status.value;
+      return kind.value != DocKind.order || !d.hasInvoice;
+    }).toList();
+  }
 
   DocSummary? get opened => docs.firstWhereOrNull((d) => d.doc.id == panelId.value);
 
@@ -79,7 +93,7 @@ class PenjualanController extends GetxController {
   Future<void> sendWa(int docId) async {
     final path = await saveInvoicePdf(db, docId);
     final s = await db.docSummary(docId);
-    final lines = await db.watchLines(docId).first;
+    final lines = await db.linesQuery(docId).get();
     await launchUrl(waUri(s.customerPhone, waMessage(s, lines, await db.allSettings())));
     if (Platform.isMacOS) await Process.run('open', ['-R', path]);
   }

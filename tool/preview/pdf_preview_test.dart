@@ -61,6 +61,13 @@ void main() {
     final path = await saveInvoicePdf(db, inv, dir: Platform.environment['OUT']!);
     // ignore: avoid_print
     print(path);
+    // Setelah dilunasi: stempel LUNAS muncul di pojok kanan.
+    await db.addPayment(
+      inv,
+      PaymentInput(accountId: bca, amount: (await db.docSummary(inv)).remaining, at: DateTime(2026, 9, 23)),
+    );
+    // ignore: avoid_print
+    print(await saveInvoicePdf(db, inv, dir: '${Platform.environment['OUT']!}/lunas'));
     await db.close();
   });
 

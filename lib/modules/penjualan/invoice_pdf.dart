@@ -15,12 +15,13 @@ const _navy = PdfColor.fromInt(0xFF1E2A44);
 const _head = PdfColor.fromInt(0xFF2F3B52);
 const _cell = PdfColor.fromInt(0xFFE8EAEE);
 const _grey = PdfColor.fromInt(0xFF555555);
+const _stamp = PdfColor.fromInt(0xFF2E9E6B);
 
 /// Layout mengikuti nota client dari Kledo (INV/00245 & INV/00246).
 Future<Uint8List> buildInvoicePdf(AppDb db, int docId) async {
   final s = await db.docSummary(docId);
   final inv = s.doc;
-  final lines = await db.watchLines(docId).first;
+  final lines = await db.linesQuery(docId).get();
   final cust = inv.customerId == null
       ? null
       : await (db.select(db.customers)..where((c) => c.id.equals(inv.customerId!))).getSingle();
@@ -127,7 +128,8 @@ Future<Uint8List> buildInvoicePdf(AppDb db, int docId) async {
                   ),
                 ],
               ),
-              pw.SizedBox(height: 24),
+              // Lebih lega bila ada stempel LUNAS di bawah blok judul.
+              pw.SizedBox(height: s.status == PayStatus.paid ? 48 : 24),
               pw.Row(
                 crossAxisAlignment: pw.CrossAxisAlignment.start,
                 children: [
@@ -244,6 +246,26 @@ Future<Uint8List> buildInvoicePdf(AppDb db, int docId) async {
               ),
             ],
           ),
+          // Stempel LUNAS: pojok kanan, tepat di bawah blok judul "Invoice" + nomor/tanggal.
+          if (s.status == PayStatus.paid)
+            pw.Positioned(
+              top: 86,
+              right: 4,
+              child: pw.Transform.rotateBox(
+                angle: 0.12,
+                child: pw.Container(
+                  padding: const pw.EdgeInsets.symmetric(horizontal: 12, vertical: 3),
+                  decoration: pw.BoxDecoration(
+                    border: pw.Border.all(color: _stamp, width: 2.5),
+                    borderRadius: pw.BorderRadius.circular(6),
+                  ),
+                  child: pw.Text(
+                    'LUNAS',
+                    style: pw.TextStyle(fontSize: 20, color: _stamp, fontWeight: pw.FontWeight.bold, letterSpacing: 3),
+                  ),
+                ),
+              ),
+            ),
           if (inv.isVoid)
             pw.Center(
               child: pw.Transform.rotateBox(

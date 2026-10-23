@@ -18,30 +18,36 @@ import 'modules/kas/kas_page.dart';
 import 'modules/kontak/kontak_controller.dart';
 import 'modules/kontak/kontak_page.dart';
 import 'modules/laporan/laporan_page.dart';
+import 'modules/pembelian/pembelian_controller.dart';
+import 'modules/pembelian/pembelian_page.dart';
 import 'modules/pengaturan/pengaturan_page.dart';
 import 'modules/penjualan/penjualan_controller.dart';
 import 'modules/penjualan/penjualan_page.dart';
+import 'modules/penjualan/penjualan_repo.dart' show DocKind;
 import 'modules/search_repo.dart';
 
-/// Halaman di sidebar (urutan = urutan menu). Pengaturan ditaruh terpisah di bawah.
+/// Halaman di sidebar. Urutan menu ada di [_sidebarGroups]; Pengaturan ditaruh terpisah di bawah.
 enum AppPage {
-  dashboard('Dashboard', Icons.space_dashboard_outlined),
-  penjualan('Penjualan', Icons.receipt_long_outlined),
-  gudang('Gudang', Icons.inventory_2_outlined),
-  kontak('Kontak', Icons.people_alt_outlined),
-  kas('Kas & Bank', Icons.account_balance_wallet_outlined),
-  biaya('Biaya', Icons.payments_outlined),
-  gaji('Gaji', Icons.badge_outlined),
-  laporan('Laporan', Icons.insights_outlined),
-  pengaturan('Pengaturan', Icons.settings_outlined);
+  dashboard('Beranda', Icons.space_dashboard_outlined, Color(0xFF2F5BEA)),
+  penjualan('Penjualan', Icons.receipt_long_outlined, Color(0xFF0F9D6B)),
+  pembelian('Pembelian', Icons.shopping_cart_outlined, Color(0xFFE8890C)),
+  gudang('Gudang', Icons.inventory_2_outlined, Color(0xFF7C4DDB)),
+  biaya('Biaya', Icons.payments_outlined, Color(0xFFD6336C)),
+  kontak('Kontak', Icons.people_alt_outlined, Color(0xFF0B8FA3)),
+  kas('Kas & Bank', Icons.account_balance_wallet_outlined, Color(0xFF2B8A3E)),
+  gaji('Gaji', Icons.badge_outlined, Color(0xFFC77700)),
+  laporan('Laporan', Icons.insights_outlined, Color(0xFF4C6EF5)),
+  pengaturan('Pengaturan', Icons.settings_outlined, Color(0xFF64748B));
 
-  const AppPage(this.label, this.icon);
+  const AppPage(this.label, this.icon, this.color);
   final String label;
   final IconData icon;
+  final Color color;
 
   Widget get page => switch (this) {
     dashboard => const DashboardPage(),
     penjualan => const PenjualanPage(),
+    pembelian => const PembelianPage(),
     gudang => const GudangPage(),
     kontak => const KontakPage(),
     kas => const KasPage(),
@@ -53,9 +59,11 @@ enum AppPage {
 }
 
 /// Halaman aktif + sidebar ciut/lebar; dipakai sidebar dan cari global (buka halaman + record).
+/// [pembelianTagihan] = Pembelian ▸ Tagihan Pembelian (hanya yang belum dibayar).
 class Nav extends GetxController {
   final page = AppPage.dashboard.obs;
   final sidebarExpanded = true.obs;
+  final pembelianTagihan = false.obs;
 }
 
 class Shell extends StatelessWidget {
@@ -100,12 +108,15 @@ final _settings = () {
 
 const _sidebarCollapsedWidth = 76.0, _sidebarExpandedWidth = 232.0;
 
-/// Menu dikelompokkan biar gampang dipindai: Transaksi (kerja harian), Keuangan (uang masuk/keluar),
-/// Analisis (laporan). Dashboard & Pengaturan berdiri sendiri (selalu paling atas / paling bawah).
-const _sidebarGroups = <(String, List<AppPage>)>[
-  ('Transaksi', [AppPage.penjualan, AppPage.gudang, AppPage.kontak]),
-  ('Keuangan', [AppPage.kas, AppPage.biaya, AppPage.gaji]),
-  ('Analisis', [AppPage.laporan]),
+/// Di bawah lebar ini (mis. Split View setengah layar) sidebar dipaksa ciut supaya isi halaman tetap lega.
+const _narrowWidth = 1000.0;
+
+/// Menu per kelompok; antar kelompok hanya garis pemisah tipis (tanpa judul).
+const _sidebarGroups = <List<AppPage>>[
+  [AppPage.penjualan, AppPage.pembelian],
+  [AppPage.gudang, AppPage.biaya],
+  [AppPage.kontak, AppPage.kas, AppPage.gaji],
+  [AppPage.laporan],
 ];
 
 class _Sidebar extends StatelessWidget {
@@ -114,12 +125,13 @@ class _Sidebar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final nav = Get.find<Nav>();
+    final narrow = MediaQuery.sizeOf(context).width < _narrowWidth;
     return StreamBuilder<Map<String, String>>(
       stream: _settings,
       builder: (context, snap) {
         final s = snap.data ?? settingDefaults;
         return Obx(() {
-          final extended = nav.sidebarExpanded.value;
+          final extended = nav.sidebarExpanded.value && !narrow;
           return AnimatedContainer(
             duration: const Duration(milliseconds: 200),
             width: extended ? _sidebarExpandedWidth : _sidebarCollapsedWidth,
@@ -134,8 +146,8 @@ class _Sidebar extends StatelessWidget {
                     child: Column(
                       children: [
                         _NavItem(AppPage.dashboard, extended: extended),
-                        for (final (label, pages) in _sidebarGroups) ...[
-                          _GroupLabel(label, extended: extended),
+                        for (final pages in _sidebarGroups) ...[
+                          const _GroupDivider(),
                           for (final p in pages) _NavItem(p, extended: extended),
                         ],
                       ],
@@ -147,7 +159,7 @@ class _Sidebar extends StatelessWidget {
                   child: _NavItem(AppPage.pengaturan, extended: extended),
                 ),
                 if (extended) _BackupCard(s),
-                _ToggleButton(extended: extended, onTap: nav.sidebarExpanded.toggle),
+                if (!narrow) _ToggleButton(extended: extended, onTap: nav.sidebarExpanded.toggle),
               ],
             ),
           );
@@ -157,22 +169,54 @@ class _Sidebar extends StatelessWidget {
   }
 }
 
-/// Judul kelompok menu (disembunyikan saat sidebar ciut — cuma spasi kecil antar kelompok).
-class _GroupLabel extends StatelessWidget {
-  const _GroupLabel(this.label, {required this.extended});
-  final String label;
-  final bool extended;
+/// Garis pemisah tipis antar kelompok menu.
+class _GroupDivider extends StatelessWidget {
+  const _GroupDivider();
 
   @override
-  Widget build(BuildContext context) => extended
-      ? Padding(
-          padding: const EdgeInsets.fromLTRB(S.md, S.md, S.md, S.xs),
-          child: Text(label.toUpperCase(), style: T.label.copyWith(letterSpacing: 0.4)),
-        )
-      : const SizedBox(height: S.md);
+  Widget build(BuildContext context) => const Padding(
+    padding: EdgeInsets.symmetric(vertical: S.sm, horizontal: S.md),
+    child: Divider(),
+  );
 }
 
-/// Satu menu: ikon + label (label disembunyikan saat ciut), pil lembut saat aktif, hover halus.
+/// Anak menu (dropdown) per halaman; tampil saat halaman induknya aktif dan sidebar lebar.
+typedef _Child = ({String label, IconData icon, bool Function() selected, VoidCallback open});
+
+List<_Child> _childrenOf(AppPage page) {
+  final nav = Get.find<Nav>();
+  switch (page) {
+    case AppPage.penjualan:
+      PenjualanController pc() => Get.put(PenjualanController(Get.find<AppDb>()));
+      return [
+        (
+          label: 'Tagihan',
+          icon: Icons.request_quote_outlined,
+          selected: () => pc().kind.value == DocKind.invoice,
+          open: () => pc().kind.value = DocKind.invoice,
+        ),
+        (
+          label: 'Pemesanan',
+          icon: Icons.event_note_outlined,
+          selected: () => pc().kind.value == DocKind.order,
+          open: () => pc().kind.value = DocKind.order,
+        ),
+      ];
+    case AppPage.pembelian:
+      return [
+        (
+          label: 'Tagihan Pembelian',
+          icon: Icons.request_quote_outlined,
+          selected: () => nav.pembelianTagihan.value,
+          open: () => nav.pembelianTagihan.value = true,
+        ),
+      ];
+    default:
+      return const [];
+  }
+}
+
+/// Satu menu: ikon berwarna + label (label disembunyikan saat ciut), pil lembut saat aktif, hover halus.
 class _NavItem extends StatefulWidget {
   const _NavItem(this.page, {required this.extended});
   final AppPage page;
@@ -188,47 +232,111 @@ class _NavItemState extends State<_NavItem> {
   @override
   Widget build(BuildContext context) {
     final nav = Get.find<Nav>();
+    final children = _childrenOf(widget.page);
     return Obx(() {
       final selected = nav.page.value == widget.page;
       final color = selected ? C.primary : C.inkMuted;
-      return Padding(
-        padding: const EdgeInsets.symmetric(vertical: 1),
-        child: MouseRegion(
-          cursor: SystemMouseCursors.click,
-          onEnter: (_) => setState(() => _hovered = true),
-          onExit: (_) => setState(() => _hovered = false),
-          child: GestureDetector(
-            onTap: () => nav.page.value = widget.page,
-            behavior: HitTestBehavior.opaque,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: S.md, vertical: S.xs + 2),
-              decoration: BoxDecoration(
-                color: selected ? C.primarySoft : (_hovered ? C.bg : null),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Row(
-                mainAxisAlignment: widget.extended ? MainAxisAlignment.start : MainAxisAlignment.center,
-                children: [
-                  Icon(widget.page.icon, size: 21, color: color),
-                  if (widget.extended) ...[
-                    const SizedBox(width: S.md),
-                    Expanded(
-                      child: Text(
-                        widget.page.label,
-                        maxLines: 1,
-                        overflow: TextOverflow.fade,
-                        style: T.body.copyWith(color: color, fontWeight: selected ? FontWeight.w600 : FontWeight.w500),
-                      ),
-                    ),
-                  ],
-                ],
+      return Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 1),
+            child: MouseRegion(
+              cursor: SystemMouseCursors.click,
+              onEnter: (_) => setState(() => _hovered = true),
+              onExit: (_) => setState(() => _hovered = false),
+              child: GestureDetector(
+                onTap: () {
+                  if (widget.page == AppPage.pembelian) nav.pembelianTagihan.value = false;
+                  nav.page.value = widget.page;
+                },
+                behavior: HitTestBehavior.opaque,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: S.md, vertical: S.xs + 2),
+                  decoration: BoxDecoration(
+                    color: selected && !children.any((ch) => ch.selected()) ? C.primarySoft : (_hovered ? C.bg : null),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  // Label baru tampil saat panel cukup lebar (selama animasi ciut/lebar tidak meluber).
+                  child: LayoutBuilder(
+                    builder: (context, box) {
+                      final label = widget.extended && box.maxWidth > 110;
+                      return Row(
+                        mainAxisAlignment: label ? MainAxisAlignment.start : MainAxisAlignment.center,
+                        children: [
+                          Icon(widget.page.icon, size: 21, color: widget.page.color),
+                          if (label) ...[
+                            const SizedBox(width: S.md),
+                            Expanded(
+                              child: Text(
+                                widget.page.label,
+                                maxLines: 1,
+                                overflow: TextOverflow.fade,
+                                style: T.body.copyWith(
+                                  color: color,
+                                  fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+                                ),
+                              ),
+                            ),
+                            if (children.isNotEmpty)
+                              Icon(selected ? Icons.expand_less : Icons.expand_more, size: 18, color: C.inkMuted),
+                          ],
+                        ],
+                      );
+                    },
+                  ),
+                ),
               ),
             ),
           ),
-        ),
+          if (selected && widget.extended)
+            for (final ch in children) _ChildItem(widget.page, ch),
+        ],
       );
     });
   }
+}
+
+class _ChildItem extends StatelessWidget {
+  const _ChildItem(this.page, this.child);
+  final AppPage page;
+  final _Child child;
+
+  @override
+  Widget build(BuildContext context) => Obx(() {
+    final on = child.selected();
+    return Padding(
+      padding: const EdgeInsets.only(left: S.xl, top: 1, bottom: 1),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(10),
+        onTap: () {
+          child.open();
+          Get.find<Nav>().page.value = page;
+        },
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: S.md, vertical: S.xs + 1),
+          decoration: BoxDecoration(color: on ? C.primarySoft : null, borderRadius: BorderRadius.circular(10)),
+          child: Row(
+            children: [
+              Icon(child.icon, size: 17, color: on ? C.primary : C.inkMuted),
+              const SizedBox(width: S.sm),
+              Expanded(
+                child: Text(
+                  child.label,
+                  maxLines: 1,
+                  overflow: TextOverflow.fade,
+                  style: T.body.copyWith(
+                    fontSize: 13,
+                    color: on ? C.primary : C.inkMuted,
+                    fontWeight: on ? FontWeight.w600 : FontWeight.w500,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  });
 }
 
 /// Ciutkan/lebarkan panel menu.
@@ -333,18 +441,23 @@ class _TopBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Container(
     height: 64,
-    padding: const EdgeInsets.symmetric(horizontal: S.xxl),
+    padding: const EdgeInsets.symmetric(horizontal: S.xl),
     decoration: const BoxDecoration(
       color: C.surface,
       border: Border(bottom: BorderSide(color: C.border)),
     ),
     child: Row(
       children: [
-        const SizedBox(width: 420, child: _GlobalSearch()),
+        Flexible(
+          child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 420), child: const _GlobalSearch()),
+        ),
         const Spacer(),
-        const Icon(Icons.calendar_today_outlined, size: 16, color: C.inkMuted),
-        const SizedBox(width: S.sm),
-        const _Today(),
+        // Tanggal disembunyikan di jendela sempit (Split View).
+        if (MediaQuery.sizeOf(context).width >= _narrowWidth) ...[
+          const Icon(Icons.calendar_today_outlined, size: 16, color: C.inkMuted),
+          const SizedBox(width: S.sm),
+          const _Today(),
+        ],
         const SizedBox(width: S.lg),
         const OwnerLockButton(),
       ],
@@ -386,6 +499,14 @@ void openDoc(Invoice d) {
   c.status.value = null;
   c.panelId.value = d.id;
   Get.find<Nav>().page.value = AppPage.penjualan;
+}
+
+/// Buka pembelian [id] di halaman Pembelian (dari riwayat stok Gudang).
+void openPurchase(int id) {
+  Get.put(PembelianController(Get.find<AppDb>())).purchaseId.value = id;
+  Get.find<Nav>()
+    ..pembelianTagihan.value = false
+    ..page.value = AppPage.pembelian;
 }
 
 /// Cari invoice/pemesanan, customer, produk dari mana saja; pilih hasil = buka di halamannya.
@@ -474,7 +595,10 @@ class _GlobalSearch extends StatelessWidget {
   static void _show(AppPage p) => Get.find<Nav>().page.value = p;
 
   static void _openCustomer(int id) {
-    Get.put(KontakController(_db)).panelId.value = id;
+    Get.put(KontakController(_db))
+      ..tab.value = KontakTab
+          .customer // panel customer hanya ada di tab Customer
+      ..panelId.value = id;
     _show(AppPage.kontak);
   }
 

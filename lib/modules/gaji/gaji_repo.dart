@@ -68,13 +68,10 @@ class Slip {
 }
 
 extension GajiRepo on AppDb {
-  Stream<List<Employee>> watchEmployees() =>
-      (select(employees)..orderBy([
-            (e) => OrderingTerm.desc(e.active),
-            (e) => OrderingTerm.asc(e.role),
-            (e) => OrderingTerm.asc(e.name),
-          ]))
-          .watch();
+  Selectable<Employee> employeesQuery() => select(employees)
+    ..orderBy([(e) => OrderingTerm.desc(e.active), (e) => OrderingTerm.asc(e.role), (e) => OrderingTerm.asc(e.name)]);
+
+  Stream<List<Employee>> watchEmployees() => employeesQuery().watch();
 
   /// Tambah/ubah karyawan (owner). Tidak ada hapus — baris invoice lama menunjuk teknisinya; cukup nonaktifkan.
   Future<int> saveEmployee(EmployeesCompanion e) async {
@@ -163,7 +160,7 @@ extension GajiRepo on AppDb {
     final end = await _periodEnd(start);
     final o = await omzet(start, end), pct = await _commissionPct();
     final out = <Slip>[];
-    for (final e in await watchEmployees().first) {
+    for (final e in await employeesQuery().get()) {
       final s = await _slip(e, start, end, omzet: o, pct: pct);
       if (e.active || s.saved != null || s.lines.isNotEmpty) out.add(s);
     }

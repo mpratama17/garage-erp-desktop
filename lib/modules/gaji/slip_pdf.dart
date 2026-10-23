@@ -31,24 +31,20 @@ Future<Uint8List> buildSlipPdf(AppDb db, Slip s) async {
   const small = pw.TextStyle(fontSize: 9);
   final bold9 = pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold);
 
-  pw.Widget muted(String t) => pw.Padding(
-    padding: const pw.EdgeInsets.only(top: 3),
-    child: pw.Text(t, style: const pw.TextStyle(color: _grey, fontSize: 9)),
+  const border = pw.TableBorder(
+    top: pw.BorderSide(color: PdfColors.grey400),
+    bottom: pw.BorderSide(color: PdfColors.grey400),
+    left: pw.BorderSide(color: PdfColors.grey400),
+    right: pw.BorderSide(color: PdfColors.grey400),
+    horizontalInside: pw.BorderSide(color: PdfColors.grey300),
+    verticalInside: pw.BorderSide(color: PdfColors.grey300),
   );
-  pw.Widget totalRow(String k, String v, {bool big = false, bool minus = false}) => pw.Padding(
-    padding: const pw.EdgeInsets.symmetric(vertical: 4),
-    child: pw.Row(
-      mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-      children: [
-        pw.Text(
-          k,
-          style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: big ? 13 : 10),
-        ),
-        pw.Text(
-          minus ? '− $v' : v,
-          style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: big ? 13 : 10),
-        ),
-      ],
+  pw.Widget cell(String t, {bool bold = false, bool right = false, PdfColor? color, double size = 10}) => pw.Padding(
+    padding: const pw.EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+    child: pw.Text(
+      t,
+      textAlign: right ? pw.TextAlign.right : pw.TextAlign.left,
+      style: pw.TextStyle(fontSize: size, fontWeight: bold ? pw.FontWeight.bold : null, color: color),
     ),
   );
 
@@ -94,19 +90,58 @@ Future<Uint8List> buildSlipPdf(AppDb db, Slip s) async {
               ),
             ],
           ),
-          pw.SizedBox(height: 24),
-          pw.Text(
-            s.employee.name,
-            style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold, color: _navy),
-          ),
-          muted(s.employee.role == 'sales' ? 'Sales' : 'Teknisi'),
           pw.SizedBox(height: 20),
-          pw.Divider(color: _navy, thickness: 2),
-          pw.SizedBox(height: 8),
-          for (final (k, v, minus) in rows) totalRow(k, rupiah(v), minus: minus),
-          pw.Divider(color: PdfColors.grey300),
-          totalRow('Total diterima', rupiah(s.total), big: true),
-          pw.SizedBox(height: 4),
+          // Identitas karyawan.
+          pw.Table(
+            border: border,
+            columnWidths: {0: const pw.FlexColumnWidth(1), 1: const pw.FlexColumnWidth(3)},
+            children: [
+              for (final (k, v) in [
+                ('Nama', s.employee.name),
+                ('Jabatan', s.employee.role == 'sales' ? 'Sales' : 'Teknisi'),
+                ('Periode', periodLabel(s.start, s.end)),
+              ])
+                pw.TableRow(
+                  children: [
+                    cell(k, color: _grey),
+                    cell(v, bold: true),
+                  ],
+                ),
+            ],
+          ),
+          pw.SizedBox(height: 16),
+          // Rincian komponen gaji.
+          pw.Table(
+            border: border,
+            columnWidths: {
+              0: const pw.FixedColumnWidth(32),
+              1: const pw.FlexColumnWidth(3),
+              2: const pw.FlexColumnWidth(2),
+            },
+            children: [
+              pw.TableRow(
+                decoration: const pw.BoxDecoration(color: _navy),
+                children: [
+                  cell('No', bold: true, color: PdfColors.white),
+                  cell('Komponen', bold: true, color: PdfColors.white),
+                  cell('Jumlah', bold: true, right: true, color: PdfColors.white),
+                ],
+              ),
+              for (final (i, (k, v, minus)) in rows.indexed)
+                pw.TableRow(
+                  children: [cell('${i + 1}'), cell(k), cell(minus ? '− ${rupiah(v)}' : rupiah(v), right: true)],
+                ),
+              pw.TableRow(
+                decoration: const pw.BoxDecoration(color: PdfColors.grey200),
+                children: [
+                  cell(''),
+                  cell('Total diterima', bold: true, size: 12),
+                  cell(rupiah(s.total), bold: true, right: true, size: 12),
+                ],
+              ),
+            ],
+          ),
+          pw.SizedBox(height: 12),
           pw.Text('Terbilang', style: small),
           pw.Text(terbilang(s.total), style: small),
           if (s.saved?.note.isNotEmpty ?? false) ...[

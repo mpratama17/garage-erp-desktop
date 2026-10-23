@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart' hide Value;
-import 'package:intl/intl.dart';
 import 'package:path/path.dart' as path;
 
 import '../db/database.dart';
@@ -20,28 +19,41 @@ class PageHeader extends StatelessWidget {
   final List<Widget> actions;
 
   @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.fromLTRB(S.xxl, S.xl, S.xxl, S.lg),
-    child: Row(
+  Widget build(BuildContext context) {
+    final titles = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(title, style: T.pageTitle),
-              if (subtitle != null) ...[const SizedBox(height: S.xs), Text(subtitle!, style: T.pageSubtitle)],
-            ],
-          ),
-        ),
-        for (final a in actions)
-          Padding(
-            padding: const EdgeInsets.only(left: S.sm),
-            child: a,
-          ),
+        Text(title, style: T.pageTitle),
+        if (subtitle != null) ...[const SizedBox(height: S.xs), Text(subtitle!, style: T.pageSubtitle)],
       ],
-    ),
-  );
+    );
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(S.xxl, S.xl, S.xxl, S.lg),
+      // Jendela sempit (Split View): tombol aksi pindah ke bawah judul dan membungkus.
+      child: LayoutBuilder(
+        builder: (context, box) => box.maxWidth < 900 && actions.isNotEmpty
+            ? Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  titles,
+                  const SizedBox(height: S.md),
+                  Wrap(spacing: S.sm, runSpacing: S.sm, children: actions),
+                ],
+              )
+            : Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(child: titles),
+                  for (final a in actions)
+                    Padding(
+                      padding: const EdgeInsets.only(left: S.sm),
+                      child: a,
+                    ),
+                ],
+              ),
+      ),
+    );
+  }
 }
 
 /// Label di atas field (design.md §3). Field-nya sendiri berlatar abu tanpa garis (tema).
@@ -435,26 +447,6 @@ Widget accountField(String label, int? value, List<Account> items, ValueChanged<
   ),
 );
 
-/// ‹ Oktober 2026 › — pindah bulan dengan [onShift](-1 / +1).
-class MonthNav extends StatelessWidget {
-  const MonthNav({super.key, required this.month, required this.onShift});
-  final DateTime month;
-  final ValueChanged<int> onShift;
-
-  @override
-  Widget build(BuildContext context) => Row(
-    mainAxisSize: MainAxisSize.min,
-    children: [
-      IconButton(tooltip: 'Bulan sebelumnya', onPressed: () => onShift(-1), icon: const Icon(Icons.chevron_left)),
-      SizedBox(
-        width: 130,
-        child: Text(DateFormat('MMMM y', 'id').format(month), textAlign: TextAlign.center, style: T.section),
-      ),
-      IconButton(tooltip: 'Bulan berikutnya', onPressed: () => onShift(1), icon: const Icon(Icons.chevron_right)),
-    ],
-  );
-}
-
 /// Halaman khusus owner: terkunci → pesan + tombol PIN; terbuka → [builder].
 class OwnerGate extends StatelessWidget {
   const OwnerGate({super.key, required this.message, required this.builder});
@@ -497,7 +489,12 @@ class KpiCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final number = Text(value, style: T.kpi.copyWith(fontSize: 22), maxLines: 1, overflow: TextOverflow.ellipsis);
+    // Angka mengecil bila kartu sempit (Split View) — tidak dipotong "…".
+    final number = FittedBox(
+      fit: BoxFit.scaleDown,
+      alignment: Alignment.centerLeft,
+      child: Text(value, style: T.kpi.copyWith(fontSize: 22), maxLines: 1),
+    );
     // Seperti referensi: seluruh kartu pastel, ikon di kotak pastel yang sedikit lebih tua.
     return Card(
       color: Color.lerp(tone.bg, C.surface, 0.25),
@@ -571,3 +568,69 @@ List<Widget> dialogActions({Widget? danger, required List<Widget> children}) => 
     ],
   ),
 ];
+
+/// Daftar + panel rincian di kanan. Di jendela sempit (Split View) panel menggantikan daftar
+/// (panel punya tombol tutup) supaya tidak berdesakan.
+class MasterDetail extends StatelessWidget {
+  const MasterDetail({super.key, required this.list, this.panel, this.panelWidth = 400});
+  final Widget list;
+  final Widget? panel;
+  final double panelWidth;
+
+  @override
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, box) {
+      if (panel == null) return list;
+      if (box.maxWidth < panelWidth + 360) return panel!;
+      return Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Expanded(child: list),
+          const SizedBox(width: S.lg),
+          SizedBox(width: panelWidth, child: panel),
+        ],
+      );
+    },
+  );
+}
+
+/// Tombol Import dengan menu: unduh template lebih dulu, atau langsung pilih file. Satu tempat untuk keduanya.
+class ImportButton extends StatelessWidget {
+  const ImportButton({super.key, required this.onTemplate, required this.onImport});
+  final VoidCallback onTemplate, onImport;
+
+  @override
+  Widget build(BuildContext context) => PopupMenuButton<bool>(
+    tooltip: '',
+    position: PopupMenuPosition.under,
+    onSelected: (pick) => pick ? onImport() : onTemplate(),
+    itemBuilder: (_) => const [
+      PopupMenuItem(
+        value: false,
+        child: ListTile(
+          dense: true,
+          leading: Icon(Icons.download_outlined),
+          title: Text('Unduh template'),
+          contentPadding: EdgeInsets.zero,
+        ),
+      ),
+      PopupMenuItem(
+        value: true,
+        child: ListTile(
+          dense: true,
+          leading: Icon(Icons.upload_file_outlined),
+          title: Text('Pilih file untuk diimport'),
+          contentPadding: EdgeInsets.zero,
+        ),
+      ),
+    ],
+    child: IgnorePointer(
+      child: OutlinedButton.icon(
+        onPressed: () {},
+        icon: const Icon(Icons.arrow_drop_down, size: 20),
+        iconAlignment: IconAlignment.end,
+        label: const Text('Import'),
+      ),
+    ),
+  );
+}

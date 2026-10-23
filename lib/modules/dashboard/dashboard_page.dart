@@ -5,6 +5,7 @@ import 'package:get/get.dart';
 import '../kas/kas_repo.dart' show Period;
 
 import '../../core/format.dart';
+import '../../core/range_picker.dart';
 import '../../core/theme.dart';
 import '../../core/ui.dart';
 import '../../db/database.dart';
@@ -33,7 +34,7 @@ class _DashboardPageState extends State<DashboardPage> {
   Widget build(BuildContext context) => Column(
     crossAxisAlignment: CrossAxisAlignment.stretch,
     children: [
-      const PageHeader(title: 'Dashboard', subtitle: 'Ringkasan bengkel bulan ini.'),
+      const PageHeader(title: 'Beranda', subtitle: 'Ringkasan bengkel bulan ini.'),
       Expanded(
         child: SingleChildScrollView(
           padding: const EdgeInsets.fromLTRB(S.xxl, 0, S.xxl, S.xl),
@@ -41,6 +42,7 @@ class _DashboardPageState extends State<DashboardPage> {
             () => Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                // Dua baris sama rapi: 3 kartu penjualan, lalu 3 kartu keuangan & stok.
                 KpiRow(padding: EdgeInsets.zero, [
                   KpiCard(
                     icon: Icons.today_outlined,
@@ -54,7 +56,7 @@ class _DashboardPageState extends State<DashboardPage> {
                     tone: Tone.purple,
                     label: 'Omzet bulan ini',
                     value: rupiah(c.monthOmzet),
-                    hint: _delta(c.monthOmzet, c.lastMonthToDate.value),
+                    hint: _delta(c.monthOmzet, c.lastMonthToDate.value) ?? '${c.monthInvoices} invoice',
                     hintColor: (c.lastMonthToDate.value ?? 0) > c.monthOmzet ? C.danger : Tone.success.fg,
                   ),
                   KpiCard(
@@ -65,106 +67,109 @@ class _DashboardPageState extends State<DashboardPage> {
                     hint: '${c.unpaid.length} invoice · ${c.overdueCount} lewat tempo',
                     hintColor: c.overdueCount > 0 ? C.danger : null,
                   ),
+                ]),
+                const SizedBox(height: S.lg),
+                KpiRow(padding: EdgeInsets.zero, [
+                  KpiCard(
+                    icon: Icons.savings_outlined,
+                    tone: Tone.success,
+                    label: 'Laba bersih bulan ini',
+                    value: c.profit.value == null ? '—' : rupiah(c.profit.value!),
+                    hint: 'Detail di Laporan',
+                    ownerOnly: true,
+                  ),
+                  KpiCard(
+                    icon: Icons.account_balance_wallet_outlined,
+                    tone: Tone.info,
+                    label: 'Saldo semua rekening',
+                    value: c.balance.value == null ? '—' : rupiah(c.balance.value!),
+                    hint: 'Detail di Kas & Bank',
+                    ownerOnly: true,
+                  ),
                   KpiCard(
                     icon: Icons.inventory_2_outlined,
-                    tone: Tone.success,
+                    tone: Tone.neutral,
                     label: 'Stok menipis',
                     value: '${c.lowStock.length} barang',
                     hint: c.lowStock.isEmpty ? 'Aman' : 'Perlu belanja',
                   ),
                 ]),
                 const SizedBox(height: S.lg),
-                Row(
-                  children: [
-                    Expanded(
-                      child: KpiCard(
-                        icon: Icons.savings_outlined,
-                        tone: Tone.success,
-                        label: 'Laba bersih bulan ini',
-                        value: c.profit.value == null ? '—' : rupiah(c.profit.value!),
-                        hint: 'Detail di Laporan',
-                        ownerOnly: true,
-                      ),
-                    ),
-                    const SizedBox(width: S.lg),
-                    Expanded(
-                      child: KpiCard(
-                        icon: Icons.account_balance_wallet_outlined,
-                        tone: Tone.info,
-                        label: 'Saldo semua rekening',
-                        value: c.balance.value == null ? '—' : rupiah(c.balance.value!),
-                        hint: 'Detail di Kas & Bank',
-                        ownerOnly: true,
-                      ),
-                    ),
-                    const SizedBox(width: S.lg),
-                    Expanded(
-                      child: KpiCard(
-                        icon: Icons.description_outlined,
-                        tone: Tone.neutral,
-                        label: 'Invoice bulan ini',
-                        value: '${c.monthInvoices}',
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: S.lg),
                 _ChartToolbar(c),
                 const SizedBox(height: S.sm),
-                SizedBox(
-                  height: 300,
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Expanded(child: _SalesChart(c)),
-                      const SizedBox(width: S.lg),
-                      Expanded(child: _FlowChart(c)),
-                    ],
-                  ),
+                LayoutBuilder(
+                  builder: (context, box) => box.maxWidth < 900
+                      ? Column(
+                          children: [
+                            SizedBox(height: 260, child: _SalesChart(c)),
+                            const SizedBox(height: S.lg),
+                            SizedBox(height: 260, child: _FlowChart(c)),
+                          ],
+                        )
+                      : SizedBox(
+                          height: 300,
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              Expanded(child: _SalesChart(c)),
+                              const SizedBox(width: S.lg),
+                              Expanded(child: _FlowChart(c)),
+                            ],
+                          ),
+                        ),
                 ),
                 const SizedBox(height: S.lg),
-                IntrinsicHeight(
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Expanded(
-                        child: _ListCard(
-                          title: 'Belum lunas',
-                          page: AppPage.penjualan,
-                          empty: 'Semua invoice lunas.',
-                          rows: [
-                            for (final d in c.unpaid.take(5))
-                              _Line(
-                                '${d.doc.no} · ${d.customerName ?? 'UMUM'}',
-                                rp(d.remaining),
-                                pill: d.overdue(DateTime.now()) ? statusPill(d) : null,
-                              ),
+                LayoutBuilder(
+                  builder: (context, box) {
+                    final cards = [
+                      _ListCard(
+                        title: 'Belum lunas',
+                        page: AppPage.penjualan,
+                        empty: 'Semua invoice lunas.',
+                        rows: [
+                          for (final d in c.unpaid.take(5))
+                            _Line(
+                              '${d.doc.no} · ${d.customerName ?? 'UMUM'}',
+                              rp(d.remaining),
+                              pill: d.overdue(DateTime.now()) ? statusPill(d) : null,
+                            ),
+                        ],
+                      ),
+                      _ListCard(
+                        title: 'Terlaris bulan ini',
+                        page: AppPage.laporan,
+                        empty: 'Belum ada penjualan bulan ini.',
+                        rows: [for (final t in c.top) _Line(t.name, '${t.qty}×')],
+                      ),
+                      _ListCard(
+                        title: 'Stok menipis',
+                        page: AppPage.gudang,
+                        empty: 'Tidak ada stok menipis.',
+                        rows: [
+                          for (final s in c.lowStock.take(5))
+                            _Line(s.product.name, '${s.stock} ${s.product.unit}'.trim(), danger: s.stock <= 0),
+                        ],
+                      ),
+                    ];
+                    if (box.maxWidth < 900) {
+                      return Column(
+                        children: [
+                          for (final card in cards) ...[card, const SizedBox(height: S.lg)],
+                        ],
+                      );
+                    }
+                    return IntrinsicHeight(
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          for (final (i, card) in cards.indexed) ...[
+                            if (i > 0) const SizedBox(width: S.lg),
+                            Expanded(child: card),
                           ],
-                        ),
+                        ],
                       ),
-                      const SizedBox(width: S.lg),
-                      Expanded(
-                        child: _ListCard(
-                          title: 'Terlaris bulan ini',
-                          page: AppPage.laporan,
-                          empty: 'Belum ada penjualan bulan ini.',
-                          rows: [for (final t in c.top) _Line(t.name, '${t.qty}×')],
-                        ),
-                      ),
-                      const SizedBox(width: S.lg),
-                      Expanded(
-                        child: _ListCard(
-                          title: 'Stok menipis',
-                          page: AppPage.gudang,
-                          empty: 'Tidak ada stok menipis.',
-                          rows: [
-                            for (final s in c.lowStock.take(5))
-                              _Line(s.product.name, '${s.stock} ${s.product.unit}'.trim(), danger: s.stock <= 0),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
+                    );
+                  },
                 ),
               ],
             ),
@@ -181,6 +186,9 @@ class _DashboardPageState extends State<DashboardPage> {
     return '${pct >= 0 ? '▲' : '▼'} ${pct.abs()}% vs periode sama bulan lalu';
   }
 }
+
+/// Warna grafik dibuat lembut (pastel) supaya tidak menyilaukan.
+const _softBlue = Color(0xFF86A2F4), _softMint = Color(0xFF8ED6B6), _softCoral = Color(0xFFF2A9A3);
 
 /// Jarak antar label sumbu X supaya tidak sesak (maks. ~6 label).
 double _axisInterval(int n) => (n / 6).ceilToDouble().clamp(1, double.infinity);
@@ -199,11 +207,9 @@ class _ChartToolbar extends StatelessWidget {
   Future<void> _pickRange(BuildContext context) async {
     final today = DateTime.now();
     final end = c.chartTo.value.subtract(const Duration(days: 1));
-    final r = await showDateRangePicker(
-      context: context,
-      firstDate: DateTime(2020),
-      lastDate: today,
-      initialDateRange: DateTimeRange(
+    final r = await pickRange(
+      context,
+      initial: DateTimeRange(
         start: c.chartFrom.value.isAfter(today) ? today : c.chartFrom.value,
         end: end.isAfter(today) ? today : end,
       ),
@@ -213,7 +219,9 @@ class _ChartToolbar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Obx(
-    () => Row(
+    () => Wrap(
+      spacing: S.md,
+      runSpacing: S.sm,
       children: [
         SegmentedButton<Period>(
           showSelectedIcon: false,
@@ -225,7 +233,6 @@ class _ChartToolbar extends StatelessWidget {
           selected: {c.chartPeriod.value},
           onSelectionChanged: (s) => c.setChartPeriod(s.first),
         ),
-        const SizedBox(width: S.md),
         OutlinedButton.icon(
           onPressed: () => _pickRange(context),
           icon: const Icon(Icons.date_range_outlined, size: 18),
@@ -311,10 +318,10 @@ class _SalesChart extends StatelessWidget {
                             spots: [for (final (i, p) in points.indexed) FlSpot(i.toDouble(), p.omzet.toDouble())],
                             isCurved: true,
                             preventCurveOverShooting: true,
-                            color: C.primary,
-                            barWidth: 3,
+                            color: _softBlue,
+                            barWidth: 2.5,
                             dotData: const FlDotData(show: false),
-                            belowBarData: BarAreaData(show: true, color: C.primary.withValues(alpha: 0.12)),
+                            belowBarData: BarAreaData(show: true, color: _softBlue.withValues(alpha: 0.14)),
                           ),
                         ],
                       ),
@@ -345,11 +352,13 @@ class _FlowChart extends StatelessWidget {
           children: [
             Row(
               children: [
-                Text('Pemasukan & pengeluaran', style: T.section),
-                const Spacer(),
-                _Dot(Tone.success.fg, 'Masuk'),
+                Flexible(
+                  child: Text('Pemasukan & pengeluaran', style: T.section, overflow: TextOverflow.ellipsis),
+                ),
                 const SizedBox(width: S.md),
-                _Dot(C.danger, 'Keluar'),
+                _Dot(_softMint, 'Masuk'),
+                const SizedBox(width: S.md),
+                _Dot(_softCoral, 'Keluar'),
               ],
             ),
             const SizedBox(height: S.lg),
@@ -407,8 +416,18 @@ class _FlowChart extends StatelessWidget {
                             BarChartGroupData(
                               x: i,
                               barRods: [
-                                BarChartRodData(toY: f.income.toDouble(), color: Tone.success.fg, width: 7),
-                                BarChartRodData(toY: f.expense.toDouble(), color: C.danger, width: 7),
+                                BarChartRodData(
+                                  toY: f.income.toDouble(),
+                                  color: _softMint,
+                                  width: 8,
+                                  borderRadius: const BorderRadius.vertical(top: Radius.circular(3)),
+                                ),
+                                BarChartRodData(
+                                  toY: f.expense.toDouble(),
+                                  color: _softCoral,
+                                  width: 8,
+                                  borderRadius: const BorderRadius.vertical(top: Radius.circular(3)),
+                                ),
                               ],
                             ),
                         ],

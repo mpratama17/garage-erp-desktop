@@ -1,8 +1,11 @@
 import 'dart:async';
 
+import '../../core/range_picker.dart';
+
 import 'package:get/get.dart';
 
 import '../../db/database.dart';
+import '../gaji/gaji_repo.dart' show GajiRepo;
 import 'biaya_repo.dart';
 
 enum BiayaFilter { semua, operasional, pribadi }
@@ -11,19 +14,26 @@ class BiayaController extends GetxController {
   BiayaController(this.db);
   final AppDb db;
 
-  final month = DateTime(DateTime.now().year, DateTime.now().month).obs;
+  /// Rentang tanggal biaya (inklusif); awalnya bulan ini.
+  final range = thisMonth().obs;
   final filter = BiayaFilter.semua.obs;
-  final expenses = <ExpenseRow>[].obs; // semua biaya bulan ini (filter diterapkan di [shown])
+  final expenses = <ExpenseRow>[].obs; // semua biaya dalam rentang (filter diterapkan di [shown])
   final categories = <ExpenseCategory>[].obs;
+  final recurring = <RecurringExpense>[].obs;
+  final employees = <Employee>[].obs;
 
   StreamSubscription<List<ExpenseCategory>>? _categorySub;
+  final _extraSubs = <StreamSubscription<Object?>>[];
   StreamSubscription<List<ExpenseRow>>? _expenseSub;
 
   @override
   void onInit() {
     super.onInit();
     _categorySub = db.watchCategories().listen(categories.assignAll);
-    ever(month, (_) => _listen());
+    _extraSubs
+      ..add(db.watchRecurring().listen(recurring.assignAll))
+      ..add(db.watchEmployees().listen(employees.assignAll));
+    ever(range, (_) => _listen());
     _listen();
   }
 
@@ -31,16 +41,17 @@ class BiayaController extends GetxController {
   void onClose() {
     _expenseSub?.cancel();
     _categorySub?.cancel();
+    for (final s in _extraSubs) {
+      s.cancel();
+    }
     super.onClose();
   }
 
   void _listen() {
     _expenseSub?.cancel();
-    final m = month.value;
-    _expenseSub = db.watchExpenses(from: m, to: DateTime(m.year, m.month + 1)).listen(expenses.assignAll);
+    final r = range.value;
+    _expenseSub = db.watchExpenses(from: r.start, to: r.endExclusive).listen(expenses.assignAll);
   }
-
-  void shiftMonth(int delta) => month.value = DateTime(month.value.year, month.value.month + delta);
 
   List<ExpenseRow> get shown => switch (filter.value) {
     BiayaFilter.semua => expenses.toList(),
@@ -48,7 +59,7 @@ class BiayaController extends GetxController {
     BiayaFilter.pribadi => expenses.where((e) => e.personal).toList(),
   };
 
-  /// Total biaya bulan ini; [personal] null = semua.
+  /// Total biaya dalam rentang; [personal] null = semua.
   int total({bool? personal}) =>
       expenses.where((e) => personal == null || e.personal == personal).fold(0, (t, e) => t + e.amount);
 }

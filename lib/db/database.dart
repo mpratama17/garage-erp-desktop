@@ -91,6 +91,18 @@ class Employees extends Table {
   IntColumn get baseSalary => integer().withDefault(const Constant(0))();
   IntColumn get mealAllowance => integer().withDefault(const Constant(0))();
   BoolColumn get active => boolean().withDefault(const Constant(true))();
+  TextColumn get phone => text().withDefault(const Constant(''))(); // v3: dikelola di Kontak ▸ Pegawai
+  TextColumn get note => text().withDefault(const Constant(''))(); // v3
+}
+
+/// Vendor/supplier (v3, dikelola di Kontak ▸ Vendor). Pembelian stok memilih vendor lewat nama; vendor baru
+/// yang diketik di form pembelian otomatis dibuat. Nama unik tanpa membedakan huruf besar/kecil (dijaga repo).
+class Vendors extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  TextColumn get name => text()();
+  TextColumn get phone => text().withDefault(const Constant(''))();
+  TextColumn get address => text().withDefault(const Constant(''))();
+  TextColumn get note => text().withDefault(const Constant(''))();
 }
 
 /// Invoice & pemesanan (kind: invoice | order) — satu tabel karena isi & barisnya sama.
@@ -136,7 +148,8 @@ class InvoiceLines extends Table {
 class Purchases extends Table {
   IntColumn get id => integer().autoIncrement()();
   DateTimeColumn get at => dateTime()();
-  TextColumn get supplier => text().withDefault(const Constant(''))();
+  TextColumn get supplier => text().withDefault(const Constant(''))(); // salinan nama vendor saat transaksi
+  IntColumn get vendorId => integer().nullable().references(Vendors, #id)(); // v3
   IntColumn get accountId => integer().references(Accounts, #id)();
   IntColumn get total => integer()();
   TextColumn get note => text().withDefault(const Constant(''))();
@@ -174,6 +187,18 @@ class ExpenseCategories extends Table {
   IntColumn get id => integer().autoIncrement()();
   TextColumn get name => text().unique()();
   BoolColumn get personal => boolean().withDefault(const Constant(false))();
+  BoolColumn get active => boolean().withDefault(const Constant(true))();
+}
+
+/// Biaya berulang (v3): templat yang dicatat manual dengan satu klik, mis. uang transport Rp20.000 per pegawai per
+/// hari masuk kerja. [perEmployee] = satu biaya per pegawai yang dicentang saat mencatat.
+class RecurringExpenses extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  TextColumn get name => text()();
+  IntColumn get categoryId => integer().references(ExpenseCategories, #id)();
+  IntColumn get accountId => integer().references(Accounts, #id)();
+  IntColumn get amount => integer()();
+  BoolColumn get perEmployee => boolean().withDefault(const Constant(true))();
   BoolColumn get active => boolean().withDefault(const Constant(true))();
 }
 
@@ -259,9 +284,11 @@ Future<File> dbFile() async => File(p.join((await getApplicationSupportDirectory
     Purchases,
     Customers,
     Employees,
+    Vendors,
     Invoices,
     InvoiceLines,
     ExpenseCategories,
+    RecurringExpenses,
     Payslips,
   ],
 )
@@ -292,7 +319,7 @@ class AppDb extends _$AppDb {
 
   // App sudah dipakai client sejak v1: tiap perubahan kolom = naikkan versi + langkah di onUpgrade.
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -313,6 +340,23 @@ class AppDb extends _$AppDb {
         await customStatement(
           'UPDATE invoice_lines SET cost = (SELECT CASE WHEN p.is_service = 1 THEN 0 '
           'WHEN p.buy_price > 0 THEN p.buy_price END FROM products p WHERE p.id = product_id) WHERE cost IS NULL',
+        );
+      }
+      if (from < 3) {
+        await m.createTable(vendors);
+        await m.createTable(recurringExpenses);
+        await m.addColumn(employees, employees.phone);
+        await m.addColumn(employees, employees.note);
+        await m.addColumn(purchases, purchases.vendorId);
+        // Vendor dibuat dari nama supplier yang sudah pernah diketik di pembelian lama (satu per nama, tanpa
+        // membedakan huruf besar/kecil), lalu pembelian lama ditautkan.
+        await customStatement(
+          'INSERT INTO vendors (name) SELECT MIN(TRIM(supplier)) FROM purchases WHERE TRIM(supplier) <> \'\' '
+          'GROUP BY LOWER(TRIM(supplier))',
+        );
+        await customStatement(
+          'UPDATE purchases SET vendor_id = (SELECT v.id FROM vendors v WHERE LOWER(v.name) = LOWER(TRIM(purchases.supplier))) '
+          'WHERE TRIM(supplier) <> \'\'',
         );
       }
     },

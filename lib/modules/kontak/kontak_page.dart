@@ -10,6 +10,8 @@ import '../../core/ui.dart';
 import '../../db/database.dart';
 import '../../shell.dart' show openDoc;
 import 'kontak_controller.dart';
+import '../gaji/gaji_page.dart' show employeeDialog;
+import 'kontak_other.dart';
 import '../penjualan/penjualan_page.dart' show statusPill;
 import '../penjualan/penjualan_repo.dart';
 import 'kontak_repo.dart';
@@ -34,79 +36,132 @@ class KontakPage extends StatelessWidget {
         Obx(
           () => PageHeader(
             title: 'Kontak',
-            subtitle: '${c.customers.length} customer',
-            actions: [
-              OutlinedButton(
-                onPressed: () async {
-                  final msg = await c.downloadTemplate();
-                  if (msg != null && context.mounted) notify(context, msg);
-                },
-                child: const Text('Template import'),
-              ),
-              OutlinedButton(
-                onPressed: () => ownerAction(() async {
-                  final r = await c.import();
-                  if (r == null) return null;
-                  if (r.notes.isNotEmpty && context.mounted) await _showNotes(context, r.summary, r.notes);
-                  return r.summary;
-                }),
-                child: const Text('Import'),
-              ),
-              OutlinedButton(onPressed: () => ownerAction(c.export), child: const Text('Export')),
-              FilledButton.icon(
-                onPressed: () => c.panelId.value = 0,
-                icon: const Icon(Icons.add, size: 18),
-                label: const Text('Customer'),
-              ),
-            ],
+            subtitle: switch (c.tab.value) {
+              KontakTab.customer => '${c.customers.length} customer',
+              KontakTab.vendor => '${c.vendors.length} vendor — pemasok barang',
+              KontakTab.pegawai => '${c.employees.length} pegawai — gaji dikelola di menu Gaji',
+            },
+            actions: switch (c.tab.value) {
+              KontakTab.customer => [
+                ImportButton(
+                  onTemplate: () async {
+                    final msg = await c.downloadTemplate();
+                    if (msg != null && context.mounted) notify(context, msg);
+                  },
+                  onImport: () => ownerAction(() async {
+                    final r = await c.import();
+                    if (r == null) return null;
+                    if (r.notes.isNotEmpty && context.mounted) await _showNotes(context, r.summary, r.notes);
+                    return r.summary;
+                  }),
+                ),
+                OutlinedButton(onPressed: () => ownerAction(c.export), child: const Text('Export')),
+                FilledButton.icon(
+                  onPressed: () => c.panelId.value = 0,
+                  icon: const Icon(Icons.add, size: 18),
+                  label: const Text('Customer'),
+                ),
+              ],
+              KontakTab.vendor => [
+                FilledButton.icon(
+                  onPressed: () => vendorDialog(context, c.db, null),
+                  icon: const Icon(Icons.add, size: 18),
+                  label: const Text('Vendor'),
+                ),
+              ],
+              KontakTab.pegawai => [
+                FilledButton.icon(
+                  onPressed: () async {
+                    if (await owner.ensure(context) && context.mounted) await employeeDialog(context, c.db, null);
+                  },
+                  icon: const Icon(Icons.add, size: 18),
+                  label: const Text('Pegawai'),
+                ),
+              ],
+            },
           ),
         ),
         Padding(
           padding: const EdgeInsets.fromLTRB(S.xxl, 0, S.xxl, S.lg),
-          child: _Stats(db: c.db),
-        ),
-        Expanded(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(S.xxl, 0, S.xxl, S.xl),
+          child: Align(
+            alignment: Alignment.centerLeft,
             child: Obx(
-              () => Row(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Expanded(
-                    child: AppTable<Customer>(
-                      rows: c.customers.toList(),
-                      searchHint: 'Cari nama, no. HP, plat…',
-                      // HP dicocokkan juga tanpa 0 di depan / format apa pun yang diketik.
-                      searchText: (x) => [
-                        x.name,
-                        x.phone ?? '',
-                        if (x.phone != null) displayPhone(x.phone!),
-                        x.car,
-                        x.plate,
-                        x.plate.replaceAll(' ', ''),
-                      ].join(' '),
-                      selected: (x) => x.id == c.panelId.value,
-                      onTap: (x) => c.panelId.value = x.id,
-                      emptyMessage: 'Belum ada customer. Tambah customer atau Import dari Google Sheet (.xlsx).',
-                      columns: [
-                        Col('Nama', (x) => Text(x.name, style: const TextStyle(fontWeight: FontWeight.w600)), flex: 4),
-                        Col('No. HP', (x) => Text(x.phone == null ? '—' : displayPhone(x.phone!)), flex: 3),
-                        Col('Mobil', (x) => Text(x.car.isEmpty ? '—' : x.car), flex: 3),
-                        Col('Plat', (x) => Text(x.plate.isEmpty ? '—' : x.plate), flex: 2),
-                        Col('Catatan', (x) => Text(x.note, style: T.body.copyWith(color: C.inkMuted)), flex: 4),
-                      ],
-                    ),
-                  ),
-                  if (c.panelId.value != null) ...[
-                    const SizedBox(width: S.lg),
-                    SizedBox(
-                      width: 400,
-                      child: _CustomerPanel(key: ValueKey((c.panelId.value, c.opened)), c: c, item: c.opened),
-                    ),
-                  ],
+              () => SegmentedButton<KontakTab>(
+                showSelectedIcon: false,
+                segments: const [
+                  ButtonSegment(value: KontakTab.customer, label: Text('Customer')),
+                  ButtonSegment(value: KontakTab.vendor, label: Text('Vendor')),
+                  ButtonSegment(value: KontakTab.pegawai, label: Text('Pegawai')),
                 ],
+                selected: {c.tab.value},
+                onSelectionChanged: (v) {
+                  c.tab.value = v.first;
+                  c.panelId.value = null;
+                },
               ),
             ),
+          ),
+        ),
+        Expanded(
+          child: Obx(
+            () => switch (c.tab.value) {
+              KontakTab.customer => Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(S.xxl, 0, S.xxl, S.lg),
+                    child: _Stats(db: c.db),
+                  ),
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(S.xxl, 0, S.xxl, S.xl),
+                      child: Obx(
+                        () => MasterDetail(
+                          list: AppTable<Customer>(
+                            rows: c.customers.toList(),
+                            searchHint: 'Cari nama, no. HP, plat…',
+                            // HP dicocokkan juga tanpa 0 di depan / format apa pun yang diketik.
+                            searchText: (x) => [
+                              x.name,
+                              x.phone ?? '',
+                              if (x.phone != null) displayPhone(x.phone!),
+                              x.car,
+                              x.plate,
+                              x.plate.replaceAll(' ', ''),
+                            ].join(' '),
+                            selected: (x) => x.id == c.panelId.value,
+                            onTap: (x) => c.panelId.value = x.id,
+                            emptyMessage: 'Belum ada customer. Tambah customer atau Import dari Google Sheet (.xlsx).',
+                            columns: [
+                              Col(
+                                'Nama',
+                                (x) => Text(x.name, style: const TextStyle(fontWeight: FontWeight.w600)),
+                                flex: 4,
+                              ),
+                              Col('No. HP', (x) => Text(x.phone == null ? '—' : displayPhone(x.phone!)), flex: 3),
+                              Col('Mobil', (x) => Text(x.car.isEmpty ? '—' : x.car), flex: 3),
+                              Col('Plat', (x) => Text(x.plate.isEmpty ? '—' : x.plate), flex: 2),
+                              Col('Catatan', (x) => Text(x.note, style: T.body.copyWith(color: C.inkMuted)), flex: 4),
+                            ],
+                          ),
+                          panel: c.panelId.value == null
+                              ? null
+                              : _CustomerPanel(key: ValueKey((c.panelId.value, c.opened)), c: c, item: c.opened),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              KontakTab.vendor => Padding(
+                padding: const EdgeInsets.fromLTRB(S.xxl, 0, S.xxl, S.xl),
+                child: VendorTable(c),
+              ),
+              KontakTab.pegawai => Padding(
+                padding: const EdgeInsets.fromLTRB(S.xxl, 0, S.xxl, S.xl),
+                child: PegawaiTable(c),
+              ),
+            },
           ),
         ),
       ],

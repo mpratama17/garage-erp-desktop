@@ -89,13 +89,16 @@ Future<bool?> showPurchaseDialog(BuildContext context, GudangController c) async
     warn(context, 'Belum ada rekening aktif');
     return null;
   }
-  return showDialog<bool>(context: context, builder: (_) => _PurchaseDialog(c, accounts));
+  final vendors = [for (final v in await c.db.select(c.db.vendors).get()) v.name]..sort();
+  if (!context.mounted) return null;
+  return showDialog<bool>(context: context, builder: (_) => _PurchaseDialog(c, accounts, vendors));
 }
 
 class _PurchaseDialog extends StatefulWidget {
-  const _PurchaseDialog(this.c, this.accounts);
+  const _PurchaseDialog(this.c, this.accounts, this.vendors);
   final GudangController c;
   final List<Account> accounts;
+  final List<String> vendors; // nama vendor di Kontak ▸ Vendor (untuk dicari); nama baru otomatis jadi vendor
   @override
   State<_PurchaseDialog> createState() => _PurchaseDialogState();
 }
@@ -104,6 +107,7 @@ class _PurchaseDialogState extends State<_PurchaseDialog> {
   DateTime date = DateTime.now();
   late int accountId = widget.accounts.first.id;
   final supplier = TextEditingController();
+  final supplierFocus = FocusNode();
   final note = TextEditingController();
   final billNo = TextEditingController();
   var proof = '';
@@ -114,6 +118,7 @@ class _PurchaseDialogState extends State<_PurchaseDialog> {
 
   @override
   void dispose() {
+    supplierFocus.dispose();
     for (final t in [
       supplier,
       note,
@@ -184,7 +189,41 @@ class _PurchaseDialogState extends State<_PurchaseDialog> {
                     ),
                   ),
                   const SizedBox(width: S.md),
-                  Expanded(child: Labeled('Supplier', TextField(controller: supplier))),
+                  Expanded(
+                    child: Labeled(
+                      'Vendor',
+                      RawAutocomplete<String>(
+                        textEditingController: supplier,
+                        focusNode: supplierFocus,
+                        optionsBuilder: (v) => widget.vendors.where(
+                          (n) => n.toLowerCase().contains(v.text.trim().toLowerCase()) && n != v.text,
+                        ),
+                        fieldViewBuilder: (_, ctrl, focus, _) => TextField(
+                          controller: ctrl,
+                          focusNode: focus,
+                          decoration: const InputDecoration(hintText: 'Cari atau ketik vendor baru'),
+                        ),
+                        optionsViewBuilder: (_, onSelected, options) => Align(
+                          alignment: Alignment.topLeft,
+                          child: Material(
+                            elevation: 4,
+                            borderRadius: BorderRadius.circular(S.rInput),
+                            child: ConstrainedBox(
+                              constraints: const BoxConstraints(maxHeight: 200, maxWidth: 280),
+                              child: ListView(
+                                shrinkWrap: true,
+                                padding: EdgeInsets.zero,
+                                children: [
+                                  for (final o in options)
+                                    ListTile(dense: true, title: Text(o), onTap: () => onSelected(o)),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
                   const SizedBox(width: S.md),
                   SizedBox(width: 170, child: Labeled('No. nota', TextField(controller: billNo))),
                   const SizedBox(width: S.md),

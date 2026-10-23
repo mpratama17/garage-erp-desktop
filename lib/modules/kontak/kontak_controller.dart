@@ -5,27 +5,38 @@ import 'package:get/get.dart';
 
 import '../../core/xlsx.dart';
 import '../../db/database.dart';
+import '../gaji/gaji_repo.dart' show GajiRepo;
 import 'kontak_repo.dart';
+
+enum KontakTab { customer, vendor, pegawai }
 
 class KontakController extends GetxController {
   KontakController(this.db);
   final AppDb db;
 
+  final tab = KontakTab.customer.obs;
   final customers = <Customer>[].obs;
+  final vendors = <Vendor>[].obs;
+  final employees = <Employee>[].obs;
 
   /// Panel kanan: null = tertutup, 0 = customer baru, >0 = id yang dibuka.
   final panelId = RxnInt();
-  StreamSubscription<List<Customer>>? _sub;
+  final _subs = <StreamSubscription<Object?>>[];
 
   @override
   void onInit() {
     super.onInit();
-    _sub = db.watchCustomers().listen(customers.assignAll);
+    _subs
+      ..add(db.watchCustomers().listen(customers.assignAll))
+      ..add(db.watchVendors().listen(vendors.assignAll))
+      ..add(db.watchEmployees().listen(employees.assignAll));
   }
 
   @override
   void onClose() {
-    _sub?.cancel();
+    for (final s in _subs) {
+      s.cancel();
+    }
     super.onClose();
   }
 

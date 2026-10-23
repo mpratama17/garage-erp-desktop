@@ -3,6 +3,7 @@ import 'package:drift/drift.dart';
 import '../../core/format.dart';
 import '../../core/xlsx.dart';
 import '../../db/database.dart';
+import '../kontak/kontak_repo.dart' show KontakRepo;
 
 class StockedProduct {
   StockedProduct(this.product, this.stock);
@@ -21,6 +22,9 @@ class MoveRow {
   final String? customer; // null = tanpa customer (UMUM)
   final Purchase? purchase;
 }
+
+/// Satu baris riwayat pembelian stok: [paidAt] = tanggal pelunasan (null = belum dibayar).
+typedef PurchaseRow = ({Purchase purchase, String account, bool paid, DateTime? paidAt});
 
 class PurchaseLine {
   PurchaseLine({required this.productId, required this.qty, required this.unitCost});
@@ -78,7 +82,9 @@ ImportResult parseProductsXlsx(List<int> bytes) {
   final t = XlsxTable.decode(bytes);
   if (t.rows.isEmpty) return ImportResult([], ['File kosong']);
   if (!t.has('Nama Produk')) {
-    return ImportResult([], ['Kolom "*Nama Produk" tidak ditemukan — pakai template dari tombol Template']);
+    return ImportResult([], [
+      'Kolom "*Nama Produk" tidak ditemukan — pakai template dari menu Import ▸ Unduh template',
+    ]);
   }
 
   final out = <ProductRow>[];
@@ -132,12 +138,16 @@ List<int> buildProductsXlsx(List<StockedProduct> items) => buildXlsx('Produk', p
 ]);
 
 extension GudangRepo on AppDb {
-  Stream<List<StockedProduct>> watchProducts() => customSelect(
+  /// Pola query di repo: `xxxQuery()` → `.watch()` untuk layar, `.get()` untuk sekali jalan (jangan
+  /// `watch().first` — bisa macet, lihat c12bfd5).
+  Selectable<StockedProduct> productsQuery() => customSelect(
     'SELECT p.*, COALESCE(SUM(m.qty), 0) AS stock FROM products p '
     'LEFT JOIN stock_moves m ON m.product_id = p.id '
     'GROUP BY p.id ORDER BY p.name COLLATE NOCASE',
     readsFrom: {products, stockMoves},
-  ).watch().map((rows) => [for (final r in rows) StockedProduct(products.map(r.data), r.read<int>('stock'))]);
+  ).map((r) => StockedProduct(products.map(r.data), r.read<int>('stock')));
+
+  Stream<List<StockedProduct>> watchProducts() => productsQuery().watch();
 
   Future<int> stockOf(int productId) async {
     final sum = stockMoves.qty.sum();
@@ -171,22 +181,37 @@ extension GudangRepo on AppDb {
     );
   }
 
+  /// Total seluruh waktu: penjualan barang (invoice tidak batal, sebelum diskon/PPN dokumen) dan pembelian stok.
+  /// Pembelian berisi harga beli → 0 selama owner terkunci.
+  Future<({int sales, int purchases})> stockFlowTotals() async {
+    final sales = await customSelect(
+      'SELECT COALESCE(SUM(l.qty * l.price - l.discount), 0) AS t FROM invoice_lines l '
+      'JOIN invoices i ON i.id = l.invoice_id JOIN products p ON p.id = l.product_id '
+      "WHERE i.kind = 'invoice' AND i.is_void = 0 AND p.is_service = 0",
+      readsFrom: {invoiceLines, invoices, products},
+    ).getSingle();
+    final bought = ownerUnlocked
+        ? await customSelect('SELECT COALESCE(SUM(total), 0) AS t FROM purchases', readsFrom: {purchases}).getSingle()
+        : null;
+    return (sales: sales.read<int>('t'), purchases: bought?.read<int>('t') ?? 0);
+  }
+
   /// Riwayat pembelian stok + nama rekening pembayar, terbaru dulu. Khusus owner (berisi harga beli).
-  Stream<List<({Purchase purchase, String account, bool paid})>> watchPurchases() {
+  Stream<List<PurchaseRow>> watchPurchases() => purchasesQuery().watch();
+
+  Selectable<PurchaseRow> purchasesQuery() {
     requireOwner();
     final q = select(purchases).join([
       innerJoin(accounts, accounts.id.equalsExp(purchases.accountId)),
       leftOuterJoin(cashEntries, cashEntries.kind.equals('purchase') & cashEntries.refId.equalsExp(purchases.id)),
     ])..orderBy([OrderingTerm.desc(purchases.at), OrderingTerm.desc(purchases.id)]);
-    return q.watch().map(
-      (rows) => [
-        for (final r in rows)
-          (
-            purchase: r.readTable(purchases),
-            account: r.readTable(accounts).name,
-            paid: r.readTableOrNull(cashEntries) != null,
-          ),
-      ],
+    return q.map(
+      (r) => (
+        purchase: r.readTable(purchases),
+        account: r.readTable(accounts).name,
+        paid: r.readTableOrNull(cashEntries) != null,
+        paidAt: r.readTableOrNull(cashEntries)?.at,
+      ),
     );
   }
 
@@ -276,12 +301,14 @@ extension GudangRepo on AppDb {
       if (items.length != ids.length || items.any((x) => x.isService)) {
         throw ArgumentError('Pembelian stok hanya untuk barang (bukan jasa)');
       }
+      final vendor = await vendorByName(supplier);
       final id = await into(purchases).insert(
         PurchasesCompanion.insert(
           at: at,
           accountId: accountId,
           total: total,
-          supplier: Value(supplier.trim()),
+          supplier: Value(vendor?.name ?? ''), // nama baku vendor, bukan ejaan yang diketik
+          vendorId: Value(vendor?.id),
           note: Value(note.trim()),
           billNo: Value(billNo.trim()),
           proofPath: Value(proofPath),

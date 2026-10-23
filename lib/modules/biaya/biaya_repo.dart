@@ -17,9 +17,10 @@ class ExpenseRow {
 }
 
 extension BiayaRepo on AppDb {
-  Stream<List<ExpenseCategory>> watchCategories() => (select(
-    expenseCategories,
-  )..orderBy([(c) => OrderingTerm.asc(c.personal), (c) => OrderingTerm.asc(c.name)])).watch();
+  Selectable<ExpenseCategory> categoriesQuery() =>
+      select(expenseCategories)..orderBy([(c) => OrderingTerm.asc(c.personal), (c) => OrderingTerm.asc(c.name)]);
+
+  Stream<List<ExpenseCategory>> watchCategories() => categoriesQuery().watch();
 
   /// Biaya pada [from, to), terbaru di atas.
   Stream<List<ExpenseRow>> watchExpenses({required DateTime from, required DateTime to}) {
@@ -109,4 +110,54 @@ extension BiayaRepo on AppDb {
     }
     return into(expenseCategories).insert(data);
   }
+
+  // ---- biaya berulang (v3) ----
+
+  Stream<List<RecurringExpense>> watchRecurring() =>
+      (select(recurringExpenses)..orderBy([(r) => OrderingTerm.asc(r.name)])).watch();
+
+  /// Tambah/ubah templat biaya berulang (owner).
+  Future<int> saveRecurring(RecurringExpensesCompanion r) => transaction(() async {
+    requireOwner();
+    if (r.name.value.trim().isEmpty) throw ArgumentError('Nama biaya berulang wajib diisi');
+    if (r.amount.value <= 0) throw ArgumentError('Nominal harus lebih dari 0');
+    final data = r.copyWith(name: Value(r.name.value.trim()));
+    if (r.id.present) {
+      await (update(recurringExpenses)..where((x) => x.id.equals(r.id.value))).write(data);
+      return r.id.value;
+    }
+    return into(recurringExpenses).insert(data);
+  });
+
+  /// Catat biaya dari templat [templateId] pada tanggal [at]: satu biaya per pegawai di [employeeIds]
+  /// (templat per-pegawai), atau satu biaya saja. Nama biaya = "templat — pegawai". Siapa saja boleh mencatat
+  /// (seperti biaya biasa); semua atau tidak sama sekali. Mengembalikan jumlah biaya yang dicatat.
+  Future<int> recordRecurring(int templateId, DateTime at, {List<int> employeeIds = const []}) => transaction(() async {
+    final t = await (select(recurringExpenses)..where((x) => x.id.equals(templateId))).getSingleOrNull();
+    if (t == null || !t.active) throw ArgumentError('Biaya berulang tidak ditemukan atau nonaktif');
+    if (!t.perEmployee) {
+      await saveExpense(
+        at: at,
+        accountId: t.accountId,
+        categoryId: t.categoryId,
+        description: t.name,
+        amount: t.amount,
+      );
+      return 1;
+    }
+    if (employeeIds.isEmpty) throw ArgumentError('Pilih minimal satu pegawai');
+    final ids = employeeIds.toSet();
+    final people = await (select(employees)..where((e) => e.id.isIn(ids) & e.active.equals(true))).get();
+    if (people.length != ids.length) throw ArgumentError('Ada pegawai yang tidak ditemukan atau sudah nonaktif');
+    for (final e in people) {
+      await saveExpense(
+        at: at,
+        accountId: t.accountId,
+        categoryId: t.categoryId,
+        description: '${t.name} — ${e.name}',
+        amount: t.amount,
+      );
+    }
+    return people.length;
+  });
 }

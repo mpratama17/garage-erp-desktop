@@ -5,6 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/format.dart';
 import '../../core/owner.dart';
+import '../../core/range_picker.dart';
 import '../../core/proof.dart';
 import '../../core/table.dart';
 import '../../core/theme.dart';
@@ -20,7 +21,7 @@ class KasPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = Get.put(KasController(Get.find<AppDb>()));
     final owner = Get.find<OwnerController>();
-    return Column(
+    final page = Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         PageHeader(
@@ -39,32 +40,35 @@ class KasPage extends StatelessWidget {
             ),
           ],
         ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(S.xxl, 0, S.xxl, S.lg),
+        // Kartu rekening: satu baris yang bisa digeser (muat di jendela sempit).
+        SizedBox(
+          height: 140,
           child: Obx(
-            () => Wrap(
-              spacing: S.md,
-              runSpacing: S.md,
+            () => ListView(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.fromLTRB(S.xxl, 0, S.xxl, S.lg),
               children: [
-                _BalanceCard(
-                  icon: 'money-stack.png',
-                  label: 'Semua rekening',
-                  value: c.totalBalance,
-                  selected: c.accountId.value == null,
-                  onTap: () => c.accountId.value = null,
-                ),
-                for (final a in c.accounts)
+                for (final w in [
                   _BalanceCard(
-                    icon: _accountIcons[a.name.toLowerCase()],
-                    label: a.active ? a.name : '${a.name} (nonaktif)',
-                    value: c.balances[a.id],
-                    note: a.note,
-                    selected: c.accountId.value == a.id,
-                    onTap: () => c.accountId.value = a.id,
-                    onEdit: () async {
-                      if (await owner.ensure(context) && context.mounted) await _accountDialog(context, c, a);
-                    },
+                    icon: 'money-stack.png',
+                    label: 'Semua rekening',
+                    value: c.totalBalance,
+                    selected: c.accountId.value == null,
+                    onTap: () => c.accountId.value = null,
                   ),
+                  for (final a in c.accounts)
+                    _BalanceCard(
+                      icon: _accountIcons[a.name.toLowerCase()],
+                      label: a.active ? a.name : '${a.name} (nonaktif)',
+                      value: c.balances[a.id],
+                      note: a.note,
+                      selected: c.accountId.value == a.id,
+                      onTap: () => c.accountId.value = a.id,
+                      onEdit: () async {
+                        if (await owner.ensure(context) && context.mounted) await _accountDialog(context, c, a);
+                      },
+                    ),
+                ]) ...[w, const SizedBox(width: S.md)],
               ],
             ),
           ),
@@ -97,6 +101,11 @@ class KasPage extends StatelessWidget {
           ),
         ),
       ],
+    );
+    // Jendela pendek: seluruh halaman bisa digulir, tabel tidak terjepit.
+    return LayoutBuilder(
+      builder: (context, box) =>
+          box.maxHeight < 820 ? SingleChildScrollView(child: SizedBox(height: 820, child: page)) : page,
     );
   }
 }
@@ -192,7 +201,6 @@ class _Mutasi extends StatelessWidget {
 
   Widget _build(BuildContext context) {
     final single = c.accountId.value != null;
-    final m = c.month.value;
     final rows = c.entries.toList();
     // Semua rekening: transfer internal bukan uang masuk/keluar usaha.
     final counted = rows.where((r) => single || r.entry.kind != CashKind.transfer);
@@ -202,32 +210,51 @@ class _Mutasi extends StatelessWidget {
       rows: rows,
       searchHint: 'Cari keterangan…',
       searchText: (r) => '${r.entry.description} ${r.entry.note} ${r.accountName} ${cashKindLabel[r.entry.kind]}',
-      emptyMessage: 'Tidak ada transaksi di bulan ini.',
+      emptyMessage: 'Tidak ada transaksi pada rentang ini.',
+      columnFilters: true,
       toolbar: [
         Text('Masuk ${rp(income)} · Keluar ${rp(expense)}', style: T.label),
         const SizedBox(width: S.lg),
-        MonthNav(month: m, onShift: c.shiftMonth),
+        RangeButton(range: c.range.value, onChanged: (r) => c.range.value = r!),
+        const SizedBox(width: S.sm),
+        OutlinedButton.icon(
+          onPressed: () async {
+            if (!await Get.find<OwnerController>().ensure(context) || !context.mounted) return;
+            final msg = await c.export();
+            if (msg != null && context.mounted) notify(context, msg);
+          },
+          icon: const Icon(Icons.download_outlined, size: 18),
+          label: const Text('Export'),
+        ),
       ],
       columns: [
-        Col('Tanggal', (r) => Text(tgl(r.entry.at)), flex: 2),
-        if (!single) Col('Rekening', (r) => Text(r.accountName), flex: 2),
-        Col('Jenis', (r) => Pill(cashKindLabel[r.entry.kind] ?? r.entry.kind, _tone(r.entry.kind)), flex: 2),
+        Col('Tanggal', (r) => Text(tgl(r.entry.at)), flex: 2, text: (r) => tgl(r.entry.at)),
+        if (!single) Col('Rekening', (r) => Text(r.accountName), flex: 2, text: (r) => r.accountName),
+        Col(
+          'Jenis',
+          (r) => Pill(cashKindLabel[r.entry.kind] ?? r.entry.kind, _tone(r.entry.kind)),
+          flex: 2,
+          text: (r) => cashKindLabel[r.entry.kind] ?? r.entry.kind,
+        ),
         Col(
           'Keterangan',
           (r) => Text([r.entry.description, if (r.entry.note.isNotEmpty) r.entry.note].join(' · ')),
           flex: 6,
+          text: (r) => '${r.entry.description} ${r.entry.note}',
         ),
         Col(
           'Masuk',
           (r) => Text(r.entry.amount > 0 ? rp(r.entry.amount) : '', style: T.money.copyWith(color: Tone.success.fg)),
           flex: 2,
           numeric: true,
+          text: (r) => r.entry.amount > 0 ? rp(r.entry.amount) : '',
         ),
         Col(
           'Keluar',
           (r) => Text(r.entry.amount < 0 ? rp(-r.entry.amount) : '', style: T.money.copyWith(color: C.danger)),
           flex: 2,
           numeric: true,
+          text: (r) => r.entry.amount < 0 ? rp(-r.entry.amount) : '',
         ),
         if (single && c.balances.isNotEmpty)
           Col(
