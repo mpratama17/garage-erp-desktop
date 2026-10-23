@@ -64,7 +64,9 @@ class KontakPage extends StatelessWidget {
               ],
               KontakTab.vendor => [
                 FilledButton.icon(
-                  onPressed: () => vendorDialog(context, c.db, null),
+                  onPressed: () async {
+                    if (await owner.ensure(context) && context.mounted) await vendorDialog(context, c.db, null);
+                  },
                   icon: const Icon(Icons.add, size: 18),
                   label: const Text('Vendor'),
                 ),

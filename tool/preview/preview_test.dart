@@ -322,6 +322,24 @@ void main() {
     await tester.tap(find.text('+ Tagihan'));
     await settle();
     await shot('tagihan-kasir');
+    // Pilihan produk invoice: barang stok 0 tidak ditawarkan.
+    await tester.enterText(find.widgetWithText(TextField, 'Cari produk…'), 'h');
+    await settle();
+    await shot('tagihan-pilih-produk');
+    FocusManager.instance.primaryFocus?.unfocus(); // tutup daftar pilihan
+    await settle();
+    final wasOwner = owner.isOwner.value;
+    owner.isOwner.value = true; // tanpa PIN di preview
+    await tester.tap(find.text('Barang/jasa baru'));
+    await settle();
+    await shot('tagihan-produk-baru');
+    final dialog = find.byType(AlertDialog);
+    await tester.enterText(find.descendant(of: dialog, matching: find.byType(TextField)).first, 'LED BARU UJI');
+    await tester.enterText(find.descendant(of: dialog, matching: find.byType(TextField)).at(1), '150000');
+    await tester.tap(find.descendant(of: dialog, matching: find.text('Simpan')));
+    await settle();
+    await shot('tagihan-produk-baru-tersimpan'); // baris kosong diganti produk baru (harga terisi)
+    owner.isOwner.value = wasOwner;
     await tester.tap(find.text('Batal').last);
     await settle();
     await tester.tap(find.text('Pemesanan').first);

@@ -18,7 +18,10 @@ void main() {
         plate: const Value('N 1234 AB'),
       ),
     );
-    final led = await db.saveProduct(ProductsCompanion.insert(name: 'CANBUS LED', sku: const Value('CB/001')));
+    final led = await db.saveProduct(
+      ProductsCompanion.insert(name: 'CANBUS LED', sku: const Value('CB/001')),
+      openingStock: 10,
+    );
     await db.saveDoc(
       kind: DocKind.invoice,
       at: DateTime(2026, 10, 1),

@@ -1,6 +1,6 @@
 # star-garage-erp (repo: garage-erp-desktop) — Progress Snapshot
 
-Last updated: 2026-10-23 (masukan client R3 selesai + close-out review; di-commit, belum di-push/di-build).
+Last updated: 2026-10-23 (R3 selesai + keputusan owner #4a/#23/vendor; di-push, belum di-build — owner testing sendiri dulu).
 
 **Apa:** mini-ERP desktop **macOS** offline (Flutter + SQLite/drift + GetX) untuk Star Garage (bengkel modif lampu, member Yoong Motor Pasuruan), pengganti Kledo + Google Sheet. Dashboard + 7 modul + Pengaturan (`docs/PRD.md` v2.3). Kasir: MacBook Air M1. Ringkasan untuk GitHub: `README.md`.
 
@@ -71,7 +71,7 @@ Jenis: 🐞 bug/salah paham · ✨ fitur · ❓ pertanyaan (cukup dijawab / mung
 
 ## Masukan client R3 (22 Okt) — ✅ dikerjakan & di-commit (belum di-push/di-build)
 
-23 nomor asli (nomor 4 dobel = 24 butir) → 17 pekerjaan (C1–C17) + 1 baru (#23, belum). Pemetaan 23-Okt: semua ✅ kecuali **#4a** (⚠️ lunas→Tagihan masih lewat tombol "Buat invoice", belum otomatis), **#23** (❌ lihat bawah). analyze bersih, 87 test lulus. Jawaban client: pemesanan lunas → jadi invoice di Tagihan; biaya berulang dicatat manual per klik; jurnal otomatis cukup (tanpa input jurnal manual). Skema DB naik ke **v3** (additive; migrasi dites di `test/r3_test.dart`).
+23 nomor asli (nomor 4 dobel = 24 butir) → 18 pekerjaan (C1–C18), semua ✅. #4a: owner memutuskan tetap lewat tombol "Buat invoice" (tidak otomatis saat lunas). analyze bersih, 88 test lulus. Jawaban client: pemesanan lunas → jadi invoice di Tagihan; biaya berulang dicatat manual per klik; jurnal otomatis cukup (tanpa input jurnal manual). Skema DB naik ke **v3** (additive; migrasi dites di `test/r3_test.dart`).
 
 | # | Masukan (butir asli) | Hasil |
 |---|---|---|
@@ -93,17 +93,17 @@ Jenis: 🐞 bug/salah paham · ✨ fitur · ❓ pertanyaan (cukup dijawab / mung
 | C16 | Laporan keuangan, penjualan, pembelian (#21) | ✅ Neraca, Arus kas, Proyeksi arus kas, Laba rugi, Perubahan modal, Ringkasan eksekutif; Detail penjualan & Detail pembelian; semua bisa di-export |
 | C17 | Laporan akuntansi (#21) | ✅ Ringkasan bank, Buku besar, Buku besar pembantu (piutang/utang/persediaan), Jurnal, Trial balance — dari **jurnal turunan** (`akuntansi_repo.dart`: dibangun ulang dari invoice/kas/pembelian/stok, tanpa tabel jurnal). Dites seimbang & cocok dengan Kas & Bank dan Laba Rugi (`test/akuntansi_test.dart`) |
 
-| C18 | Tambah barang baru ke Gudang dari kolom produk/jasa di Tagihan/Pemesanan (#23) | ❌ belum — `doc_editor.dart` hanya Autocomplete cari, tanpa opsi buat. **Tanya client dulu:** (a) `saveProduct` khusus owner → kasir boleh tanpa PIN atau minta PIN? (b) produk baru belum punya harga beli → modal 0, laba terlalu besar; (c) stok awal 0 → baris jadi stok minus (boleh, dengan peringatan) |
+| C18 | Tambah barang baru ke Gudang dari kolom produk/jasa di Tagihan/Pemesanan (#23) | ✅ tombol "Barang/jasa baru" di form (minta PIN owner): nama, harga jual, stok awal ≥ 1 untuk barang; harga beli kosong = modal 0 (lengkapi di Gudang). **Aturan stok baru (keputusan owner):** barang stok 0/minus tidak muncul di form invoice dan ditolak repo (`saveDoc`, termasuk Pemesanan → invoice); pemesanan, transaksi lama, dan barang yang sudah ada di invoice yang diubah tidak dicek. Qty melebihi stok yang masih > 0 tetap boleh dengan peringatan |
 
-**Catatan keputusan:** (1) Pemesanan → invoice masih lewat tombol "Buat invoice" (bukan otomatis saat lunas). (2) Proyeksi arus kas = rata-rata 3 bulan terakhir (metode sederhana; definisi client belum ada). (3) Persediaan di neraca dinilai dari pembelian/modal invoice; stok awal & opname dinilai harga beli saat ini — perlu data produk bersih & saldo awal rekening dari client agar neraca akurat. (4) Laba berjalan di neraca termasuk "Pemasukan lain"; menu Laba rugi lama tetap hanya penjualan.
+**Catatan keputusan:** (1) Pemesanan → invoice lewat tombol "Buat invoice" (bukan otomatis saat lunas) — dikonfirmasi owner 23 Okt. (2) Proyeksi arus kas = rata-rata 3 bulan terakhir (metode sederhana; definisi client belum ada). (3) Persediaan di neraca dinilai dari pembelian/modal invoice; stok awal & opname dinilai harga beli saat ini — perlu data produk bersih & saldo awal rekening dari client agar neraca akurat. (4) Laba berjalan di neraca termasuk "Pemasukan lain"; menu Laba rugi lama tetap hanya penjualan.
 
 **Close-out 23 Okt (code-review + simplify):** diperbaiki — semua `watch().first` diganti query sekali jalan (pola `xxxQuery().get()`, termasuk sisa R1/R2 di invoice PDF, editor dokumen, gaji, biaya); pencarian global → customer kembali ke tab Customer; filter kolom `AppTable` per judul kolom (tidak nyasar saat kolom berubah, mati bila baris filter tersembunyi); HPP transaksi lama melawan Modal, bukan Persediaan (neraca tidak minus); nama supplier pembelian = nama baku vendor; biaya berulang menolak pegawai nonaktif/tak dikenal di repo; total Gudang tidak tertimpa hasil query lama; Detail penjualan/pembelian & export mutasi Kas dicek owner di repo/controller; helper rentang tanggal (`thisMonth`, `endExclusive`, `covers`) menggantikan 8 salinan; `MonthNav` & `LapTab` dihapus; Laporan hanya memuat ulang jenis laporan yang tampil; daftar akun buku besar tanpa membangun jurnal.
 **Sengaja dilewati (catatan, bukan bug mendesak):** dua definisi laba (Laba rugi lama = penjualan saja vs jurnal termasuk pemasukan lain — keputusan (4) di atas); `purchases.supplier` masih salinan yang disinkron saat vendor diganti nama; belum ada unique index nama vendor; layout responsif masih breakpoint per halaman; `Nav.pembelianTagihan` di sidebar; jurnal dibangun ulang tiap ganti parameter laporan (data kecil, belum terasa).
-**Pertanyaan untuk owner:** vendor boleh ditambah/diubah kasir tanpa PIN (keputusan lama, dikunci test `r3_test`) padahal C18 tidak menyebut vendor — tetap begitu atau dikunci owner?
+**Vendor:** tambah/ubah/hapus khusus owner (keputusan owner 23 Okt; `requireOwner` di `saveVendor`, dites di `akses_test` & `r3_test`).
 
 **Sebelum build 1.2.0:** uji migrasi v2→v3 terhadap salinan DB asli client (seperti R2) — salinan tidak ada di `docs/`, minta lagi; cek Split View langsung di Mac (sejauh ini hanya `test/layout_test.dart` + preview). `flutter build macos --release` sudah lolos kompilasi.
 
-**Masih menunggu client:** saldo awal 4 rekening, data produk bersih, definisi proyeksi arus kas, hasil testing build 1.1.0+2, keputusan #4a & #23.
+**Masih menunggu client:** saldo awal 4 rekening, data produk bersih, definisi proyeksi arus kas, hasil testing build 1.1.0+2. Owner akan testing sendiri dulu sebelum build 1.2.0.
 
 ## Catatan teknis
 
@@ -111,7 +111,7 @@ Jenis: 🐞 bug/salah paham · ✨ fitur · ❓ pertanyaan (cukup dijawab / mung
 - **Alat:** preview UI ke PNG `flutter test tool/preview --update-goldens`; cek import file asli `IMPORT_FILE=… flutter test tool/check_import_test.dart`; rilis `sh tool/release_macos.sh` (panduan `docs/rilis-macos.md`).
 - **Skema:** schemaVersion tetap 1 sampai terpasang di client; tabel baru otomatis dibuat di DB lama (`CREATE TABLE IF NOT EXISTS`). Perubahan **kolom** = hapus DB dev (`~/Library/Application Support/com.mpratama.garageErp/`) selama belum di client.
 - **Aturan bisnis di repo, bukan di UI** (pelajaran sirviu): aturan owner dicek lewat `AppDb.requireOwner()` (sesi PIN) di repo. Sejak R2 (C18) kebalikannya: tanpa PIN hanya boleh tambah penjualan/pemesanan/pembayaran, customer (tambah/ubah), biaya baru — daftar lengkap di `test/akses_test.dart`. Pembelian hanya barang & rekening aktif. `setSetting` sengaja tidak dikunci (nomor nota kasir, catatan backup).
-- **Penjualan:** invoice & pemesanan satu tabel (`kind`); total/terbayar/status dihitung (tidak disimpan); DP tetap di pemesanan dan ikut dihitung di invoice turunannya; nomor otomatis melompati nomor yang sudah dipakai transaksi lama; stok boleh minus (dengan peringatan).
+- **Penjualan:** invoice & pemesanan satu tabel (`kind`); total/terbayar/status dihitung (tidak disimpan); DP tetap di pemesanan dan ikut dihitung di invoice turunannya; nomor otomatis melompati nomor yang sudah dipakai transaksi lama; invoice butuh stok > 0 per barang (sejak 23 Okt), qty melebihi stok tetap boleh (stok bisa minus, dengan peringatan).
 - **Kas:** saldo tidak disimpan (saldo awal + SUM kas); transfer = 2 baris saling menunjuk `refId`, dihapus berpasangan; transaksi dari modul lain hanya diubah di modulnya. Rekening aktif dicek di satu tempat (`AppDb.requireActiveAccount`).
 - **Biaya:** tidak ada tabel biaya — biaya = baris `cash_entries` jenis `expense`, `refId` = kategori. Pribadi/operasional mengikuti kategori (ubah tanda kategori = ikut mengubah biaya lama). Kategori awal di-seed sekali (batch) saat tabel kosong.
 - **Gaji:** slip = tabel `payslips` (unik per karyawan+awal periode); dibayar = ada `cash_entries` kind `salary` refId=slip. Komponen otomatis null selama belum dibayar (ikut data terbaru), dibekukan saat bayar. Akhir periode selalu diturunkan dari `payroll_start_day` di repo; bayar ditolak bila bertumpuk dengan slip lain yang sudah dibayar. Insentif hanya dari invoice tidak batal (pemesanan tidak dihitung, transaksi lama dihitung). **Laporan (Modul 7): gaji = kind `salary` → masuk biaya operasional.** Komisi: tiap karyawan peran Sales dapat % × omzet toko. **Client: tidak ada karyawan sales (2 teknisi saja); owner merangkap sales/admin** → tidak ada komisi kecuali owner ditambahkan sebagai karyawan Sales.

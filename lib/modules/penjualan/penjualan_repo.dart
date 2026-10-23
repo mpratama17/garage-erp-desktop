@@ -1,6 +1,7 @@
 import 'package:drift/drift.dart';
 
 import '../../db/database.dart';
+import '../gudang/gudang_repo.dart' show GudangRepo;
 
 abstract final class DocKind {
   static const invoice = 'invoice', order = 'order';
@@ -224,6 +225,16 @@ extension PenjualanRepo on AppDb {
         }
         if (grandTotal < s.paid) {
           throw ArgumentError('Total baru ($grandTotal) lebih kecil dari yang sudah dibayar (${s.paid})');
+        }
+      }
+
+      // Keputusan owner (23 Okt): barang dengan stok 0/minus tidak bisa masuk invoice (form juga menyembunyikannya).
+      // Pemesanan & transaksi lama tidak dicek; barang yang sudah ada di dokumen lama tetap boleh saat mengubah.
+      if (kind == DocKind.invoice && !(old?.legacy ?? legacy)) {
+        for (final id in productIds.where((id) => !items[id]!.isService && !oldCost.containsKey(id))) {
+          if (await stockOf(id) <= 0) {
+            throw ArgumentError('Stok "${items[id]!.name}" habis — catat pembelian atau stok opname dulu');
+          }
         }
       }
 

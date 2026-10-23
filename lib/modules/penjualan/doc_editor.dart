@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart' hide Value;
 
 import '../../core/format.dart';
+import '../../core/owner.dart';
 import '../../core/theme.dart';
 import '../../core/ui.dart';
 import '../../db/database.dart';
@@ -178,6 +179,77 @@ class _DocEditorState extends State<_DocEditor> {
     _pickCustomer(x);
   }
 
+  /// Barang/jasa baru langsung dari form (keputusan owner 23 Okt): butuh PIN owner (saveProduct dikunci owner),
+  /// harga beli kosong = modal 0 (dilengkapi di Gudang), barang wajib stok awal ≥ 1 supaya bisa masuk invoice.
+  Future<void> _newProduct() async {
+    if (!await Get.find<OwnerController>().ensure(context) || !mounted) return;
+    final name = TextEditingController(), price = TextEditingController(), stock = TextEditingController(text: '1');
+    var isService = false;
+    final id = await showDialog<int>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialog) => AlertDialog(
+          title: const Text('Barang / jasa baru'),
+          content: SizedBox(
+            width: 360,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                SegmentedButton<bool>(
+                  segments: const [
+                    ButtonSegment(value: false, label: Text('Barang')),
+                    ButtonSegment(value: true, label: Text('Jasa')),
+                  ],
+                  selected: {isService},
+                  onSelectionChanged: (v) => setDialog(() => isService = v.first),
+                ),
+                const SizedBox(height: S.md),
+                Labeled('Nama *', TextField(controller: name, autofocus: true)),
+                const SizedBox(height: S.md),
+                MoneyField(controller: price, label: 'Harga jual'),
+                if (!isService) ...[
+                  const SizedBox(height: S.md),
+                  MoneyField(controller: stock, label: 'Stok awal (minimal 1)', prefix: ''),
+                ],
+                const SizedBox(height: S.md),
+                Text('Harga beli belum diisi, jadi modalnya 0. Lengkapi di Gudang.', style: T.label),
+              ],
+            ),
+          ),
+          actions: [
+            OutlinedButton(onPressed: () => Navigator.pop(ctx), child: const Text('Batal')),
+            FilledButton(
+              onPressed: () => runAction(ctx, () async {
+                final opening = isService ? 0 : parseRupiah(stock.text);
+                if (!isService && opening < 1) throw ArgumentError('Stok awal minimal 1 supaya bisa masuk invoice');
+                final id = await c.db.saveProduct(
+                  ProductsCompanion.insert(
+                    name: name.text,
+                    isService: Value(isService),
+                    sellPrice: Value(parseRupiah(price.text)),
+                  ),
+                  openingStock: opening,
+                );
+                if (ctx.mounted) Navigator.pop(ctx, id);
+              }),
+              child: const Text('Simpan'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (id == null || !mounted) return;
+    final p = await (c.db.select(c.db.products)..where((x) => x.id.equals(id))).getSingle();
+    final item = StockedProduct(p, await c.db.stockOf(id));
+    if (!mounted) return;
+    setState(() {
+      // Baris terakhir yang belum terisi diganti baris berisi produk baru.
+      if (rows.last.item == null) rows.removeLast().dispose();
+      rows.add(_Row(item: item));
+    });
+  }
+
   Future<void> _save() async {
     if (rows.any((r) => r.item == null)) {
       return warn(context, 'Pilih barang/jasa dari daftar di setiap baris (atau hapus barisnya)');
@@ -309,13 +381,20 @@ class _DocEditorState extends State<_DocEditor> {
                 const SizedBox(height: S.xl),
                 _linesHeader(),
                 for (final (i, r) in rows.indexed) _lineRow(i, r),
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: TextButton.icon(
-                    onPressed: () => setState(() => rows.add(_Row())),
-                    icon: const Icon(Icons.add, size: 18),
-                    label: const Text('Tambah baris'),
-                  ),
+                Wrap(
+                  spacing: S.sm,
+                  children: [
+                    TextButton.icon(
+                      onPressed: () => setState(() => rows.add(_Row())),
+                      icon: const Icon(Icons.add, size: 18),
+                      label: const Text('Tambah baris'),
+                    ),
+                    TextButton.icon(
+                      onPressed: _newProduct,
+                      icon: const Icon(Icons.add_box_outlined, size: 18),
+                      label: const Text('Barang/jasa baru'),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: S.lg),
                 Row(
@@ -388,7 +467,10 @@ class _DocEditorState extends State<_DocEditor> {
   );
 
   Widget _lineRow(int i, _Row r) {
-    final active = c.products.where((s) => s.product.active).toList();
+    // Invoice baru: barang stok 0/minus tidak ditawarkan (keputusan owner; repo juga menolak). Pemesanan & transaksi
+    // lama tidak menggerakkan stok, jadi semua barang aktif tetap muncul.
+    final stockOnly = !isOrder && !widget.legacy;
+    final active = c.products.where((s) => s.product.active && (!stockOnly || s.isService || s.stock > 0)).toList();
     return Padding(
       key: ObjectKey(r),
       padding: const EdgeInsets.symmetric(horizontal: S.sm, vertical: S.xs),

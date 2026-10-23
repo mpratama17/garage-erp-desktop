@@ -56,6 +56,7 @@ void main() {
       'import produk': () => db.applyImport([]),
       'hapus customer': () => db.deleteCustomer(budi),
       'import customer': () => db.applyCustomerImport([]),
+      'vendor': () => db.saveVendor(VendorsCompanion.insert(name: 'Toko')),
       'transfer': () => db.transfer(fromId: bca, toId: tunai, amount: 1, at: d),
       'modal masuk': () =>
           db.addIncome(accountId: bca, amount: 1, at: d, kind: CashKind.capital, description: 'x'),

@@ -86,8 +86,10 @@ extension KontakRepo on AppDb {
   Stream<List<Vendor>> watchVendors() =>
       (select(vendors)..orderBy([(v) => OrderingTerm(expression: v.name.collate(Collate.noCase))])).watch();
 
-  /// Simpan vendor baru/lama. Nama unik tanpa membedakan huruf besar/kecil. Siapa saja boleh (seperti customer).
+  /// Simpan vendor baru/lama. Nama unik tanpa membedakan huruf besar/kecil. Khusus owner (keputusan owner 23 Okt;
+  /// ganti nama ikut mengubah nama di pembelian lama).
   Future<int> saveVendor(VendorsCompanion v) => transaction(() async {
+    requireOwner();
     final name = _clean(v.name.value);
     if (name.isEmpty) throw ArgumentError('Nama vendor wajib diisi');
     final dup =

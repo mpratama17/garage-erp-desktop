@@ -12,7 +12,7 @@ import '../gaji/gaji_repo.dart' show employeeRoles;
 import 'kontak_controller.dart';
 import 'kontak_repo.dart';
 
-/// Tab Vendor di Kontak: pemasok barang. Dipilih/diketik namanya di form pembelian stok.
+/// Tab Vendor di Kontak: pemasok barang. Dipilih/diketik namanya di form pembelian stok. Tambah/ubah butuh PIN owner.
 class VendorTable extends StatelessWidget {
   const VendorTable(this.c, {super.key});
   final KontakController c;
@@ -23,7 +23,9 @@ class VendorTable extends StatelessWidget {
       rows: c.vendors.toList(),
       searchHint: 'Cari nama, no. HP, alamat…',
       searchText: (v) => '${v.name} ${v.phone} ${v.address} ${v.note}',
-      onTap: (v) => vendorDialog(context, c.db, v),
+      onTap: (v) async {
+        if (await Get.find<OwnerController>().ensure(context) && context.mounted) await vendorDialog(context, c.db, v);
+      },
       emptyMessage: 'Belum ada vendor. Tambah di sini, atau otomatis dari form pembelian stok.',
       columns: [
         Col('Nama', (v) => Text(v.name, style: const TextStyle(fontWeight: FontWeight.w600)), flex: 4),

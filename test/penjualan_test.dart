@@ -44,6 +44,21 @@ void main() {
   );
   LineInput jasaLine() => LineInput(productId: jasa, name: 'Jasa Pasang', qty: 1, price: 250000);
 
+  test('stok 0: barang tidak bisa masuk invoice baru; pemesanan, transaksi lama & ubah invoice lama tetap boleh', () async {
+    // Stok 5 habis terjual (qty melebihi stok tetap boleh selama stok > 0, dengan peringatan di form).
+    final sold = await db.saveDoc(kind: DocKind.invoice, at: d, lines: [lampLine(qty: 5)]);
+    expect(await db.stockOf(lamp), 0);
+    expect(() => db.saveDoc(kind: DocKind.invoice, at: d, lines: [lampLine()]), throwsArgumentError);
+    // Jasa tidak punya stok.
+    await db.saveDoc(kind: DocKind.invoice, at: d, lines: [jasaLine()]);
+    final so = await db.saveDoc(kind: DocKind.order, at: d, lines: [lampLine()]);
+    await db.saveDoc(kind: DocKind.invoice, at: d, legacyNo: 'KLEDO/1', lines: [lampLine()]);
+    // Mengubah invoice lama yang sudah memuat barang itu tidak terhalang.
+    await db.saveDoc(id: sold, kind: DocKind.invoice, at: d, lines: [lampLine(qty: 5), jasaLine()]);
+    // Pemesanan → invoice juga butuh stok.
+    expect(() => db.invoiceFromOrder(so, at: d), throwsArgumentError);
+  });
+
   test('kasir: invoice lunas langsung, nomor lanjut, stok barang berkurang (jasa tidak)', () async {
     final id = await db.saveDoc(
       kind: DocKind.invoice,

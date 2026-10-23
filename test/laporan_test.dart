@@ -20,8 +20,12 @@ void main() {
     bca = (await (db.select(db.accounts)..where((a) => a.name.equals('BCA'))).getSingle()).id;
     lampu = await db.saveProduct(
       ProductsCompanion.insert(name: 'Projector', category: const Value('PROJECTOR'), buyPrice: const Value(900000)),
+      openingStock: 100, // invoice butuh stok > 0
     );
-    kabel = await db.saveProduct(ProductsCompanion.insert(name: 'Kabel set', category: const Value('KABEL')));
+    kabel = await db.saveProduct(
+      ProductsCompanion.insert(name: 'Kabel set', category: const Value('KABEL')),
+      openingStock: 100,
+    );
     jasa = await db.saveProduct(ProductsCompanion.insert(name: 'Pasang', isService: const Value(true)));
     tek = await db.saveEmployee(
       EmployeesCompanion.insert(name: 'Teknisi A', role: 'teknisi', baseSalary: const Value(1000000)),

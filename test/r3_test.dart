@@ -67,7 +67,7 @@ void main() {
   );
 
   test(
-    'hak akses: kasir (terkunci) boleh tambah/ubah vendor & catat biaya berulang; hapus vendor & kelola templat owner',
+    'hak akses: kasir (terkunci) boleh catat biaya berulang; tambah/ubah/hapus vendor & kelola templat khusus owner',
     () async {
       final v = await db.saveVendor(VendorsCompanion.insert(name: 'Toko Z'));
       final cat = (await db.watchCategories().first).first.id;
@@ -81,7 +81,8 @@ void main() {
         ),
       );
       db.ownerUnlocked = false;
-      await db.saveVendor(VendorsCompanion(id: Value(v), name: const Value('Toko Z2'))); // boleh
+      expect(() => db.saveVendor(VendorsCompanion(id: Value(v), name: const Value('Toko Z2'))), throwsArgumentError);
+      expect(() => db.saveVendor(VendorsCompanion.insert(name: 'Toko Baru')), throwsArgumentError);
       expect(await db.recordRecurring(t, d), 1); // boleh: nominal sudah ditetapkan owner di templat
       expect(() => db.deleteVendor(v), throwsA(anything));
       expect(

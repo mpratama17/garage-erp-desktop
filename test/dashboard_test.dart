@@ -11,7 +11,7 @@ void main() {
   test('dashboard: omzet per hari/bulan (tanpa batal & pemesanan) dan terlaris — tanpa PIN owner', () async {
     final db = AppDb(NativeDatabase.memory())..ownerUnlocked = true;
     addTearDown(db.close);
-    final led = await db.saveProduct(ProductsCompanion.insert(name: 'LED'));
+    final led = await db.saveProduct(ProductsCompanion.insert(name: 'LED'), openingStock: 100);
     final jasa = await db.saveProduct(ProductsCompanion.insert(name: 'Pasang', isService: const Value(true)));
     Future<int> inv(DateTime at, List<LineInput> lines, {String kind = DocKind.invoice}) =>
         db.saveDoc(kind: kind, at: at, lines: lines);
