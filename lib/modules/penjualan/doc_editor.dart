@@ -307,9 +307,16 @@ class _DocEditorState extends State<_DocEditor> {
     final title = isNew ? (widget.legacy ? 'Transaksi lama ($label)' : '$label baru') : 'Ubah ${doc!.no}';
     Widget date_(String l, DateTime? v, VoidCallback onTap) => SizedBox(
       width: 150,
-      child: InkWell(
-        onTap: onTap,
-        child: Labeled(l, InputDecorator(decoration: const InputDecoration(), child: Text(v == null ? '—' : tgl(v)))),
+      child: Labeled(
+        l,
+        InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(S.rInput),
+          child: InputDecorator(
+            decoration: _iconField(Icons.calendar_today_outlined, ''),
+            child: Text(v == null ? '—' : tgl(v)),
+          ),
+        ),
       ),
     );
 
@@ -368,19 +375,45 @@ class _DocEditorState extends State<_DocEditor> {
                       icon: const Icon(Icons.person_add_alt, size: 18),
                       label: const Text('Customer baru'),
                     ),
-                    SizedBox(width: 200, child: Labeled('Mobil', TextField(controller: car))),
+                    SizedBox(
+                      width: 200,
+                      child: Labeled(
+                        'Mobil',
+                        TextField(
+                          controller: car,
+                          decoration: _iconField(Icons.directions_car_outlined, 'mis. Honda Jazz'),
+                        ),
+                      ),
+                    ),
                     SizedBox(
                       width: 120,
                       child: Labeled(
                         'Plat',
-                        TextField(controller: plate, textCapitalization: TextCapitalization.characters),
+                        TextField(
+                          controller: plate,
+                          textCapitalization: TextCapitalization.characters,
+                          decoration: const InputDecoration(hintText: 'N 1234 AB'),
+                        ),
                       ),
                     ),
                   ],
                 ),
                 const SizedBox(height: S.xl),
-                _linesHeader(),
-                for (final (i, r) in rows.indexed) _lineRow(i, r),
+                // Rincian dalam satu kotak berbingkai: judul kolom + baris dipisah garis tipis.
+                Container(
+                  clipBehavior: Clip.antiAlias,
+                  decoration: BoxDecoration(
+                    border: Border.all(color: C.border),
+                    borderRadius: BorderRadius.circular(S.rInput + S.sm), // radius field + jarak dalam
+                  ),
+                  child: Column(
+                    children: [
+                      _linesHeader(),
+                      for (final (i, r) in rows.indexed) ...[if (i > 0) const Divider(), _lineRow(i, r)],
+                    ],
+                  ),
+                ),
+                const SizedBox(height: S.xs),
                 Wrap(
                   spacing: S.sm,
                   children: [
@@ -400,7 +433,16 @@ class _DocEditorState extends State<_DocEditor> {
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Expanded(child: Labeled('Catatan', TextField(controller: note, maxLines: 3))),
+                    Expanded(
+                      child: Labeled(
+                        'Catatan',
+                        TextField(
+                          controller: note,
+                          maxLines: 3,
+                          decoration: const InputDecoration(hintText: 'Opsional — tampil di nota'),
+                        ),
+                      ),
+                    ),
                     const SizedBox(width: S.xxl),
                     SizedBox(width: 380, child: _totals()),
                   ],
@@ -439,12 +481,12 @@ class _DocEditorState extends State<_DocEditor> {
         onChanged: (v) {
           if (customer != null && v != customer!.name) setState(() => customer = null);
         },
-        decoration: const InputDecoration(hintText: 'Cari nama / HP / plat · kosong = UMUM'),
+        decoration: _iconField(Icons.search, 'Nama / HP / plat · kosong = UMUM'),
       ),
     ),
   );
 
-  static const _flex = [5, 3, 1, 2, 2, 3, 2];
+  static const _flex = [5, 3, 1, 3, 2, 3, 2];
 
   /// Kolom baris & header selalu sama lebar; [trailing] = slot 40 px (tombol hapus).
   Widget _cells(List<Widget> children, {Widget trailing = const SizedBox()}) => Row(
@@ -461,8 +503,20 @@ class _DocEditorState extends State<_DocEditor> {
     color: C.bg,
     padding: const EdgeInsets.symmetric(horizontal: S.sm, vertical: S.sm),
     child: _cells([
-      for (final h in ['Produk / jasa', 'Deskripsi', 'Qty', 'Harga', 'Diskon (Rp)', 'Teknisi', 'Jumlah'])
-        Text(h, style: T.label),
+      for (final (i, h) in [
+        'Produk / jasa',
+        'Keterangan',
+        'Qty',
+        'Harga satuan',
+        'Diskon',
+        'Teknisi',
+        'Jumlah',
+      ].indexed)
+        // Jarak kiri/kanan = padding isi field, supaya judul sejajar dengan teks di bawahnya.
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: S.md),
+          child: Text(h, style: T.label, textAlign: i >= 2 && i != 5 ? TextAlign.right : TextAlign.left),
+        ),
     ]),
   );
 
@@ -473,7 +527,7 @@ class _DocEditorState extends State<_DocEditor> {
     final active = c.products.where((s) => s.product.active && (!stockOnly || s.isService || s.stock > 0)).toList();
     return Padding(
       key: ObjectKey(r),
-      padding: const EdgeInsets.symmetric(horizontal: S.sm, vertical: S.xs),
+      padding: const EdgeInsets.symmetric(horizontal: S.sm, vertical: S.sm),
       child: _cells(
         [
           Autocomplete<StockedProduct>(
@@ -501,19 +555,20 @@ class _DocEditorState extends State<_DocEditor> {
               onChanged: (v) {
                 if (r.item != null && v != r.item!.product.name) setState(() => r.item = null);
               },
-              decoration: InputDecoration(
-                hintText: 'Cari produk…',
+              decoration: _iconField(
+                Icons.search,
+                'Cari barang / jasa…',
                 errorText: ctrl.text.isNotEmpty && r.item == null ? 'Pilih dari daftar' : null,
               ),
             ),
           ),
           TextField(
             controller: r.description,
-            decoration: const InputDecoration(hintText: 'opsional'),
+            decoration: const InputDecoration(hintText: 'Opsional'),
           ),
           MoneyField(controller: r.qty, label: '', prefix: '', onChanged: (_) => setState(() {})),
-          MoneyField(controller: r.price, label: '', prefix: '', onChanged: (_) => setState(() {})),
-          MoneyField(controller: r.discount, label: '', prefix: '', onChanged: (_) => setState(() {})),
+          MoneyField(controller: r.price, label: '', onChanged: (_) => setState(() {})),
+          MoneyField(controller: r.discount, label: '', hint: '0', onChanged: (_) => setState(() {})),
           _TechPicker(
             c: c,
             tech1: r.tech1,
@@ -526,7 +581,11 @@ class _DocEditorState extends State<_DocEditor> {
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              Text(rp(r.item == null ? 0 : r.total), textAlign: TextAlign.right, style: T.money),
+              Text(
+                rp(r.item == null ? 0 : r.total),
+                textAlign: TextAlign.right,
+                style: T.money.copyWith(fontWeight: FontWeight.w600, color: r.item == null ? C.inkMuted : C.ink),
+              ),
               if (_short(r) != null) Text(_short(r)!, style: T.label.copyWith(color: C.danger)),
             ],
           ),
@@ -669,6 +728,14 @@ class _DocEditorState extends State<_DocEditor> {
   }
 }
 
+/// Dekorasi field form invoice: ikon di kiri + contoh isian, supaya tiap kotak jelas fungsinya.
+InputDecoration _iconField(IconData icon, String hint, {String? errorText}) => InputDecoration(
+  hintText: hint,
+  errorText: errorText,
+  prefixIcon: Icon(icon, size: 18, color: C.inkMuted),
+  prefixIconConstraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+);
+
 /// Daftar pilihan Autocomplete dengan judul + keterangan.
 class _Options<O extends Object> extends StatelessWidget {
   const _Options({required this.options, required this.onSelected, required this.title, required this.subtitle});
@@ -752,7 +819,20 @@ class _TechPicker extends StatelessWidget {
         final ids = result.toList();
         onChanged(ids.firstOrNull, ids.length > 1 ? ids[1] : null);
       },
-      child: Text(names.isEmpty ? '—' : names, overflow: TextOverflow.ellipsis),
+      child: Row(
+        children: [
+          const Icon(Icons.engineering_outlined, size: 18, color: C.inkMuted),
+          const SizedBox(width: S.sm),
+          Expanded(
+            child: Text(
+              names.isEmpty ? 'Pilih teknisi' : names,
+              overflow: TextOverflow.ellipsis,
+              style: T.body.copyWith(color: names.isEmpty ? C.inkMuted : C.ink),
+            ),
+          ),
+          const Icon(Icons.arrow_drop_down, color: C.inkMuted),
+        ],
+      ),
     );
   }
 }

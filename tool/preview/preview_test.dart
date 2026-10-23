@@ -323,7 +323,7 @@ void main() {
     await settle();
     await shot('tagihan-kasir');
     // Pilihan produk invoice: barang stok 0 tidak ditawarkan.
-    await tester.enterText(find.widgetWithText(TextField, 'Cari produk…'), 'h');
+    await tester.enterText(find.widgetWithText(TextField, 'Cari barang / jasa…'), 'h');
     await settle();
     await shot('tagihan-pilih-produk');
     FocusManager.instance.primaryFocus?.unfocus(); // tutup daftar pilihan
