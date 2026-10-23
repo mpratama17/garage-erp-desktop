@@ -34,7 +34,7 @@ Last updated: 2026-10-23 (R3 selesai + keputusan owner #4a/#23/vendor; belum di-
 | Sidebar v2 | Pengelompokan menu (Transaksi/Keuangan/Analisis), gaya pil lembut mengikuti referensi; paket `sidebarx` dilepas (tidak mendukung section header) — diganti widget sidebar sendiri, lebih ringkas | `724c7f5`+ |
 | Palet | Ikuti referensi: biru royal `#2F5BEA` (menu aktif, tombol utama, link, grafik), navy/slate, latar abu kebiruan, KPI pastel penuh (biru/ungu/kuning/mint); oranye hanya di logo; merah hanya bahaya | (commit ini) |
 
-Total test saat ini: **87 lulus** (per R3). **Semua modul R1 + upgrade UI selesai** — berikutnya: uji manual end-to-end di Mac, backlog B3, rilis .dmg pertama ke client. Importer dicoba dengan file asli client: produk 68 masuk / 1 ditolak (SKU kembar CB/001); customer 142 masuk / 6 digabung (no. HP sama: IQBAL–INDRO, JAHLIL×2, JAUHAR–JOHAN, NAFI–NAVI, UMAR×2, YAQIN) — semua sesuai temuan analisis awal.
+Total test saat ini: **87 lulus** (per R3). **Semua modul R1 + upgrade UI selesai** — berikutnya: uji manual end-to-end di Mac, backlog B3, rilis .dmg pertama ke client. Importer dicoba dengan file asli client: produk 68 masuk / 1 ditolak (SKU kembar CB/001); customer 142 masuk / 6 digabung (no. HP sama) — semua sesuai temuan analisis awal.
 
 ## Backlog (diminta, belum dikerjakan)
 

@@ -1,6 +1,6 @@
 // Render layar ke PNG untuk review visual (bukan test CI):
 //   flutter test tool/preview --update-goldens
-// Bila docs/GUDANG BARANG new.xlsx ada (lokal), produknya dipakai sebagai data contoh.
+// Semua data contoh fiktif (jangan pakai file/logo client: hasilnya masuk docs/screenshots).
 import 'dart:io';
 
 import 'package:drift/drift.dart' show Value;
@@ -34,13 +34,32 @@ Future<void> _seed(AppDb db) async {
   await db.setSetting('shop_name', 'Star Garage');
   await db.setSetting('backup_dir', '/Users/kasir/Documents/Garage ERP Backup'); // path_provider tidak ada di test
   await db.setSetting('export_dir', Directory.systemTemp.createTempSync('export').path);
-  // Logo hasil olahan (docs/ di-gitignore — branding client).
-  if (File('docs/logo-star-garage-icon.png').existsSync()) {
-    await db.setSetting('logo_icon_path', File('docs/logo-star-garage-icon.png').absolute.path);
-    await db.setSetting('logo_path', File('docs/logo-star-garage.png').absolute.path);
+  // Katalog fiktif: screenshot masuk README/repo, jadi tidak boleh memakai file/logo/harga asli client.
+  for (final (sku, name, cat, buy, sell, stock, min) in [
+    ('LED/001', 'LAMPU LED H4 PUTIH', 'LED', 90000, 180000, 1, 3),
+    ('LED/002', 'LAMPU LED H11 KUNING', 'LED', 85000, 170000, 6, 3),
+    ('LED/003', 'LAMPU LED T10 SEN', 'LED', 15000, 35000, 12, 5),
+    ('PRJ/001', 'PROJECTOR BI-LED 2.5"', 'PROJECTOR', 1400000, 2750000, 2, 2),
+    ('PRJ/002', 'PROJECTOR LASER 3 WARNA', 'PROJECTOR', 1900000, 3750000, 3, 2),
+    ('PRJ/003', 'PROJECTOR LASER DOUBLE', 'PROJECTOR', 2700000, 5500000, 2, 2),
+    ('FOG/001', 'FOGLAMP 3 COLORS', 'FOGLAMP', 450000, 900000, 4, 2),
+    ('FOG/002', 'FOGLAMP HALOGEN', 'FOGLAMP', 120000, 250000, 8, 3),
+    ('AKS/001', 'KABEL RELAY 40A', 'AKSESORIS', 25000, 60000, 15, 5),
+    ('AKS/002', 'SOKET H4 KERAMIK', 'AKSESORIS', 12000, 30000, 20, 5),
+    ('AKS/003', 'LENSA PELINDUNG KACA', 'AKSESORIS', 40000, 90000, 1, 3),
+  ]) {
+    await db.saveProduct(
+      ProductsCompanion.insert(
+        sku: Value(sku),
+        name: name,
+        category: Value(cat),
+        buyPrice: Value(buy),
+        sellPrice: Value(sell),
+        minStock: Value(min),
+      ),
+      openingStock: stock,
+    );
   }
-  final file = File('docs/GUDANG BARANG new.xlsx');
-  if (file.existsSync()) await db.applyImport(parseProductsXlsx(file.readAsBytesSync()).rows);
   final items = await db.watchProducts().first;
   final cb =
       items.where((s) => s.product.sku == 'CB/002').firstOrNull?.product.id ??
