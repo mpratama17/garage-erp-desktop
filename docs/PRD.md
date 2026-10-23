@@ -10,7 +10,7 @@
 
 **Changelog v2.4** (23 Okt) — dokumen disamakan dengan aplikasi yang berjalan. Ringkas:
 - **Dari masukan client R2 (20 Okt):** diskon invoice Rp/% + **PPN** per invoice (PPN tidak lagi "selalu 0"); **modal otomatis** dari harga beli terakhir (menggantikan "modal manual per baris"); template pesan WA + rincian barang; pembelian stok punya **no. nota, foto nota, status belum dibayar/lunas**; riwayat stok klik ke pembelian/invoice; **slip gaji PDF**; grafik Dashboard dengan rentang tanggal; **mode terkunci = hanya lihat**, kasir hanya boleh tambah penjualan/customer/biaya (§3a).
-- **Dari masukan client R3 (22 Okt):** Split View (jendela min. 640×560); sidebar baru dengan dropdown; menu **Penjualan** (Tagihan, Pemesanan) dan **Pembelian** (Tagihan Pembelian); **Kontak** = Customer / Vendor / Pegawai; **Biaya berulang**; filter kolom + rentang tanggal + export di Biaya & Kas; stempel LUNAS di PDF; **Laporan** diperluas (keuangan, akuntansi dari jurnal turunan, detail penjualan/pembelian).
+- **Dari masukan client R3 (22 Okt):** Split View (jendela min. 640×560); sidebar baru dengan dropdown; menu **Penjualan** (Tagihan, Pemesanan) dan **Pembelian** (Tagihan Pembelian); **Kontak** = Customer / Vendor / Pegawai; **Biaya berulang**; rentang tanggal + export di Biaya & Kas; stempel LUNAS di PDF; **Laporan** diperluas (keuangan, akuntansi dari jurnal turunan, detail penjualan/pembelian).
 - **Keputusan owner 23 Okt:** pemesanan lunas → invoice tetap lewat tombol "Buat invoice"; barang/jasa baru dari form invoice **wajib PIN owner**, modal 0 bila harga beli kosong; **invoice baru butuh stok > 0** (barang stok 0 tidak muncul/ditolak); vendor khusus owner.
 - Bagian lain yang berubah: §4.1–4.8 (ID baru ditandai **R2**/**R3**), §4.10 Dashboard & cari, §4.11 Pengaturan, §6, §7 (skema v3), §8, §9, §10, §12.
 
@@ -160,7 +160,7 @@ PPN **tidak ada di data lama** (selalu 0 di sheet client) tetapi **bisa dicentan
 | KAS-4 | **Modal masuk / pemasukan lain** (setoran owner, dll) dan **pengeluaran pribadi (prive)** | M |
 | KAS-5 | Mutasi per rekening + saldo berjalan | M |
 | KAS-6 | Laporan **pemasukan, pengeluaran, arus kas bersih** — harian, bulanan, **kuartal**, tahunan | M |
-| KAS-7 | **R3:** mutasi Kas & Bank punya **rentang tanggal** (pop-up kecil 2 bulan, default bulan ini), **filter per kolom**, dan **Export** (.xlsx, termasuk saldo berjalan bila satu rekening dipilih) — export khusus owner. **R2:** **saldo rekening khusus owner** (repo menolak tanpa PIN) | M |
+| KAS-7 | **R3:** mutasi Kas & Bank punya **rentang tanggal** (pop-up kecil 2 bulan, default bulan ini), dan **Export** (.xlsx, termasuk saldo berjalan bila satu rekening dipilih) — export khusus owner. **R2:** **saldo rekening khusus owner** (repo menolak tanpa PIN) | M |
 
 ### 4.5 Biaya
 
@@ -170,7 +170,7 @@ PPN **tidak ada di data lama** (selalu 0 di sheet client) tetapi **bisa dicentan
 | BIA-2 | Kategori bisa dikelola. Awal (dari data): Alat & Bahan Bengkel, Listrik, Air, Wifi, Transportasi, Ongkir, Makan & Minum, Tukang/Servis, Iuran/Langganan, Admin Bank, BPJS, Sumbangan, Bonus/THR, Lain-lain. **Gaji** diisi otomatis dari modul Gaji | M |
 | BIA-3 | Pengeluaran rumah/pribadi **dicatat sebagai pengeluaran** dengan kategori bertanda **pribadi** (listrik/air/wifi rumah, PDAM langgar, sumbangan, ART). Di laba rugi ditampilkan sebagai baris terpisah di bawah laba bersih usaha (lihat LAP-2) | M |
 | BIA-4 | **R3: Biaya berulang** — templat (mis. *Uang transport Rp20.000 per pegawai*): nama, kategori, rekening, nominal, "per pegawai" (aktif/nonaktif). Tombol **Biaya berulang** di Biaya → **Catat**: pilih tanggal + centang pegawai yang masuk → satu biaya per pegawai ("Uang transport — Budi") dicatat sekaligus (semua atau tidak sama sekali). Dicatat manual per klik (tidak otomatis harian); kasir boleh mencatat, **kelola templat khusus owner**; pegawai nonaktif/tak dikenal ditolak | M |
-| BIA-5 | **R3:** Biaya punya **rentang tanggal** (default bulan ini) dan **filter per kolom**; **R2:** kolom kategori di form = pilihan **ketik-untuk-cari** | M |
+| BIA-5 | **R3:** Biaya punya **rentang tanggal** (default bulan ini) ; **R2:** kolom kategori di form = pilihan **ketik-untuk-cari** | M |
 
 ### 4.6 Insentif & Gaji
 

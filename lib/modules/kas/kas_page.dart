@@ -211,7 +211,6 @@ class _Mutasi extends StatelessWidget {
       searchHint: 'Cari keterangan…',
       searchText: (r) => '${r.entry.description} ${r.entry.note} ${r.accountName} ${cashKindLabel[r.entry.kind]}',
       emptyMessage: 'Tidak ada transaksi pada rentang ini.',
-      columnFilters: true,
       toolbar: [
         Text('Masuk ${rp(income)} · Keluar ${rp(expense)}', style: T.label),
         const SizedBox(width: S.lg),
@@ -228,33 +227,25 @@ class _Mutasi extends StatelessWidget {
         ),
       ],
       columns: [
-        Col('Tanggal', (r) => Text(tgl(r.entry.at)), flex: 2, text: (r) => tgl(r.entry.at)),
-        if (!single) Col('Rekening', (r) => Text(r.accountName), flex: 2, text: (r) => r.accountName),
-        Col(
-          'Jenis',
-          (r) => Pill(cashKindLabel[r.entry.kind] ?? r.entry.kind, _tone(r.entry.kind)),
-          flex: 2,
-          text: (r) => cashKindLabel[r.entry.kind] ?? r.entry.kind,
-        ),
+        Col('Tanggal', (r) => Text(tgl(r.entry.at)), flex: 2),
+        if (!single) Col('Rekening', (r) => Text(r.accountName), flex: 2),
+        Col('Jenis', (r) => Pill(cashKindLabel[r.entry.kind] ?? r.entry.kind, _tone(r.entry.kind)), flex: 2),
         Col(
           'Keterangan',
           (r) => Text([r.entry.description, if (r.entry.note.isNotEmpty) r.entry.note].join(' · ')),
           flex: 6,
-          text: (r) => '${r.entry.description} ${r.entry.note}',
         ),
         Col(
           'Masuk',
           (r) => Text(r.entry.amount > 0 ? rp(r.entry.amount) : '', style: T.money.copyWith(color: Tone.success.fg)),
           flex: 2,
           numeric: true,
-          text: (r) => r.entry.amount > 0 ? rp(r.entry.amount) : '',
         ),
         Col(
           'Keluar',
           (r) => Text(r.entry.amount < 0 ? rp(-r.entry.amount) : '', style: T.money.copyWith(color: C.danger)),
           flex: 2,
           numeric: true,
-          text: (r) => r.entry.amount < 0 ? rp(-r.entry.amount) : '',
         ),
         if (single && c.balances.isNotEmpty)
           Col(

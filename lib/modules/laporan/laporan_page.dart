@@ -460,7 +460,6 @@ class _ReportView extends StatelessWidget {
         Expanded(
           child: AppTable<RRow>(
             rows: d.rows,
-            columnFilters: d.rows.length > 30, // laporan panjang (jurnal, detail); neraca & ringkasan tanpa filter
             searchHint: 'Cari di ${d.title.toLowerCase()}…',
             searchText: (r) => [for (final (i, v) in r.cells.indexed) show(v, i)].join(' '),
             emptyMessage: 'Tidak ada data pada periode ini.',
@@ -481,7 +480,6 @@ class _ReportView extends StatelessWidget {
                   },
                   flex: wide.contains(h) ? 5 : (numericCol(i) ? 2 : 3),
                   numeric: numericCol(i),
-                  text: (r) => show(r.cells[i], i),
                 ),
             ],
           ),

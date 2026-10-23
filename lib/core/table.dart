@@ -3,14 +3,11 @@ import 'package:flutter/material.dart';
 import 'theme.dart';
 
 class Col<R> {
-  const Col(this.label, this.cell, {this.flex = 2, this.numeric = false, this.text});
+  const Col(this.label, this.cell, {this.flex = 2, this.numeric = false});
   final String label;
   final Widget Function(R row) cell;
   final int flex;
   final bool numeric; // rata kanan
-
-  /// Teks sel untuk filter per kolom (aktif bila tabel memakai `columnFilters`); null = kolom tanpa filter.
-  final String Function(R row)? text;
 }
 
 /// Tabel standar semua daftar (design.md §6): kotak cari, header, baris 48 px,
@@ -26,7 +23,6 @@ class AppTable<R> extends StatefulWidget {
     this.emptyMessage = 'Belum ada data.',
     this.searchHint = 'Cari…',
     this.toolbar = const [],
-    this.columnFilters = false,
   });
 
   final List<Col<R>> columns;
@@ -39,9 +35,6 @@ class AppTable<R> extends StatefulWidget {
   final String emptyMessage, searchHint;
   final List<Widget> toolbar;
 
-  /// Tampilkan baris isian filter di bawah judul kolom (kolom yang punya [Col.text]).
-  final bool columnFilters;
-
   @override
   State<AppTable<R>> createState() => _AppTableState<R>();
 }
@@ -50,25 +43,13 @@ class _AppTableState<R> extends State<AppTable<R>> {
   static const pageSize = 25;
   String _q = '';
   int _page = 0;
-  // Per judul kolom, bukan indeks: susunan kolom bisa berubah (mis. Kas & Bank saat satu rekening dipilih).
-  final _colQ = <String, String>{};
 
   @override
   Widget build(BuildContext context) {
     final q = _q.toLowerCase();
-    final colQ = {
-      if (widget.columnFilters) // baris filter tersembunyi = filter tidak berlaku
-        for (final (i, c) in widget.columns.indexed)
-          if (c.text != null && (_colQ[c.label] ?? '').isNotEmpty) i: _colQ[c.label]!.toLowerCase(),
-    };
-    final filtered = q.isEmpty && colQ.isEmpty
+    final filtered = q.isEmpty
         ? widget.rows
-        : widget.rows.where((r) {
-            if (q.isNotEmpty && !widget.searchText(r).toLowerCase().contains(q)) return false;
-            return colQ.entries.every(
-              (e) => (widget.columns[e.key].text?.call(r) ?? '').toLowerCase().contains(e.value),
-            );
-          }).toList();
+        : widget.rows.where((r) => widget.searchText(r).toLowerCase().contains(q)).toList();
     final pages = (filtered.length / pageSize).ceil().clamp(1, 1 << 30);
     final page = _page.clamp(0, pages - 1);
     final shown = filtered.skip(page * pageSize).take(pageSize).toList();
@@ -137,39 +118,6 @@ class _AppTableState<R> extends State<AppTable<R>> {
             padding: const EdgeInsets.symmetric(horizontal: S.lg),
             child: cells([for (final c in widget.columns) Text(c.label)], style: T.label),
           ),
-          if (widget.columnFilters) ...[
-            const Divider(),
-            Container(
-              height: 44,
-              padding: const EdgeInsets.symmetric(horizontal: S.lg, vertical: 4),
-              child: Row(
-                children: [
-                  for (final (i, c) in widget.columns.indexed) ...[
-                    if (i > 0) const SizedBox(width: S.lg),
-                    Expanded(
-                      flex: c.flex,
-                      child: c.text == null
-                          ? const SizedBox()
-                          : TextFormField(
-                              key: ValueKey(c.label),
-                              initialValue: _colQ[c.label],
-                              style: T.body.copyWith(fontSize: 12),
-                              decoration: InputDecoration(
-                                hintText: 'Filter…',
-                                hintStyle: T.body.copyWith(fontSize: 12, color: C.inkMuted),
-                                contentPadding: const EdgeInsets.symmetric(horizontal: S.sm, vertical: S.sm),
-                              ),
-                              onChanged: (v) => setState(() {
-                                _colQ[c.label] = v.trim();
-                                _page = 0;
-                              }),
-                            ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-          ],
           const Divider(),
           Expanded(
             child: shown.isEmpty

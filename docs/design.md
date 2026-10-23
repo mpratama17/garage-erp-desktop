@@ -1,6 +1,6 @@
 # Aturan Desain — garage-erp-desktop
 
-> Status: disinkronkan dengan UI **build 1.2.0+3** (23 Okt 2026, setelah masukan client R3). Bagian yang berubah sejak draft awal: sidebar (§5), responsif/Split View (§4a), pemilih rentang tanggal (§6), tabel (filter kolom), form invoice, grafik, keyboard (§9: belum dibuat).
+> Status: disinkronkan dengan UI **build 1.2.0+3** (23 Okt 2026, setelah masukan client R3). Bagian yang berubah sejak draft awal: sidebar (§5), responsif/Split View (§4a), pemilih rentang tanggal (§6), tabel, form invoice, grafik, keyboard (§9: belum dibuat).
 
 Sumber: `docs/referensi-ui.jpeg` (admin dashboard terang: sidebar putih, menu aktif biru, kartu putih, KPI pastel, tabel dengan pill status), `docs/logo-star-garage.jpeg` (logo saja), screenshot app pusat (tab Barang/Jasa, Template/Import/Export, paginasi).
 Platform: Flutter desktop (**macOS** — PC kasir Mac; kode tetap lintas-platform), **offline**. Semua aturan di bawah diwujudkan di **satu file `lib/core/theme.dart`** (token + `ThemeData`); layar tidak boleh menulis warna/ukuran mentah.
@@ -88,7 +88,7 @@ Toolbar tabel dan header halaman **membungkus** (`Wrap`) alih-alih meluap. Dijag
 │ ────────── │  ┌───────────────────────────────────────────────┐  │
 │ Penjualan ▾│  │ [cari…]  [rentang tanggal]   [filter status ▾]│  │
 │  Tagihan   │  │ header kolom                                  │  │
-│  Pemesanan │  │ [filter] [filter] …   (bila ada filter kolom) │  │
+│  Pemesanan │  │                                               │  │
 │ Pembelian ▾│  │ tabel                                         │  │
 │ ────────── │  │                       25/halaman  ‹ 1/3 ›     │  │
 │ Gudang     │  └───────────────────────────────────────────────┘  │
@@ -123,7 +123,7 @@ Toolbar tabel dan header halaman **membungkus** (`Wrap`) alih-alih meluap. Dijag
 - Kolom uang & angka rata kanan, tabular. Kode (SKU/nomor) dengan font tebal 600.
 - Kolom status = pill. Aksi baris = ikon (lihat/ubah/…) di kolom terakhir dengan tooltip.
 - Di atas tabel: kotak cari + **tombol rentang tanggal** (bila daftar berbasis tanggal) + filter status. Di bawah: "Menampilkan 1–25 dari 69" + paginasi **25 per halaman**.
-- **Filter per kolom** (`AppTable(columnFilters: true)`, kolom yang punya `Col.text`): satu baris kotak "Filter…" di bawah judul kolom; dipakai di **Biaya, Kas & Bank, Laporan** (detail panjang). Nilai filter diingat per **judul kolom** (aman saat susunan kolom berubah) dan hanya berlaku bila baris filter tampil.
+- *(Filter teks per kolom sempat dibuat di Biaya, Kas & Bank, dan Laporan pada R3, lalu **dihapus** 23 Okt karena tidak sesuai maksud owner. Pengganti yang diminta: urut naik/turun per kolom + tombol reset — belum dibuat.)*
 - Klik baris = buka detail di **panel kanan** (bukan pindah halaman), supaya daftar tetap terlihat.
 - **Empty state**: satu kalimat + satu tombol aksi ("Belum ada invoice. + Invoice Baru").
 
