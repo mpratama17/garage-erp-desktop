@@ -1,10 +1,8 @@
 # Garage ERP
 
-Aplikasi desktop **macOS** untuk bengkel: kasir & invoice, stok, kas 4 rekening, biaya, gaji & insentif teknisi, dan laporan laba rugi. Dibangun untuk **Star Garage** (bengkel modifikasi & restorasi lampu mobil, member Yoong Motor Pasuruan) sebagai pengganti Kledo + beberapa Google Sheet.
+Aplikasi desktop **macOS** untuk bengkel: kasir & invoice, pemesanan, stok & pembelian, kas 4 rekening, biaya (termasuk biaya berulang), gaji & insentif teknisi, serta laporan keuangan & akuntansi (neraca, laba rugi, arus kas, buku besar, jurnal). Dibangun untuk **Star Garage** (bengkel modifikasi & restorasi lampu mobil, member Yoong Motor Pasuruan) sebagai pengganti Kledo + beberapa Google Sheet.
 
 **Offline, satu PC kasir, Rp 0/bulan:** tanpa server, domain, database berbayar, maupun langganan. Data tersimpan di SQLite lokal dengan backup otomatis.
-
-![Dashboard](docs/screenshots/dashboard-owner.png)
 
 ## Masalah yang diselesaikan
 
@@ -20,29 +18,38 @@ Aplikasi desktop **macOS** untuk bengkel: kasir & invoice, stok, kas 4 rekening,
 
 | Modul | Isi |
 |---|---|
-| **Dashboard** | Omzet hari/bulan ini (dibanding periode yang sama bulan lalu), invoice belum lunas & lewat tempo, stok menipis, grafik omzet 12 bulan, produk terlaris. Laba & saldo hanya untuk owner |
-| **Penjualan** | Kasir/invoice, pemesanan + DP → invoice, pembayaran bertahap per rekening + bukti, status Lunas/Dibayar Sebagian/Belum Lunas/Lewat tempo/Batal, nota PDF A4, kirim WhatsApp + link review Google Maps, input transaksi lama |
-| **Gudang** | Barang & jasa, stok dari buku stok (bukan angka yang diketik), pembelian stok, stok opname, import/export Excel format Kledo |
-| **Kontak** | Customer (nama, HP unik, mobil, plat), import Google Sheet dengan penggabungan HP sama, riwayat belanja, repeat order, top pelanggan |
-| **Kas & Bank** | Saldo BCA / Mandiri / ShopeePay / Tunai (khusus owner), mutasi + saldo berjalan, transfer antar rekening, modal masuk, arus kas harian–tahunan |
-| **Biaya** | Biaya operasional & pribadi per kategori, bukti pembayaran |
-| **Gaji** | Slip per periode (27–26), insentif per pekerjaan teknisi (dibagi dua bila dikerjakan berdua), tunjangan kerja sales % omzet, bayar → kas, export Excel |
-| **Laporan** | Laba rugi, penjualan per kategori, terlaris, arus kas; bulanan/tahunan; export Excel |
-| **Pengaturan** | Data bengkel & logo nota, nomor nota, folder simpan file, jadwal backup otomatis, PIN owner |
+| **Beranda** | 6 kartu ringkasan (omzet hari/bulan ini, belum lunas, laba bersih, saldo rekening, stok menipis), grafik omzet dan pemasukan-vs-pengeluaran dengan periode harian/bulanan/tahunan + rentang tanggal bebas, daftar belum lunas / terlaris / stok menipis. Laba & saldo hanya untuk owner |
+| **Penjualan** | **Tagihan** (invoice, termasuk tanpa pemesanan) dan **Pemesanan** (DP → invoice) sebagai dua halaman; pembayaran bertahap per rekening + bukti; status Lunas / Dibayar Sebagian / Belum Lunas / Lewat tempo / Batal; diskon (Rp/%) dan PPN opsional; nota PDF A4 dengan stempel LUNAS; kirim WhatsApp dengan template pesan + link review Google Maps; input transaksi lama; tambah barang/jasa baru langsung dari form (PIN owner) |
+| **Pembelian** | Riwayat pembelian stok (vendor, no. nota, foto nota, tgl beli & tgl lunas), pembelian belum dibayar → **Tagihan Pembelian** → lunasi |
+| **Gudang** | Barang & jasa, stok dari buku stok (bukan angka yang diketik), stok opname, riwayat stok yang bisa diklik ke invoice/pembelian, import (+ template)/export Excel format Kledo, kartu info stok & HPP. Invoice baru hanya menerima barang bersetok > 0 |
+| **Kontak** | Tiga tab: **Customer** (HP unik, mobil, plat, riwayat belanja, repeat order, top pelanggan, import Google Sheet), **Vendor**, **Pegawai** |
+| **Kas & Bank** | Saldo BCA / Mandiri / ShopeePay / Tunai (khusus owner), mutasi + saldo berjalan + export, transfer antar rekening, modal masuk, arus kas harian–tahunan |
+| **Biaya** | Biaya operasional & pribadi per kategori (pilih kategori dengan mengetik), bukti, **biaya berulang** (mis. uang transport per pegawai yang masuk) |
+| **Gaji** | Slip per periode (27–26) + **slip PDF**, insentif per pekerjaan teknisi (dibagi dua bila berdua), tunjangan kerja sales % omzet, bayar → kas, export Excel |
+| **Laporan** | **Keuangan:** neraca, arus kas, proyeksi arus kas, laba rugi, perubahan modal, ringkasan eksekutif. **Akuntansi** (dari jurnal turunan, tanpa input jurnal manual): ringkasan bank, buku besar, buku besar pembantu, jurnal, trial balance. **Penjualan & pembelian:** ringkasan, terlaris, detail. Semua bisa di-export ke Excel |
+| **Pengaturan** | Tiga tab: bengkel & nota, template pesan WhatsApp, folder file + jadwal backup + PIN owner |
 
-Fitur lintas modul: **cari global** (no. invoice, nama, HP, plat, produk), **PIN owner** untuk data sensitif (harga beli, modal, laba, saldo, gaji), dan notifikasi yang jelas (berhasil / periksa lagi / gagal).
+Fitur lintas modul:
+- **Tabel seragam:** cari, **urut naik/turun per kolom**, tombol **Reset**, rentang tanggal (pop-up 2 bulan dengan pilihan cepat), paginasi.
+- **Cari global** (no. invoice, nama, HP, plat, produk) dan **PIN owner** untuk data sensitif.
+- **Mode terkunci = hanya lihat;** kasir hanya boleh menambah penjualan, customer, dan biaya. Dijaga di lapisan data, bukan hanya tombol.
+- **Responsif sampai Split View** (jendela minimum 640×560, sidebar otomatis ciut).
 
 | | |
 |---|---|
-| ![Penjualan](docs/screenshots/penjualan.png) | ![Kasir](docs/screenshots/penjualan-kasir.png) |
+| ![Beranda](docs/screenshots/dashboard-owner.png) | ![Tagihan](docs/screenshots/penjualan.png) |
+| ![Form invoice](docs/screenshots/penjualan-kasir.png) | ![Pembelian](docs/screenshots/pembelian.png) |
+| ![Gudang](docs/screenshots/gudang.png) | ![Kontak](docs/screenshots/kontak.png) |
 | ![Kas & Bank](docs/screenshots/kas.png) | ![Laporan](docs/screenshots/laporan.png) |
+| ![Pengaturan](docs/screenshots/pengaturan.png) | |
 
 ## Teknologi
 
 - **Flutter 3.47** desktop (macOS; target Windows tersedia, belum dirilis)
 - **SQLite via [drift](https://drift.simonbinder.eu/)**: query bertipe, stream reaktif, migrasi
 - **GetX**: state & dependency injection
-- `pdf` (nota), `excel` (import/export), `fl_chart` (grafik), `file_selector`, `url_launcher`, `window_manager`
+- `pdf` (nota & slip), `excel` (import/export), `fl_chart` (grafik Beranda), `file_selector`, `url_launcher`, `window_manager`
+- Sidebar buatan sendiri (paket `sidebarx` dilepas: tidak mendukung pemisah/dropdown)
 - Font **Inter** dibundel (offline)
 
 ## Prinsip desain kode
@@ -55,10 +62,10 @@ Fitur lintas modul: **cari global** (no. invoice, nama, HP, plat, produk), **PIN
 ```
 lib/
 ├── main.dart              # inisialisasi, jendela, backup saat ditutup
-├── shell.dart             # sidebar, topbar, cari global
+├── shell.dart             # sidebar (dropdown), topbar, cari global
 ├── core/                  # tema, komponen UI, format Rupiah/tanggal, PIN owner, Excel, log error
 ├── db/database.dart       # semua tabel drift + pengaturan + backup
-└── modules/               # dashboard, penjualan, gudang, kontak, kas, biaya, gaji, laporan, pengaturan
+└── modules/               # dashboard, penjualan, pembelian, gudang, kontak, kas, biaya, gaji, laporan, pengaturan
 test/                      # test logika bisnis (drift in-memory)
 tool/preview/              # render layar ke PNG (golden) untuk cek UI tanpa menjalankan app
 tool/release_macos.sh      # build rilis + .dmg
@@ -105,7 +112,7 @@ Tanpa Apple Developer account. Pemasangan di Mac client: buka `.dmg` → seret k
 
 ## Status
 
-Semua modul rilis pertama selesai; detail per modul, jumlah test, dan backlog ada di [`PROGRESS.md`](PROGRESS.md). Kebutuhan lengkap ada di [`docs/PRD.md`](docs/PRD.md).
+Build **1.2.0+3**: semua modul R1 + masukan client R2 dan R3 selesai (90 test); detail per modul dan backlog ada di [`PROGRESS.md`](PROGRESS.md). Kebutuhan lengkap ada di [`docs/PRD.md`](docs/PRD.md), aturan tampilan di [`docs/design.md`](docs/design.md).
 
 ---
 
