@@ -1,6 +1,6 @@
 # star-garage-erp (repo: garage-erp-desktop) — Progress Snapshot
 
-Last updated: 2026-10-23 (R3 selesai + keputusan owner #4a/#23/vendor; di-push, belum di-build — owner testing sendiri dulu).
+Last updated: 2026-10-23 (R3 selesai + keputusan owner #4a/#23/vendor; belum di-push; .dmg 1.2.0+3 dibuat untuk testing owner sendiri, belum dikirim ke client).
 
 **Apa:** mini-ERP desktop **macOS** offline (Flutter + SQLite/drift + GetX) untuk Star Garage (bengkel modif lampu, member Yoong Motor Pasuruan), pengganti Kledo + Google Sheet. Dashboard + 7 modul + Pengaturan (`docs/PRD.md` v2.3). Kasir: MacBook Air M1. Ringkasan untuk GitHub: `README.md`.
 
@@ -103,7 +103,7 @@ Jenis: 🐞 bug/salah paham · ✨ fitur · ❓ pertanyaan (cukup dijawab / mung
 
 **Sebelum build 1.2.0:** uji migrasi v2→v3 terhadap salinan DB asli client (seperti R2) — salinan tidak ada di `docs/`, minta lagi; cek Split View langsung di Mac (sejauh ini hanya `test/layout_test.dart` + preview). `flutter build macos --release` sudah lolos kompilasi.
 
-**Masih menunggu client:** saldo awal 4 rekening, data produk bersih, definisi proyeksi arus kas, hasil testing build 1.1.0+2. Owner akan testing sendiri dulu sebelum build 1.2.0.
+**Masih menunggu client:** saldo awal 4 rekening, data produk bersih, definisi proyeksi arus kas, hasil testing build 1.1.0+2. Owner testing sendiri `dist/Garage-ERP-1.2.0+3.dmg` dulu sebelum dikirim.
 
 ## Catatan teknis
 
