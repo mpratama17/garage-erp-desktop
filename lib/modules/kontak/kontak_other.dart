@@ -28,10 +28,30 @@ class VendorTable extends StatelessWidget {
       },
       emptyMessage: 'Belum ada vendor. Tambah di sini, atau otomatis dari form pembelian stok.',
       columns: [
-        Col('Nama', (v) => Text(v.name, style: const TextStyle(fontWeight: FontWeight.w600)), flex: 4),
-        Col('No. HP', (v) => Text(v.phone.isEmpty ? '—' : v.phone), flex: 3),
-        Col('Alamat', (v) => Text(v.address.isEmpty ? '—' : v.address), flex: 5),
-        Col('Catatan', (v) => Text(v.note, style: T.body.copyWith(color: C.inkMuted)), flex: 4),
+        Col(
+          'Nama',
+          (v) => Text(v.name, style: const TextStyle(fontWeight: FontWeight.w600)),
+          flex: 4,
+          sort: (v) => v.name,
+        ),
+        Col(
+          'No. HP',
+          (v) => Text(v.phone.isEmpty ? '—' : v.phone),
+          flex: 3,
+          sort: (v) => v.phone.isEmpty ? null : v.phone,
+        ),
+        Col(
+          'Alamat',
+          (v) => Text(v.address.isEmpty ? '—' : v.address),
+          flex: 5,
+          sort: (v) => v.address.isEmpty ? null : v.address,
+        ),
+        Col(
+          'Catatan',
+          (v) => Text(v.note, style: T.body.copyWith(color: C.inkMuted)),
+          flex: 4,
+          sort: (v) => v.note.isEmpty ? null : v.note,
+        ),
       ],
     ),
   );
@@ -55,11 +75,36 @@ class PegawaiTable extends StatelessWidget {
       },
       emptyMessage: 'Belum ada pegawai.',
       columns: [
-        Col('Nama', (e) => Text(e.name, style: const TextStyle(fontWeight: FontWeight.w600)), flex: 4),
-        Col('Peran', (e) => Text(employeeRoles[e.role] ?? e.role), flex: 2),
-        Col('No. HP', (e) => Text(e.phone.isEmpty ? '—' : e.phone), flex: 3),
-        Col('Catatan', (e) => Text(e.note, style: T.body.copyWith(color: C.inkMuted)), flex: 4),
-        Col('Status', (e) => Pill(e.active ? 'Aktif' : 'Nonaktif', e.active ? Tone.success : Tone.neutral), flex: 2),
+        Col(
+          'Nama',
+          (e) => Text(e.name, style: const TextStyle(fontWeight: FontWeight.w600)),
+          flex: 4,
+          sort: (e) => e.name,
+        ),
+        Col(
+          'Peran',
+          (e) => Text(employeeRoles[e.role] ?? e.role),
+          flex: 2,
+          sort: (e) => employeeRoles[e.role] ?? e.role,
+        ),
+        Col(
+          'No. HP',
+          (e) => Text(e.phone.isEmpty ? '—' : e.phone),
+          flex: 3,
+          sort: (e) => e.phone.isEmpty ? null : e.phone,
+        ),
+        Col(
+          'Catatan',
+          (e) => Text(e.note, style: T.body.copyWith(color: C.inkMuted)),
+          flex: 4,
+          sort: (e) => e.note.isEmpty ? null : e.note,
+        ),
+        Col(
+          'Status',
+          (e) => Pill(e.active ? 'Aktif' : 'Nonaktif', e.active ? Tone.success : Tone.neutral),
+          flex: 2,
+          sort: (e) => e.active,
+        ),
       ],
     ),
   );

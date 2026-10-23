@@ -123,7 +123,10 @@ Toolbar tabel dan header halaman **membungkus** (`Wrap`) alih-alih meluap. Dijag
 - Kolom uang & angka rata kanan, tabular. Kode (SKU/nomor) dengan font tebal 600.
 - Kolom status = pill. Aksi baris = ikon (lihat/ubah/…) di kolom terakhir dengan tooltip.
 - Di atas tabel: kotak cari + **tombol rentang tanggal** (bila daftar berbasis tanggal) + filter status. Di bawah: "Menampilkan 1–25 dari 69" + paginasi **25 per halaman**.
-- *(Filter teks per kolom sempat dibuat di Biaya, Kas & Bank, dan Laporan pada R3, lalu **dihapus** 23 Okt karena tidak sesuai maksud owner. Pengganti yang diminta: urut naik/turun per kolom + tombol reset — belum dibuat.)*
+- **Urut per kolom** (`Col.sort`): klik judul kolom → **naik ↑ → turun ↓ → urutan bawaan**; kolom yang bisa diurutkan menampilkan ikon ⇅ (abu), kolom aktif berpanah biru. Pengurut memakai **nilai asli** (angka, tanggal, teks tanpa beda huruf besar/kecil), bukan teks tampilan; nilai kosong selalu di akhir; baris Total/pin (`AppTable.pinned`) tetap di akhir. Kolom aksi/ikon tidak bisa diurutkan, begitu juga kolom periode (Per hari/bulan) yang sudah kronologis.
+- **Tombol Reset** (ikon ↻ + "Reset", di sebelah kotak cari) muncul hanya bila ada kata kunci cari atau urutan aktif; mengosongkan **kotak cari + urutan tabel itu saja** — rentang tanggal dan dropdown/tab status halaman tidak ikut. Di Laporan, ganti laporan = tabel mulai bersih.
+- Laporan yang bisa diurutkan hanya yang berbentuk daftar (Ringkasan bank, Buku besar pembantu, Trial balance, Detail penjualan, Detail pembelian). Neraca, Perubahan modal, Ringkasan eksekutif, Proyeksi, Jurnal (entri berkelompok), dan Buku besar (saldo berjalan) **tidak** — urutannya bagian dari artinya.
+- *(Filter teks per kolom sempat dibuat di R3 lalu **dihapus** 23 Okt — tidak sesuai maksud owner.)*
 - Klik baris = buka detail di **panel kanan** (bukan pindah halaman), supaya daftar tetap terlihat.
 - **Empty state**: satu kalimat + satu tombol aksi ("Belum ada invoice. + Invoice Baru").
 

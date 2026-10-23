@@ -357,6 +357,13 @@ void main() {
     await tester.tap(find.text('BCA').first);
     await settle();
     await shot('kas-bca');
+    // Urut per kolom + tombol Reset.
+    await tester.tap(find.text('Masuk'));
+    await tester.tap(find.text('Masuk'));
+    await settle();
+    await shot('kas-urut');
+    await tester.tap(find.text('Reset'));
+    await settle();
     await tester.tap(find.text('Arus kas'));
     await settle();
     await shot('kas-arus');

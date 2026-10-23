@@ -72,14 +72,31 @@ class PembelianPage extends StatelessWidget {
                     toolbar: [RangeButton(range: range, onChanged: (r) => c.range.value = r, clearable: true)],
                     emptyMessage: tagihan ? 'Tidak ada tagihan pembelian.' : 'Belum ada pembelian stok.',
                     columns: [
-                      Col('Tgl beli', (r) => Text(tgl(r.purchase.at)), flex: 2),
-                      Col('Supplier', (r) => Text(r.purchase.supplier.isEmpty ? '—' : r.purchase.supplier), flex: 3),
-                      Col('No. nota', (r) => Text(r.purchase.billNo.isEmpty ? '—' : r.purchase.billNo), flex: 2),
-                      Col('Total', (r) => Text(rp(r.purchase.total), style: T.money), flex: 2, numeric: true),
+                      Col('Tgl beli', (r) => Text(tgl(r.purchase.at)), flex: 2, sort: (r) => r.purchase.at),
+                      Col(
+                        'Supplier',
+                        (r) => Text(r.purchase.supplier.isEmpty ? '—' : r.purchase.supplier),
+                        flex: 3,
+                        sort: (r) => r.purchase.supplier.isEmpty ? null : r.purchase.supplier,
+                      ),
+                      Col(
+                        'No. nota',
+                        (r) => Text(r.purchase.billNo.isEmpty ? '—' : r.purchase.billNo),
+                        flex: 2,
+                        sort: (r) => r.purchase.billNo.isEmpty ? null : r.purchase.billNo,
+                      ),
+                      Col(
+                        'Total',
+                        (r) => Text(rp(r.purchase.total), style: T.money),
+                        flex: 2,
+                        numeric: true,
+                        sort: (r) => r.purchase.total,
+                      ),
                       Col(
                         'Status',
                         (r) => Pill(r.paid ? 'Lunas' : 'Belum bayar', r.paid ? Tone.success : Tone.warning),
                         flex: 3,
+                        sort: (r) => r.paid,
                       ),
                       Col(
                         'Tgl lunas',
@@ -87,6 +104,7 @@ class PembelianPage extends StatelessWidget {
                           r.paidAt == null || DateUtils.isSameDay(r.paidAt, r.purchase.at) ? '—' : tgl(r.paidAt!),
                         ),
                         flex: 2,
+                        sort: (r) => r.paidAt,
                       ),
                     ],
                   ),

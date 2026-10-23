@@ -244,6 +244,15 @@ Data Kledo tidak bisa diambil, sehingga app mulai dari **saldo awal per tanggal 
 | DSB-3 | Daftar ringkas **Belum lunas**, **Terlaris bulan ini**, **Stok menipis** dengan tautan "Lihat semua" | S |
 | DSB-4 | **Cari global** di topbar (invoice/pemesanan via no./plat/customer/HP, customer, produk & jasa; maks. 5 per kelompok) → klik membuka record di halamannya | M |
 
+### 4.10b Tabel: urut & reset (**R3, 23 Okt**) — semua daftar
+
+| ID | Kebutuhan | Prio |
+|---|---|---|
+| TBL-1 | Semua tabel daftar (16 tabel: Penjualan, Pembelian, Gudang, Kontak ×3, Biaya, Kas & Bank, Gaji ×2, Laporan) bisa **diurutkan per kolom**: klik judul kolom → naik → turun → bawaan (panah penanda). Urut memakai nilai asli (angka/tanggal/teks), nilai kosong di akhir, baris Total tetap di akhir. Kolom aksi dan kolom periode kronologis tidak diurutkan. Laporan berstruktur (Neraca, Jurnal, Buku besar, Perubahan modal, Ringkasan eksekutif, Proyeksi) tidak diurutkan | M |
+| TBL-2 | Tombol **Reset** (muncul bila ada pencarian/urutan aktif) mengosongkan kotak cari dan urutan **tabel itu saja**; rentang tanggal dan filter status halaman tidak ikut direset | M |
+
+*Catatan:* filter teks per kolom (kotak "Filter…" di bawah judul) sempat dibuat untuk permintaan R3 #6/#12, lalu dihapus karena tidak sesuai maksud owner; yang dimaksud = urut naik/turun + reset.
+
 ### 4.11 Pengaturan (**R1–R3**)
 
 Tiga tab: **Bengkel & nota** (nama, alamat, telp, email, logo nota & ikon sidebar terpisah, teks syarat nota, link review Google Maps, nomor INV/SO berikutnya, tarif PPN) · **Pesan WhatsApp** (3 template, PJ-7) · **File, backup & PIN** (folder simpan nota PDF `/Nota` & export Excel `/Export`; **jadwal backup**: harian + saat ditutup / harian / mingguan / nonaktif, folder backup; **PIN owner**; periode gaji & persen komisi sales). `setSetting` sengaja tidak dikunci untuk nomor nota kasir dan catatan backup.

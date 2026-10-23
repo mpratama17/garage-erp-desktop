@@ -49,6 +49,13 @@ enum LapReport {
   final LapGroup group;
   final String label;
   final LapParam param;
+
+  /// Tabel boleh diurutkan per kolom: hanya laporan berbentuk daftar. Laporan berstruktur (neraca, jurnal berkelompok,
+  /// buku besar bersaldo berjalan, dst.) urutannya bagian dari artinya, jadi tidak diurutkan.
+  bool get sortable => switch (this) {
+    ringkasanBank || bukuBesarPembantu || trialBalance || penjualanDetail || pembelianDetail => true,
+    _ => false,
+  };
 }
 
 enum LapRange { bulan, tahun }

@@ -227,25 +227,33 @@ class _Mutasi extends StatelessWidget {
         ),
       ],
       columns: [
-        Col('Tanggal', (r) => Text(tgl(r.entry.at)), flex: 2),
-        if (!single) Col('Rekening', (r) => Text(r.accountName), flex: 2),
-        Col('Jenis', (r) => Pill(cashKindLabel[r.entry.kind] ?? r.entry.kind, _tone(r.entry.kind)), flex: 2),
+        Col('Tanggal', (r) => Text(tgl(r.entry.at)), flex: 2, sort: (r) => r.entry.at),
+        if (!single) Col('Rekening', (r) => Text(r.accountName), flex: 2, sort: (r) => r.accountName),
+        Col(
+          'Jenis',
+          (r) => Pill(cashKindLabel[r.entry.kind] ?? r.entry.kind, _tone(r.entry.kind)),
+          flex: 2,
+          sort: (r) => cashKindLabel[r.entry.kind] ?? r.entry.kind,
+        ),
         Col(
           'Keterangan',
           (r) => Text([r.entry.description, if (r.entry.note.isNotEmpty) r.entry.note].join(' · ')),
           flex: 6,
+          sort: (r) => r.entry.description,
         ),
         Col(
           'Masuk',
           (r) => Text(r.entry.amount > 0 ? rp(r.entry.amount) : '', style: T.money.copyWith(color: Tone.success.fg)),
           flex: 2,
           numeric: true,
+          sort: (r) => r.entry.amount > 0 ? r.entry.amount : null,
         ),
         Col(
           'Keluar',
           (r) => Text(r.entry.amount < 0 ? rp(-r.entry.amount) : '', style: T.money.copyWith(color: C.danger)),
           flex: 2,
           numeric: true,
+          sort: (r) => r.entry.amount < 0 ? -r.entry.amount : null,
         ),
         if (single && c.balances.isNotEmpty)
           Col(
@@ -253,6 +261,7 @@ class _Mutasi extends StatelessWidget {
             (r) => Text(r.balanceAfter == null ? '' : rp(r.balanceAfter!), style: T.money),
             flex: 2,
             numeric: true,
+            sort: (r) => r.balanceAfter,
           ),
         // flex 2: sebaris bisa muncul 2 ikon (bukti + hapus) — flex 1 meluber (RenderFlex overflow).
         Col('', (r) => _RowActions(r: r, c: c), flex: 2, numeric: true),

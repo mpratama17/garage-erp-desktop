@@ -84,7 +84,7 @@ Jenis: 🐞 bug/salah paham · ✨ fitur · ❓ pertanyaan (cukup dijawab / mung
 | C7 | Stempel LUNAS di invoice (#11) | ✅ pojok kanan bawah blok judul "Invoice", hanya bila lunas |
 | C8 | Template import digabung ke tombol Import (#16,#19) | ✅ `ImportButton` (menu: Unduh template / Pilih file) di Gudang & Kontak |
 | C9 | Info Gudang geser ke kanan (#17) | ✅ 7 kartu: stok tersedia/hampir habis/habis, total stok, HPP, penjualan, pembelian (HPP & pembelian khusus owner) |
-| C10 | Biaya & Kas: rentang tanggal + filter kolom + export (#6,#12) | ✅ rentang tanggal; Kas punya Export mutasi (owner). ⚠️ **Filter teks per kolom dihapus 23 Okt** (owner: "tidak sesuai"). Yang dimaksud owner = **urut naik/turun per kolom di semua tabel + tombol reset filter** — belum dibuat, menunggu konfirmasi pilihan (lihat bawah) |
+| C10 | Biaya & Kas: rentang tanggal + filter kolom + export (#6,#12) | ✅ rentang tanggal; Kas punya Export mutasi (owner). Filter teks per kolom **dihapus 23 Okt** (owner: "tidak sesuai"), diganti **urut naik/turun per kolom di 16 tabel + tombol Reset** (`Col.sort`, `AppTable.pinned`; Reset = kotak cari + urutan tabel itu saja; dites `test/table_test.dart`) |
 | C11 | Kontak: Customer/Vendor/Pegawai (#18,#20) | ✅ tab Customer/Vendor/Pegawai; tabel `vendors` baru; form pembelian: vendor dicari/diketik (vendor baru otomatis dibuat); Pegawai memakai tabel karyawan (+ no. HP & catatan) |
 | C12 | Tagihan vs Pemesanan (#3,#4,#14) | ✅ Penjualan dipecah 2 halaman; pemesanan yang sudah dijadikan invoice pindah ke Tagihan; tombol "+ Tagihan" di Tagihan, "+ Pemesanan" di Pemesanan |
 | C13 | Menu Pembelian ▸ Tagihan Pembelian (#4b) | ✅ halaman Pembelian (pindah dari tab Gudang), Tagihan Pembelian = yang belum dibayar |

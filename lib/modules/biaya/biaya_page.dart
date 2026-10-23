@@ -99,11 +99,21 @@ class BiayaPage extends StatelessWidget {
       RangeButton(range: c.range.value, onChanged: (r) => c.range.value = r!),
     ],
     columns: [
-      Col('Tanggal', (r) => Text(tgl(r.entry.at)), flex: 2),
-      Col('Kategori', (r) => Pill(r.category?.name ?? '-', r.personal ? Tone.warning : Tone.neutral), flex: 3),
-      Col('Nama', (r) => Text([r.entry.description, if (r.entry.note.isNotEmpty) r.entry.note].join(' · ')), flex: 5),
-      Col('Rekening', (r) => Text(r.accountName), flex: 2),
-      Col('Nominal', (r) => Text(rp(r.amount), style: T.money), flex: 2, numeric: true),
+      Col('Tanggal', (r) => Text(tgl(r.entry.at)), flex: 2, sort: (r) => r.entry.at),
+      Col(
+        'Kategori',
+        (r) => Pill(r.category?.name ?? '-', r.personal ? Tone.warning : Tone.neutral),
+        flex: 3,
+        sort: (r) => r.category?.name,
+      ),
+      Col(
+        'Nama',
+        (r) => Text([r.entry.description, if (r.entry.note.isNotEmpty) r.entry.note].join(' · ')),
+        flex: 5,
+        sort: (r) => r.entry.description,
+      ),
+      Col('Rekening', (r) => Text(r.accountName), flex: 2, sort: (r) => r.accountName),
+      Col('Nominal', (r) => Text(rp(r.amount), style: T.money), flex: 2, numeric: true, sort: (r) => r.amount),
       Col(
         '',
         (r) => r.entry.proofPath.isEmpty

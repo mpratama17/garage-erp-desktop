@@ -120,11 +120,11 @@ class _LaporanState extends State<_Laporan> {
       searchText: (r) => '${r.name} ${r.category}',
       emptyMessage: 'Belum ada penjualan di periode ini.',
       columns: [
-        Col('#', (r) => Text('${rank[r]}', style: T.label), flex: 1),
-        Col('Nama', (r) => Text(r.name), flex: 6),
-        Col('Kategori', (r) => Text(r.category), flex: 3),
-        Col('Qty', (r) => Text('${r.qty}', style: T.money), flex: 2, numeric: true),
-        Col('Omzet', (r) => Text(rp(r.omzet), style: T.money), flex: 3, numeric: true),
+        Col('#', (r) => Text('${rank[r]}', style: T.label), flex: 1, sort: (r) => rank[r]),
+        Col('Nama', (r) => Text(r.name), flex: 6, sort: (r) => r.name),
+        Col('Kategori', (r) => Text(r.category), flex: 3, sort: (r) => r.category),
+        Col('Qty', (r) => Text('${r.qty}', style: T.money), flex: 2, numeric: true, sort: (r) => r.qty),
+        Col('Omzet', (r) => Text(rp(r.omzet), style: T.money), flex: 3, numeric: true, sort: (r) => r.omzet),
       ],
     );
   }
@@ -142,13 +142,14 @@ class _LaporanState extends State<_Laporan> {
     ],
     columns: [
       Col('Per $unit', (r) => Text(r.label), flex: 3),
-      Col('Pemasukan', (r) => Text(rp(r.income), style: T.money), flex: 3, numeric: true),
-      Col('Pengeluaran', (r) => Text(rp(r.expense), style: T.money), flex: 3, numeric: true),
+      Col('Pemasukan', (r) => Text(rp(r.income), style: T.money), flex: 3, numeric: true, sort: (r) => r.income),
+      Col('Pengeluaran', (r) => Text(rp(r.expense), style: T.money), flex: 3, numeric: true, sort: (r) => r.expense),
       Col(
         'Bersih',
         (r) => Text(rp(r.net), style: T.money.copyWith(color: r.net < 0 ? C.danger : null)),
         flex: 3,
         numeric: true,
+        sort: (r) => r.net,
       ),
     ],
   );
@@ -257,14 +258,15 @@ class _LabaRugi extends StatelessWidget {
       emptyMessage: 'Belum ada transaksi di periode ini.',
       columns: [
         Col('Per $unit', (r) => Text(r.label), flex: 3),
-        Col('Pendapatan', (r) => Text(rp(r.revenue), style: T.money), flex: 3, numeric: true),
-        Col('Laba kotor', (r) => Text(rp(r.gross), style: T.money), flex: 3, numeric: true),
-        Col('Biaya + gaji', (r) => Text(rp(r.opex), style: T.money), flex: 3, numeric: true),
+        Col('Pendapatan', (r) => Text(rp(r.revenue), style: T.money), flex: 3, numeric: true, sort: (r) => r.revenue),
+        Col('Laba kotor', (r) => Text(rp(r.gross), style: T.money), flex: 3, numeric: true, sort: (r) => r.gross),
+        Col('Biaya + gaji', (r) => Text(rp(r.opex), style: T.money), flex: 3, numeric: true, sort: (r) => r.opex),
         Col(
           'Laba bersih',
           (r) => Text(rp(r.net), style: T.money.copyWith(color: r.net < 0 ? C.danger : null)),
           flex: 3,
           numeric: true,
+          sort: (r) => r.net,
         ),
       ],
     );
@@ -311,11 +313,17 @@ class _Penjualan extends StatelessWidget {
       ],
       columns: [
         Col('Per $unit', (r) => Text(r.label), flex: 3),
-        Col('Invoice', (r) => Text('${r.invoices.length}', style: T.money), flex: 2, numeric: true),
-        Col('Bruto', (r) => Text(rp(r.gross), style: T.money), flex: 3, numeric: true),
-        Col('Diskon', (r) => Text(rp(r.discount), style: T.money), flex: 3, numeric: true),
-        Col('Omzet', (r) => Text(rp(r.omzet), style: T.money), flex: 3, numeric: true),
-        Col('PPN', (r) => Text(rp(r.tax), style: T.money), flex: 2, numeric: true),
+        Col(
+          'Invoice',
+          (r) => Text('${r.invoices.length}', style: T.money),
+          flex: 2,
+          numeric: true,
+          sort: (r) => r.invoices.length,
+        ),
+        Col('Bruto', (r) => Text(rp(r.gross), style: T.money), flex: 3, numeric: true, sort: (r) => r.gross),
+        Col('Diskon', (r) => Text(rp(r.discount), style: T.money), flex: 3, numeric: true, sort: (r) => r.discount),
+        Col('Omzet', (r) => Text(rp(r.omzet), style: T.money), flex: 3, numeric: true, sort: (r) => r.omzet),
+        Col('PPN', (r) => Text(rp(r.tax), style: T.money), flex: 2, numeric: true, sort: (r) => r.tax),
       ],
     );
     final byCategory = AppTable<ItemRow>(
@@ -324,9 +332,9 @@ class _Penjualan extends StatelessWidget {
       searchText: (r) => r.name,
       emptyMessage: 'Belum ada penjualan.',
       columns: [
-        Col('Kategori', (r) => Text(r.name), flex: 4),
-        Col('Qty', (r) => Text('${r.qty}', style: T.money), flex: 2, numeric: true),
-        Col('Omzet', (r) => Text(rp(r.omzet), style: T.money), flex: 3, numeric: true),
+        Col('Kategori', (r) => Text(r.name), flex: 4, sort: (r) => r.name),
+        Col('Qty', (r) => Text('${r.qty}', style: T.money), flex: 2, numeric: true, sort: (r) => r.qty),
+        Col('Omzet', (r) => Text(rp(r.omzet), style: T.money), flex: 3, numeric: true, sort: (r) => r.omzet),
       ],
     );
     return LayoutBuilder(
@@ -439,7 +447,7 @@ class _Params extends StatelessWidget {
   }
 }
 
-/// Tabel laporan generik dari [ReportData]: kolom angka rata kanan, baris tebal untuk subjudul/total, filter tiap kolom.
+/// Tabel laporan generik dari [ReportData]: kolom angka rata kanan, baris tebal untuk subjudul/total (tetap di akhir saat diurutkan).
 class _ReportView extends StatelessWidget {
   const _ReportView(this.c);
   final LaporanController c;
@@ -453,17 +461,29 @@ class _ReportView extends StatelessWidget {
     if (d == null) return const Center(child: CircularProgressIndicator());
     bool numericCol(int i) => d.rows.any((r) => r.cells[i] is int);
     String show(Object? v, int i) => v == null ? '' : (v is int ? (d.countCols.contains(i) ? '$v' : rp(v)) : '$v');
+    final sortable = c.report.value.sortable;
+    // Angka menurut nilainya, tanggal "dd/MM/yyyy" menurut kalender (bukan abjad), kosong → di akhir.
+    final date = RegExp(r'^(\d\d)/(\d\d)/(\d{4})$');
+    Object? sortKey(Object? v) {
+      if (v is int) return v;
+      if (v == null || v == '') return null;
+      final m = date.firstMatch('$v');
+      return m == null ? v : '${m[3]}${m[2]}${m[1]}';
+    }
+
     const wide = {'Keterangan', 'Barang / jasa', 'Akun', 'Barang', 'Indikator', 'Customer', 'Vendor'};
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Expanded(
           child: AppTable<RRow>(
+            key: ValueKey(c.report.value), // ganti laporan = cari & urutan mulai bersih
             rows: d.rows,
             searchHint: 'Cari di ${d.title.toLowerCase()}…',
             searchText: (r) => [for (final (i, v) in r.cells.indexed) show(v, i)].join(' '),
             emptyMessage: 'Tidak ada data pada periode ini.',
             toolbar: [Text(d.title, style: T.section)],
+            pinned: sortable ? (r) => r.bold : null,
             columns: [
               for (final (i, h) in d.headers.indexed)
                 Col<RRow>(
@@ -480,6 +500,7 @@ class _ReportView extends StatelessWidget {
                   },
                   flex: wide.contains(h) ? 5 : (numericCol(i) ? 2 : 3),
                   numeric: numericCol(i),
+                  sort: sortable ? (r) => sortKey(r.cells[i]) : null,
                 ),
             ],
           ),

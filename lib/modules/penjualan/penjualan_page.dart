@@ -216,15 +216,27 @@ class PenjualanPage extends StatelessWidget {
                     ),
                   ],
                   columns: [
-                    Col('Nomor', (s) => Text(s.doc.no, style: const TextStyle(fontWeight: FontWeight.w600)), flex: 3),
-                    Col('Tanggal', (s) => Text(tgl(s.doc.at)), flex: 3),
+                    Col(
+                      'Nomor',
+                      (s) => Text(s.doc.no, style: const TextStyle(fontWeight: FontWeight.w600)),
+                      flex: 3,
+                      sort: (s) => s.doc.no,
+                    ),
+                    Col('Tanggal', (s) => Text(tgl(s.doc.at)), flex: 3, sort: (s) => s.doc.at),
                     // Plat digabung ke kolom customer supaya tabel tetap terbaca saat panel terbuka.
                     Col(
                       'Customer · plat',
                       (s) => Text([s.customerName ?? 'UMUM', s.doc.plate].where((x) => x.isNotEmpty).join(' · ')),
                       flex: 4,
+                      sort: (s) => s.customerName ?? 'UMUM',
                     ),
-                    Col('Total', (s) => Text(rp(s.total), style: T.money), flex: 2, numeric: true),
+                    Col(
+                      'Total',
+                      (s) => Text(rp(s.total), style: T.money),
+                      flex: 2,
+                      numeric: true,
+                      sort: (s) => s.total,
+                    ),
                     Col(
                       'Sisa',
                       (s) => Text(
@@ -233,8 +245,9 @@ class PenjualanPage extends StatelessWidget {
                       ),
                       flex: 2,
                       numeric: true,
+                      sort: (s) => s.doc.isVoid || s.status == PayStatus.invoiced ? 0 : s.remaining,
                     ),
-                    Col('Status', statusPill, flex: 4),
+                    Col('Status', statusPill, flex: 4, sort: (s) => s.status.index),
                   ],
                 ),
                 panel: c.opened == null ? null : _DocPanel(c: c, s: c.opened!),
