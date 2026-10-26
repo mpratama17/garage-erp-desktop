@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter/services.dart' show rootBundle;
+import 'package:image/image.dart' as img;
 import 'package:path/path.dart' as p;
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
@@ -17,6 +18,18 @@ const _cell = PdfColor.fromInt(0xFFE8EAEE);
 const _grey = PdfColor.fromInt(0xFF555555);
 const _stamp = PdfColor.fromInt(0xFF2E9E6B);
 
+/// Logo untuk nota/slip, padding polos di sekelilingnya dipotong — logo persegi berpadding
+/// (mis. 500×500 dengan logo di tengah) kalau tidak dipotong tercetak kecil di kotak logo.
+pw.ImageProvider? pdfLogo(String path) {
+  if (path.isEmpty || !File(path).existsSync()) return null;
+  final bytes = File(path).readAsBytesSync();
+  final im = img.decodeImage(bytes);
+  if (im == null) return pw.MemoryImage(bytes);
+  // ponytail: latar harus persis sewarna piksel kiri-atas; JPEG berderau tidak terpotong (tetap aman, hanya tidak dipotong).
+  final mode = im.numChannels == 4 ? img.TrimMode.transparent : img.TrimMode.topLeftColor;
+  return pw.ImageImage(img.trim(im, mode: mode));
+}
+
 /// Layout mengikuti nota client dari Kledo (INV/00245 & INV/00246).
 Future<Uint8List> buildInvoicePdf(AppDb db, int docId) async {
   final s = await db.docSummary(docId);
@@ -29,10 +42,7 @@ Future<Uint8List> buildInvoicePdf(AppDb db, int docId) async {
       ? null
       : await (db.select(db.invoices)..where((i) => i.id.equals(inv.orderId!))).getSingleOrNull();
   final set = await db.allSettings();
-  final logoFile = File(set['logo_path']!);
-  final logo = set['logo_path']!.isNotEmpty && logoFile.existsSync()
-      ? pw.MemoryImage(logoFile.readAsBytesSync())
-      : null;
+  final logo = pdfLogo(set['logo_path']!);
   final shop = set['shop_name']!;
   final isOrder = s.isOrder;
 

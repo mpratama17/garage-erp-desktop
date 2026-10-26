@@ -8,6 +8,7 @@ import 'package:pdf/widgets.dart' as pw;
 
 import '../../core/format.dart';
 import '../../db/database.dart';
+import '../penjualan/invoice_pdf.dart' show pdfLogo;
 import 'gaji_repo.dart';
 
 const _blue = PdfColor.fromInt(0xFF3B6CB7);
@@ -18,10 +19,7 @@ const _grey = PdfColor.fromInt(0xFF555555);
 /// client (tanpa kolom tanda terima karyawan). Layout mengikuti gaya nota (invoice_pdf.dart).
 Future<Uint8List> buildSlipPdf(AppDb db, Slip s) async {
   final set = await db.allSettings();
-  final logoFile = File(set['logo_path']!);
-  final logo = set['logo_path']!.isNotEmpty && logoFile.existsSync()
-      ? pw.MemoryImage(logoFile.readAsBytesSync())
-      : null;
+  final logo = pdfLogo(set['logo_path']!);
   final shop = set['shop_name']!;
 
   final theme = pw.ThemeData.withFont(

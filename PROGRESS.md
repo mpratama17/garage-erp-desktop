@@ -1,6 +1,6 @@
 # star-garage-erp (repo: garage-erp-desktop) — Progress Snapshot
 
-Last updated: 2026-10-23 (R3 selesai + keputusan owner #4a/#23/vendor; belum di-push; .dmg 1.2.0+3 dibuat untuk testing owner sendiri, belum dikirim ke client).
+Last updated: 2026-10-26 (build **1.2.0+5** di `dist/`: logo nota/slip kini dipotong otomatis dari padding polos — sebelumnya `logo-star-baru.png` 500×500 tercetak kecil di nota client; .dmg diunggah manual ke Drive).
 
 **Apa:** mini-ERP desktop **macOS** offline (Flutter + SQLite/drift + GetX) untuk Star Garage (bengkel modif lampu, member Yoong Motor Pasuruan), pengganti Kledo + Google Sheet. Dashboard + 7 modul + Pengaturan (`docs/PRD.md` v2.3). Kasir: MacBook Air M1. Ringkasan untuk GitHub: `README.md`.
 
