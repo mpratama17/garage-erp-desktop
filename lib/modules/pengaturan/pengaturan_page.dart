@@ -1,16 +1,21 @@
 import 'dart:io';
+import 'dart:typed_data';
 
+import 'package:drift/drift.dart' show OrderingTerm;
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
+import 'package:pdf/pdf.dart' show PdfPageFormat;
+import 'package:printing/printing.dart';
 
 import '../../core/owner.dart';
 import '../../core/theme.dart';
 import '../../core/ui.dart';
 import '../../db/database.dart';
-import '../penjualan/invoice_pdf.dart' show waPlaceholders, waTemplateKeys;
+import '../penjualan/invoice_pdf.dart' show buildInvoicePdf, logoScaleRange, waPlaceholders, waTemplateKeys;
+import '../penjualan/penjualan_repo.dart' show DocKind;
 
 /// Field teks yang diedit di halaman ini: key setting -> label.
 const _textFields = {
@@ -26,6 +31,7 @@ const _textFields = {
 const _numFields = {
   'next_invoice_no': ('No. invoice berikutnya', 1, 99999),
   'next_so_no': ('No. pemesanan berikutnya', 1, 99999),
+  'next_purchase_no': ('No. pembelian berikutnya', 1, 9999999),
   'payroll_start_day': ('Tgl mulai periode gaji', 1, 28),
   'sales_commission_pct': ('Komisi sales (%)', 0, 100),
   'tax_pct': ('PPN (%)', 0, 100),
@@ -39,6 +45,7 @@ class PengaturanController extends GetxController {
   };
   final logoPath = ''.obs; // logo penuh, untuk nota
   final iconPath = ''.obs; // ikon kecil, untuk sidebar
+  final logoScale = 100.obs; // ukuran logo nota & slip (%)
   final backupDir = ''.obs;
   final backupSchedule = 'close'.obs;
   final exportDir = ''.obs;
@@ -57,6 +64,7 @@ class PengaturanController extends GetxController {
     }
     logoPath.value = s['logo_path']!;
     iconPath.value = s['logo_icon_path']!;
+    logoScale.value = int.tryParse(s['logo_scale']!) ?? 100;
     backupDir.value = await db.backupDir();
     backupSchedule.value = s['backup_schedule']!;
     exportDir.value = await db.exportDir();
@@ -113,6 +121,20 @@ class PengaturanController extends GetxController {
       }
     }
   }
+
+  Future<void> setLogoScale(int v) async {
+    await _set('logo_scale', '$v');
+    logoScale.value = v;
+  }
+
+  /// Invoice terbaru sebagai contoh preview nota; null bila belum ada invoice.
+  Future<int?> latestInvoiceId() async =>
+      (await (db.select(db.invoices)
+                ..where((i) => i.kind.equals(DocKind.invoice))
+                ..orderBy([(i) => OrderingTerm.desc(i.id)])
+                ..limit(1))
+              .getSingleOrNull())
+          ?.id;
 
   Future<void> pickBackupDir() async {
     final dir = await getDirectoryPath(confirmButtonText: 'Pilih folder');
@@ -212,6 +234,7 @@ class _FormState extends State<_Form> {
       for (final k in ['shop_name', 'shop_address', 'shop_phone', 'shop_email'])
         field(k, _textFields[k]!, lines: k == 'shop_address' ? 4 : 1),
     ]);
+    final logo = _Card('Ukuran logo di nota & slip gaji', [_LogoSize(c)]);
     final notaText = _Card('Teks nota & review', [
       for (final k in ['invoice_note', 'gmaps_review_url'])
         field(k, _textFields[k]!, lines: k == 'invoice_note' ? 4 : 1),
@@ -303,7 +326,7 @@ class _FormState extends State<_Form> {
     );
 
     final (left, right) = switch (_tab) {
-      0 => ([bengkel], [nomor, notaText]),
+      0 => ([bengkel, nomor, notaText], [logo]),
       1 => ([wa], [wa2]),
       _ => ([folder, pin], [backup]),
     };
@@ -397,6 +420,88 @@ class _FormState extends State<_Form> {
     db.requireOwner();
     await db.setPin(pin);
     if (context.mounted) notify(context, 'PIN diganti');
+  }
+}
+
+/// Slider ukuran logo + preview nota dari invoice terbaru (R4 #6). Tersimpan saat slider dilepas.
+class _LogoSize extends StatefulWidget {
+  const _LogoSize(this.c);
+  final PengaturanController c;
+  @override
+  State<_LogoSize> createState() => _LogoSizeState();
+}
+
+class _LogoSizeState extends State<_LogoSize> {
+  static const _previewHeight = 520.0;
+  Future<int?>? _latest;
+  int? _id; // invoice contoh
+  late int _drag = widget.c.logoScale.value; // nilai selama digeser; preview dibuat ulang saat dilepas
+
+  /// Callback tetap (bukan closure baru tiap build): PdfPreview hanya merender ulang bila key-nya berubah,
+  /// bukan tiap slider digeser.
+  Future<Uint8List> _pdf(PdfPageFormat _) => buildInvoicePdf(widget.c.db, _id!);
+
+  @override
+  Widget build(BuildContext context) {
+    final c = widget.c;
+    // Shell membangun semua halaman sekaligus (IndexedStack): preview hanya dibuat saat Pengaturan tampil,
+    // dan invoice contohnya dicari ulang tiap halaman dibuka.
+    final visible = Visibility.of(context);
+    if (!visible) _latest = null;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Slider(
+                value: _drag.toDouble(),
+                min: logoScaleRange.min.toDouble(),
+                max: logoScaleRange.max.toDouble(),
+                divisions: (logoScaleRange.max - logoScaleRange.min) ~/ 10,
+                label: '$_drag%',
+                onChanged: (v) => setState(() => _drag = v.round()),
+                onChangeEnd: (v) async {
+                  // Gagal simpan → slider kembali ke nilai yang tersimpan (sama dengan nota & preview).
+                  if (!await runAction(context, () => c.setLogoScale(v.round())) && mounted) {
+                    setState(() => _drag = c.logoScale.value);
+                  }
+                },
+              ),
+            ),
+            SizedBox(width: 48, child: Text('$_drag%', textAlign: TextAlign.right)),
+          ],
+        ),
+        const SizedBox(height: S.md),
+        if (!visible)
+          const SizedBox(height: _previewHeight)
+        else
+          Obx(() {
+            final key = ValueKey((c.logoScale.value, c.logoPath.value)); // preview dibuat ulang bila berubah
+            return FutureBuilder(
+              future: _latest ??= c.latestInvoiceId(),
+              builder: (_, snap) {
+                if (snap.connectionState != ConnectionState.done) return const SizedBox(height: _previewHeight);
+                _id = snap.data;
+                if (_id == null) return Text('Preview muncul setelah ada invoice pertama.', style: T.label);
+                return SizedBox(
+                  height: _previewHeight,
+                  child: PdfPreview(
+                    key: key,
+                    build: _pdf,
+                    useActions: false,
+                    canDebug: false,
+                    maxPageWidth: 420,
+                    pdfFileName: 'contoh-nota.pdf',
+                  ),
+                );
+              },
+            );
+          }),
+        const SizedBox(height: S.sm),
+        Text('Contoh dari invoice terbaru. Ukuran yang sama dipakai di slip gaji.', style: T.label),
+      ],
+    );
   }
 }
 

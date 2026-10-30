@@ -90,32 +90,28 @@ class KasController extends GetxController {
   }
 
   /// Export mutasi yang sedang tampil (rentang + rekening terpilih) ke .xlsx. Pesan hasil, atau null bila batal.
-  Future<String?> export() async {
-    db.requireOwner(); // export mutasi khusus owner (C10), bukan hanya lewat PIN di tombol
-    final single = accountId.value != null;
-    final withBalance = single && balances.isNotEmpty;
-    final r = range.value;
-    final bytes = buildXlsx(
-      'Mutasi',
-      ['Tanggal', 'Rekening', 'Jenis', 'Keterangan', 'Masuk', 'Keluar', if (withBalance) 'Saldo'],
-      [
-        for (final e in entries)
-          [
-            tgl(e.entry.at),
-            e.accountName,
-            cashKindLabel[e.entry.kind] ?? e.entry.kind,
-            [e.entry.description, if (e.entry.note.isNotEmpty) e.entry.note].join(' · '),
-            e.entry.amount > 0 ? e.entry.amount : null,
-            e.entry.amount < 0 ? -e.entry.amount : null,
-            if (withBalance) e.balanceAfter,
-          ],
-      ],
-    );
-    final name = 'mutasi-kas-${_iso(r.start)}_${_iso(r.end)}.xlsx';
-    return await saveXlsx(db, bytes, name) == null ? null : 'Export tersimpan (${entries.length} transaksi)';
-  }
+  Future<String?> export() => exportXlsx(
+    db,
+    sheet: 'Mutasi',
+    file: 'mutasi-kas',
+    range: range.value,
+    noun: 'transaksi',
+    headers: ['Tanggal', 'Rekening', 'Jenis', 'Keterangan', 'Masuk', 'Keluar', if (_withBalance) 'Saldo'],
+    rows: [
+      for (final e in entries)
+        [
+          tgl(e.entry.at),
+          e.accountName,
+          cashKindLabel[e.entry.kind] ?? e.entry.kind,
+          [e.entry.description, if (e.entry.note.isNotEmpty) e.entry.note].join(' · '),
+          e.entry.amount > 0 ? e.entry.amount : null,
+          e.entry.amount < 0 ? -e.entry.amount : null,
+          if (_withBalance) e.balanceAfter,
+        ],
+    ],
+  );
 
-  static String _iso(DateTime d) => d.toIso8601String().substring(0, 10);
+  bool get _withBalance => accountId.value != null && balances.isNotEmpty; // saldo berjalan hanya untuk satu rekening
 
   List<Account> get activeAccounts => [
     for (final a in accounts)

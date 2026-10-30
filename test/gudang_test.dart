@@ -79,11 +79,9 @@ void main() {
       lines: [LineInput(productId: led, name: 'LED H4', qty: 1, price: 100)],
     );
     final moves = await db.watchMoves(led).first;
-    expect([for (final m in moves) (m.move.kind, m.doc?.id, m.customer, m.purchase?.id)], unorderedEquals([
-      ('sale', inv, 'BUDI', null),
-      ('purchase', null, null, pid),
-      ('opening', null, null, null),
-    ]));
+    expect([
+      for (final m in moves) (m.move.kind, m.doc?.id, m.customer, m.purchase?.id),
+    ], unorderedEquals([('sale', inv, 'BUDI', null), ('purchase', null, null, pid), ('opening', null, null, null)]));
 
     final list = await db.watchPurchases().first;
     expect((list.single.purchase.supplier, list.single.account), ('Toko Lampu', 'BCA'));
@@ -275,5 +273,34 @@ void main() {
     final r = edit('2.250.000', '2.1250.000', 3);
     expect((r.text, r.selection.end), ('21.250.000', 2));
     expect(edit('1', '1234567890123456', 16).text, '1');
+  });
+  test('SKU otomatis: lanjut nomor terbesar per prefix, prefix ditebak dari nama yang mirip', () {
+    // Potongan data Gudang client: prefix = merek, tidak selalu tertulis di nama.
+    const data = [
+      ('OSRAM CBI LASER G2', 'OSR/001'),
+      ('OSRAM LED XLZ V3 (HB3,H11)', 'OSR/004'),
+      ('SR800.3', 'SR/001'),
+      ('SR1 AERO', 'SR/004'),
+      ('LED HVT EXPERT SERIES (H4) 65W', 'HVT/003'),
+      ('MINI PROJ MAXI YY', 'HVT/008'),
+      ('HVT 2\' LASER FL', 'HVT/017'),
+      ('T20 YELLOW', 'RCH/001'),
+      ('T20 WHITE', 'RCH/003'),
+      ('T20 WHITE BASIC', 'NB/004'),
+      ('LAMA', 'SR800.3'), // di luar pola: diabaikan
+      ('TANPA SKU', null),
+    ];
+    final skus = data.map((d) => d.$2);
+    expect(nextSku('HVT', skus), 'HVT/018');
+    expect(nextSku('osr', skus), 'OSR/005');
+    expect(nextSku('ABC', skus), 'ABC/001'); // prefix baru
+    expect(skuPrefixes(skus), ['HVT', 'NB', 'OSR', 'RCH', 'SR']);
+    expect(guessSkuPrefix('OSRAM CBI NEW', data), 'OSR');
+    expect(guessSkuPrefix('LED HVT EXPERT SERIES (H9) 65W', data), 'HVT');
+    expect(guessSkuPrefix('MINI PROJ MAXI WW', data), 'HVT');
+    expect(guessSkuPrefix('SR1 NANO', data), 'SR');
+    expect(guessSkuPrefix('T20 RED', data), 'RCH');
+    expect(guessSkuPrefix('T15 WHITE BASIC', data), 'NB');
+    expect(guessSkuPrefix('KABEL', data), isNull);
   });
 }

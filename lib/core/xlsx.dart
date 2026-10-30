@@ -2,8 +2,10 @@ import 'dart:io';
 
 import 'package:excel/excel.dart';
 import 'package:file_selector/file_selector.dart';
+import 'package:flutter/material.dart' show DateTimeRange;
 
 import '../db/database.dart';
+import 'range_picker.dart';
 import 'format.dart';
 
 /// Sheet pertama sebuah file .xlsx, dibaca per nama header (bukan posisi kolom).
@@ -88,6 +90,22 @@ List<int> buildXlsxSheets(List<XlsxSheet> sheets) {
   }
   excel.rename(first, sheets.first.$1);
   return excel.encode()!;
+}
+
+/// Export daftar yang sedang tampil ke `<file>-<rentang>.xlsx` — khusus owner, dicek di sini (bukan hanya PIN di
+/// tombol). Pesan hasil, atau null bila dibatalkan.
+Future<String?> exportXlsx(
+  AppDb db, {
+  required String sheet,
+  required String file,
+  required DateTimeRange? range,
+  required String noun,
+  required List<String> headers,
+  required List<List<Object?>> rows,
+}) async {
+  db.requireOwner();
+  final path = await saveXlsx(db, buildXlsx(sheet, headers, rows), '$file-${rangeFileTag(range)}.xlsx');
+  return path == null ? null : 'Export tersimpan (${rows.length} $noun)';
 }
 
 /// Dialog "Simpan sebagai" (mulai di folder Export dari Pengaturan) lalu tulis file.

@@ -57,21 +57,30 @@ class PembelianPage extends StatelessWidget {
               builder: (_) => Obx(() {
                 final tagihan = nav.pembelianTagihan.value;
                 final range = c.range.value;
-                final rows = c.purchases
-                    .where((r) => (!tagihan || !r.paid) && (range == null || range.covers(r.purchase.at)))
-                    .toList();
+                final rows = c.visible(tagihan: tagihan);
                 final opened = c.purchases.firstWhereOrNull((r) => r.purchase.id == c.purchaseId.value);
                 return MasterDetail(
                   panelWidth: 420,
                   list: AppTable<PurchaseRow>(
                     rows: rows,
-                    searchHint: 'Cari supplier, no. nota, keterangan…',
-                    searchText: (r) => '${r.purchase.supplier} ${r.purchase.billNo} ${r.purchase.note} ${r.account}',
+                    searchHint: 'Cari no., supplier, nota supplier, keterangan…',
+                    searchText: (r) =>
+                        '${r.purchase.no} ${r.purchase.supplier} ${r.purchase.billNo} ${r.purchase.note} ${r.account}',
                     selected: (r) => r.purchase.id == c.purchaseId.value,
                     onTap: (r) => c.purchaseId.value = r.purchase.id,
-                    toolbar: [RangeButton(range: range, onChanged: (r) => c.range.value = r, clearable: true)],
+                    toolbar: [
+                      RangeButton(range: range, onChanged: (r) => c.range.value = r, clearable: true),
+                      const SizedBox(width: S.sm),
+                      exportButton(context, () => c.export(tagihan: tagihan)),
+                    ],
                     emptyMessage: tagihan ? 'Tidak ada tagihan pembelian.' : 'Belum ada pembelian stok.',
                     columns: [
+                      Col(
+                        'No.',
+                        (r) => Text(r.purchase.no.isEmpty ? '—' : r.purchase.no),
+                        flex: 2,
+                        sort: (r) => r.purchase.no.isEmpty ? null : r.purchase.no,
+                      ),
                       Col('Tgl beli', (r) => Text(tgl(r.purchase.at)), flex: 2, sort: (r) => r.purchase.at),
                       Col(
                         'Supplier',
@@ -80,7 +89,7 @@ class PembelianPage extends StatelessWidget {
                         sort: (r) => r.purchase.supplier.isEmpty ? null : r.purchase.supplier,
                       ),
                       Col(
-                        'No. nota',
+                        'Nota supplier',
                         (r) => Text(r.purchase.billNo.isEmpty ? '—' : r.purchase.billNo),
                         flex: 2,
                         sort: (r) => r.purchase.billNo.isEmpty ? null : r.purchase.billNo,
@@ -143,7 +152,9 @@ class _PurchasePanelState extends State<_PurchasePanel> {
             padding: const EdgeInsets.fromLTRB(S.xl, S.lg, S.sm, S.sm),
             child: Row(
               children: [
-                Expanded(child: Text('Pembelian ${tgl(p.at)}', style: T.section)),
+                Expanded(
+                  child: Text(['Pembelian', if (p.no.isNotEmpty) p.no, tgl(p.at)].join(' · '), style: T.section),
+                ),
                 IconButton(tooltip: 'Tutup', onPressed: () => c.purchaseId.value = null, icon: const Icon(Icons.close)),
               ],
             ),
@@ -159,7 +170,7 @@ class _PurchasePanelState extends State<_PurchasePanel> {
                       child: Text(
                         [
                           if (p.supplier.isNotEmpty) p.supplier,
-                          if (p.billNo.isNotEmpty) 'nota ${p.billNo}',
+                          if (p.billNo.isNotEmpty) 'nota supplier ${p.billNo}',
                           'dibayar dari ${row.account}',
                         ].join(' · '),
                         style: T.label,

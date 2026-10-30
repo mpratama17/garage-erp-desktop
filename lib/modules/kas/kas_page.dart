@@ -216,15 +216,7 @@ class _Mutasi extends StatelessWidget {
         const SizedBox(width: S.lg),
         RangeButton(range: c.range.value, onChanged: (r) => c.range.value = r!),
         const SizedBox(width: S.sm),
-        OutlinedButton.icon(
-          onPressed: () async {
-            if (!await Get.find<OwnerController>().ensure(context) || !context.mounted) return;
-            final msg = await c.export();
-            if (msg != null && context.mounted) notify(context, msg);
-          },
-          icon: const Icon(Icons.download_outlined, size: 18),
-          label: const Text('Export'),
-        ),
+        exportButton(context, c.export),
       ],
       columns: [
         Col('Tanggal', (r) => Text(tgl(r.entry.at)), flex: 2, sort: (r) => r.entry.at),

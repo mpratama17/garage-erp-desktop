@@ -10,6 +10,12 @@ DateTimeRange thisMonth() {
   return DateTimeRange(start: DateTime(n.year, n.month), end: DateTime(n.year, n.month + 1, 0));
 }
 
+/// Bagian nama file export: "2026-10-01_2026-10-31", atau "semua" bila tanpa rentang.
+String rangeFileTag(DateTimeRange? r) {
+  String iso(DateTime d) => d.toIso8601String().substring(0, 10);
+  return r == null ? 'semua' : '${iso(r.start)}_${iso(r.end)}';
+}
+
 extension RangeDays on DateTimeRange {
   /// Batas eksklusif (sehari sesudah [end]) untuk query [start, endExclusive).
   DateTime get endExclusive => dayAfter(end);

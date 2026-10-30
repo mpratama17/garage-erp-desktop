@@ -406,6 +406,18 @@ Future<bool> runAction(
   return false;
 }
 
+/// Tombol Export daftar yang sedang tampil (khusus owner: minta PIN). [export] = pesan hasil, null bila batal.
+Widget exportButton(BuildContext context, Future<String?> Function() export) => OutlinedButton.icon(
+  onPressed: () async {
+    if (!await Get.find<OwnerController>().ensure(context) || !context.mounted) return;
+    String? msg;
+    await runAction(context, () async => msg = await export());
+    if (msg != null && context.mounted) notify(context, msg!);
+  },
+  icon: const Icon(Icons.download_outlined, size: 18),
+  label: const Text('Export'),
+);
+
 Widget dateField(BuildContext ctx, DateTime value, ValueChanged<DateTime> onPick) => InkWell(
   onTap: () async {
     final d = await showDatePicker(

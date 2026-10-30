@@ -56,9 +56,6 @@ class GudangController extends GetxController {
 
   StockedProduct? get opened => products.firstWhereOrNull((s) => s.product.id == panelId.value);
 
-  List<String> get categories =>
-      products.map((s) => s.product.category).where((c) => c.isNotEmpty).toSet().toList()..sort();
-
   static const _xlsx = XTypeGroup(label: 'Excel', extensions: ['xlsx']);
 
   Future<bool> _save(List<int> bytes, String name) async => await saveXlsx(db, bytes, name) != null;

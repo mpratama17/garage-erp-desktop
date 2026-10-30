@@ -8,6 +8,8 @@ import '../../core/range_picker.dart';
 import 'package:get/get.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../core/format.dart';
+import '../../core/xlsx.dart';
 import '../../db/database.dart';
 import '../gudang/gudang_repo.dart';
 import '../kontak/kontak_repo.dart';
@@ -82,6 +84,50 @@ class PenjualanController extends GetxController {
     final e = employees.firstWhereOrNull((e) => e.id == id);
     return e == null ? '' : (e.active ? e.name : '${e.name} (nonaktif)');
   }
+
+  /// Export daftar yang sedang tampil (rentang tanggal + filter status) ke .xlsx, satu baris per dokumen (R4 #3).
+  Future<String?> export() => exportXlsx(
+    db,
+    sheet: kind.value == DocKind.order ? 'Pemesanan' : 'Tagihan',
+    file: kind.value == DocKind.order ? 'pemesanan' : 'tagihan',
+    range: range.value,
+    noun: 'dokumen',
+    headers: [
+      'No.',
+      'Tanggal',
+      'Jatuh tempo',
+      'Customer',
+      'No. HP',
+      'Mobil',
+      'Plat',
+      'Subtotal',
+      'Diskon',
+      'PPN',
+      'Total',
+      'Dibayar',
+      'Sisa',
+      'Status',
+    ],
+    rows: [
+      for (final s in visible)
+        [
+          s.doc.no,
+          tgl(s.doc.at),
+          s.doc.dueAt == null ? '' : tgl(s.doc.dueAt!),
+          s.customerName ?? 'UMUM',
+          s.customerPhone ?? '',
+          s.doc.car,
+          s.doc.plate,
+          s.subtotal,
+          s.doc.discount,
+          s.doc.tax,
+          s.total,
+          s.paid,
+          s.outstanding,
+          s.status.label,
+        ],
+    ],
+  );
 
   /// Simpan PDF lalu buka di aplikasi PDF bawaan (Preview: bisa langsung cetak).
   Future<void> openPdf(int docId) async {

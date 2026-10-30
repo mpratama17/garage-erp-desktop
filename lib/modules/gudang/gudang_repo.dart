@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:drift/drift.dart';
 
 import '../../core/format.dart';
@@ -25,6 +27,49 @@ class MoveRow {
 
 /// Satu baris riwayat pembelian stok: [paidAt] = tanggal pelunasan (null = belum dibayar).
 typedef PurchaseRow = ({Purchase purchase, String account, bool paid, DateTime? paidAt});
+
+/// Format SKU client: PREFIX/NNN per merek (OSR/001, HVT/017). Kode lain (mis. "SR800.3") tidak dihitung.
+final _skuPattern = RegExp(r'^([A-Z]+)/(\d+)$');
+
+/// SKU berikutnya untuk [prefix]: nomor terbesar prefix itu + 1 (HVT/017 → HVT/018); prefix baru mulai /001.
+String nextSku(String prefix, Iterable<String?> skus) {
+  final p = prefix.trim().toUpperCase();
+  var last = 0;
+  for (final s in skus) {
+    final m = _skuPattern.firstMatch(s?.trim().toUpperCase() ?? '');
+    if (m != null && m[1] == p) last = max(last, int.parse(m[2]!));
+  }
+  return '$p/${(last + 1).toString().padLeft(3, '0')}';
+}
+
+/// Prefix SKU yang sudah dipakai produk, urut abjad.
+List<String> skuPrefixes(Iterable<String?> skus) =>
+    {for (final s in skus) ?_skuPattern.firstMatch(s?.trim().toUpperCase() ?? '')?[1]}.toList()..sort();
+
+/// Tebak prefix SKU dari produk yang namanya paling mirip [name] (prefix tidak selalu ada di nama: "T20 YELLOW"
+/// = RCH). Kata yang sama menambah skor; kata umum (dipakai banyak produk, mis. LED, WHITE) bernilai kecil.
+/// null = tidak ada yang mirip.
+String? guessSkuPrefix(String name, Iterable<(String name, String? sku)> products) {
+  Set<String> words(String s) => s.toUpperCase().split(RegExp(r'[^A-Z0-9.]+')).where((w) => w.length >= 2).toSet();
+  final coded = [
+    for (final (n, sku) in products)
+      if (_skuPattern.firstMatch(sku?.trim().toUpperCase() ?? '') case final m?) (words(n), m[1]!),
+  ];
+  final used = <String, int>{}; // kata → jumlah produk yang memakainya
+  for (final (w, _) in coded) {
+    for (final x in w) {
+      used[x] = (used[x] ?? 0) + 1;
+    }
+  }
+  final target = words(name);
+  String? best;
+  var bestScore = 0.0;
+  for (final (w, prefix) in coded) {
+    final score = w.intersection(target).fold(0.0, (t, x) => t + 1 / used[x]!);
+    if (score > bestScore) (best, bestScore) = (prefix, score);
+  }
+  return best;
+}
 
 class PurchaseLine {
   PurchaseLine({required this.productId, required this.qty, required this.unitCost});
@@ -302,6 +347,17 @@ extension GudangRepo on AppDb {
         throw ArgumentError('Pembelian stok hanya untuk barang (bukan jasa)');
       }
       final vendor = await vendorByName(supplier);
+      final no = await takeNumber(
+        'next_purchase_no',
+        '',
+        width: 7,
+        taken: (no) async =>
+            await (select(purchases)
+                  ..where((x) => x.no.equals(no))
+                  ..limit(1))
+                .getSingleOrNull() !=
+            null,
+      );
       final id = await into(purchases).insert(
         PurchasesCompanion.insert(
           at: at,
@@ -312,6 +368,7 @@ extension GudangRepo on AppDb {
           note: Value(note.trim()),
           billNo: Value(billNo.trim()),
           proofPath: Value(proofPath),
+          no: Value(no),
         ),
       );
       for (final l in lines) {

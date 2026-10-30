@@ -7,6 +7,7 @@ import '../../core/proof.dart';
 import '../../db/database.dart';
 import 'gudang_controller.dart';
 import 'gudang_repo.dart';
+import 'product_form.dart';
 
 Future<void> showImportErrors(BuildContext context, String summary, List<String> errors) => showDialog(
   context: context,
@@ -75,10 +76,16 @@ Future<bool?> showAdjustDialog(BuildContext context, AppDb db, StockedProduct it
 }
 
 class _Line {
+  _Line([this.item]) : cost = TextEditingController(text: item == null ? '' : rp(item.product.buyPrice));
   StockedProduct? item;
   final qty = TextEditingController(text: '1');
-  final cost = TextEditingController();
+  final TextEditingController cost;
   int get total => parseRupiah(qty.text) * parseRupiah(cost.text);
+
+  void dispose() {
+    qty.dispose();
+    cost.dispose();
+  }
 }
 
 /// Pembelian stok (owner): tanggal, supplier, rekening, baris barang.
@@ -119,15 +126,26 @@ class _PurchaseDialogState extends State<_PurchaseDialog> {
   @override
   void dispose() {
     supplierFocus.dispose();
-    for (final t in [
-      supplier,
-      note,
-      billNo,
-      for (final l in lines) ...[l.qty, l.cost],
-    ]) {
+    for (final t in [supplier, note, billNo]) {
       t.dispose();
     }
+    for (final l in lines) {
+      l.dispose();
+    }
     super.dispose();
+  }
+
+  /// Barang baru dari form pembelian (R4 #5): form Gudang tanpa stok awal — stoknya masuk lewat baris ini.
+  Future<void> _newProduct() async {
+    final p = await showProductDialog(context, widget.c.db, [
+      for (final s in widget.c.products) s.product,
+    ], barangOnly: true);
+    if (p == null || !mounted) return;
+    setState(() {
+      // Baris terakhir yang belum terisi diganti baris berisi barang baru.
+      if (lines.last.item == null) lines.removeLast().dispose();
+      lines.add(_Line(StockedProduct(p, 0)));
+    });
   }
 
   Future<void> _save() async {
@@ -225,7 +243,7 @@ class _PurchaseDialogState extends State<_PurchaseDialog> {
                     ),
                   ),
                   const SizedBox(width: S.md),
-                  SizedBox(width: 170, child: Labeled('No. nota', TextField(controller: billNo))),
+                  SizedBox(width: 170, child: Labeled('No. nota supplier', TextField(controller: billNo))),
                   const SizedBox(width: S.md),
                   SizedBox(
                     width: 170,
@@ -250,6 +268,7 @@ class _PurchaseDialogState extends State<_PurchaseDialog> {
                     children: [
                       Expanded(
                         child: Autocomplete<StockedProduct>(
+                          initialValue: TextEditingValue(text: l.item?.product.name ?? ''),
                           displayStringForOption: (s) => s.product.name,
                           optionsBuilder: (v) => barang.where(
                             (s) =>
@@ -296,25 +315,26 @@ class _PurchaseDialogState extends State<_PurchaseDialog> {
                       ),
                       IconButton(
                         tooltip: 'Hapus baris',
-                        onPressed: lines.length == 1
-                            ? null
-                            : () => setState(() {
-                                final removed = lines.removeAt(i);
-                                removed.qty.dispose();
-                                removed.cost.dispose();
-                              }),
+                        onPressed: lines.length == 1 ? null : () => setState(() => lines.removeAt(i).dispose()),
                         icon: const Icon(Icons.delete_outline),
                       ),
                     ],
                   ),
                 ),
-              Align(
-                alignment: Alignment.centerLeft,
-                child: TextButton.icon(
-                  onPressed: () => setState(() => lines.add(_Line())),
-                  icon: const Icon(Icons.add, size: 18),
-                  label: const Text('Tambah barang'),
-                ),
+              Wrap(
+                spacing: S.sm,
+                children: [
+                  TextButton.icon(
+                    onPressed: () => setState(() => lines.add(_Line())),
+                    icon: const Icon(Icons.add, size: 18),
+                    label: const Text('Tambah barang'),
+                  ),
+                  TextButton.icon(
+                    onPressed: _newProduct,
+                    icon: const Icon(Icons.add_box_outlined, size: 18),
+                    label: const Text('Barang baru'),
+                  ),
+                ],
               ),
               const SizedBox(height: S.sm),
               Labeled('Keterangan', TextField(controller: note)),
