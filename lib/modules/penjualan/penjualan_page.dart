@@ -19,14 +19,13 @@ import 'penjualan_repo.dart';
 Widget statusPill(DocSummary s) {
   final overdue = s.overdue(DateTime.now());
   return switch (s.status) {
-    PayStatus.paid => const Pill('Lunas', Tone.success),
+    PayStatus.paid => Pill(PayStatus.paid.label, Tone.success),
     PayStatus.partial => Pill(
-      overdue ? 'Sebagian · lewat tempo' : 'Dibayar Sebagian',
+      overdue ? 'Sebagian · lewat tempo' : PayStatus.partial.label,
       overdue ? Tone.danger : Tone.warning,
     ),
-    PayStatus.unpaid => Pill(overdue ? 'Lewat jatuh tempo' : 'Belum Lunas', overdue ? Tone.danger : Tone.info),
-    PayStatus.invoiced => const Pill('Sudah diinvoice', Tone.neutral),
-    PayStatus.voided => const Pill('Batal', Tone.neutral),
+    PayStatus.unpaid => Pill(overdue ? 'Lewat jatuh tempo' : PayStatus.unpaid.label, overdue ? Tone.danger : Tone.info),
+    PayStatus.invoiced || PayStatus.voided => Pill(s.status.label, Tone.neutral),
   };
 }
 
@@ -204,16 +203,14 @@ class PenjualanPage extends StatelessWidget {
                       value: c.status.value,
                       underline: const SizedBox(),
                       hint: const Text('Semua status'),
-                      items: const [
-                        DropdownMenuItem(value: null, child: Text('Semua status')),
-                        DropdownMenuItem(value: PayStatus.unpaid, child: Text('Belum Lunas')),
-                        DropdownMenuItem(value: PayStatus.partial, child: Text('Dibayar Sebagian')),
-                        DropdownMenuItem(value: PayStatus.paid, child: Text('Lunas')),
-                        DropdownMenuItem(value: PayStatus.invoiced, child: Text('Sudah diinvoice')),
-                        DropdownMenuItem(value: PayStatus.voided, child: Text('Batal')),
+                      items: [
+                        const DropdownMenuItem(value: null, child: Text('Semua status')),
+                        for (final s in PayStatus.values) DropdownMenuItem(value: s, child: Text(s.label)),
                       ],
                       onChanged: (v) => c.status.value = v,
                     ),
+                    const SizedBox(width: S.sm),
+                    exportButton(context, c.export),
                   ],
                   columns: [
                     Col(
@@ -239,13 +236,10 @@ class PenjualanPage extends StatelessWidget {
                     ),
                     Col(
                       'Sisa',
-                      (s) => Text(
-                        s.doc.isVoid || s.status == PayStatus.invoiced || s.remaining <= 0 ? '—' : rp(s.remaining),
-                        style: T.money,
-                      ),
+                      (s) => Text(s.outstanding == 0 ? '—' : rp(s.outstanding), style: T.money),
                       flex: 2,
                       numeric: true,
-                      sort: (s) => s.doc.isVoid || s.status == PayStatus.invoiced ? 0 : s.remaining,
+                      sort: (s) => s.outstanding,
                     ),
                     Col('Status', statusPill, flex: 4, sort: (s) => s.status.index),
                   ],

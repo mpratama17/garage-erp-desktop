@@ -4,6 +4,8 @@ import '../../core/range_picker.dart';
 
 import 'package:get/get.dart';
 
+import '../../core/format.dart';
+import '../../core/xlsx.dart';
 import '../../db/database.dart';
 import '../gaji/gaji_repo.dart' show GajiRepo;
 import 'biaya_repo.dart';
@@ -58,6 +60,28 @@ class BiayaController extends GetxController {
     BiayaFilter.operasional => expenses.where((e) => !e.personal).toList(),
     BiayaFilter.pribadi => expenses.where((e) => e.personal).toList(),
   };
+
+  /// Export biaya yang sedang tampil (rentang + filter operasional/pribadi) ke .xlsx (R4 #3).
+  Future<String?> export() => exportXlsx(
+    db,
+    sheet: 'Biaya',
+    file: 'biaya',
+    range: range.value,
+    noun: 'biaya',
+    headers: ['Tanggal', 'Kategori', 'Jenis', 'Nama', 'Keterangan', 'Rekening', 'Nominal'],
+    rows: [
+      for (final e in shown)
+        [
+          tgl(e.entry.at),
+          e.category?.name ?? '',
+          e.personal ? 'Pribadi' : 'Operasional',
+          e.entry.description,
+          e.entry.note,
+          e.accountName,
+          e.amount,
+        ],
+    ],
+  );
 
   /// Total biaya dalam rentang; [personal] null = semua.
   int total({bool? personal}) =>

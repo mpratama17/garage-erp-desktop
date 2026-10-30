@@ -97,6 +97,8 @@ class BiayaPage extends StatelessWidget {
       ),
       const SizedBox(width: S.lg),
       RangeButton(range: c.range.value, onChanged: (r) => c.range.value = r!),
+      const SizedBox(width: S.sm),
+      exportButton(context, c.export),
     ],
     columns: [
       Col('Tanggal', (r) => Text(tgl(r.entry.at)), flex: 2, sort: (r) => r.entry.at),

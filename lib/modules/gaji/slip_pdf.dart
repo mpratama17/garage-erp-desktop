@@ -8,7 +8,7 @@ import 'package:pdf/widgets.dart' as pw;
 
 import '../../core/format.dart';
 import '../../db/database.dart';
-import '../penjualan/invoice_pdf.dart' show pdfLogo;
+import '../penjualan/invoice_pdf.dart' show logoBox, pdfLogo;
 import 'gaji_repo.dart';
 
 const _blue = PdfColor.fromInt(0xFF3B6CB7);
@@ -20,6 +20,7 @@ const _grey = PdfColor.fromInt(0xFF555555);
 Future<Uint8List> buildSlipPdf(AppDb db, Slip s) async {
   final set = await db.allSettings();
   final logo = pdfLogo(set['logo_path']!);
+  final box = logoBox(set['logo_scale']!);
   final shop = set['shop_name']!;
 
   final theme = pw.ThemeData.withFont(
@@ -68,8 +69,8 @@ Future<Uint8List> buildSlipPdf(AppDb db, Slip s) async {
             crossAxisAlignment: pw.CrossAxisAlignment.start,
             children: [
               pw.SizedBox(
-                width: 150,
-                height: 80,
+                width: box.x,
+                height: box.y,
                 child: logo != null
                     ? pw.Image(logo, fit: pw.BoxFit.contain, alignment: pw.Alignment.centerLeft)
                     : pw.Text(shop, style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold)),

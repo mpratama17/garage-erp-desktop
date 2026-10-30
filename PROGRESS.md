@@ -1,6 +1,6 @@
 # star-garage-erp (repo: garage-erp-desktop) — Progress Snapshot
 
-Last updated: 2026-10-26 (build **1.2.0+5** di `dist/`: logo nota/slip kini dipotong otomatis dari padding polos — sebelumnya `logo-star-baru.png` 500×500 tercetak kecil di nota client; .dmg diunggah manual ke Drive).
+Last updated: 2026-10-30 (**R4 diverifikasi & dibuild 1.3.0+6** — `dist/Garage-ERP-1.3.0+6.dmg` untuk diserahkan ke client; .dmg lama dihapus dari `dist/`. Skema DB v4.)
 
 **Apa:** mini-ERP desktop **macOS** offline (Flutter + SQLite/drift + GetX) untuk Star Garage (bengkel modif lampu, member Yoong Motor Pasuruan), pengganti Kledo + Google Sheet. Dashboard + 7 modul + Pengaturan (`docs/PRD.md` v2.3). Kasir: MacBook Air M1. Ringkasan untuk GitHub: `README.md`.
 
@@ -34,7 +34,7 @@ Last updated: 2026-10-26 (build **1.2.0+5** di `dist/`: logo nota/slip kini dipo
 | Sidebar v2 | Pengelompokan menu (Transaksi/Keuangan/Analisis), gaya pil lembut mengikuti referensi; paket `sidebarx` dilepas (tidak mendukung section header) — diganti widget sidebar sendiri, lebih ringkas | `724c7f5`+ |
 | Palet | Ikuti referensi: biru royal `#2F5BEA` (menu aktif, tombol utama, link, grafik), navy/slate, latar abu kebiruan, KPI pastel penuh (biru/ungu/kuning/mint); oranye hanya di logo; merah hanya bahaya | (commit ini) |
 
-Total test saat ini: **87 lulus** (per R3). **Semua modul R1 + upgrade UI selesai** — berikutnya: uji manual end-to-end di Mac, backlog B3, rilis .dmg pertama ke client. Importer dicoba dengan file asli client: produk 68 masuk / 1 ditolak (SKU kembar CB/001); customer 142 masuk / 6 digabung (no. HP sama) — semua sesuai temuan analisis awal.
+Total test saat ini: **93 lulus** (per R4). **Semua modul R1 + upgrade UI selesai** — berikutnya: uji manual end-to-end di Mac, backlog B3, rilis .dmg pertama ke client. Importer dicoba dengan file asli client: produk 68 masuk / 1 ditolak (SKU kembar CB/001); customer 142 masuk / 6 digabung (no. HP sama) — semua sesuai temuan analisis awal.
 
 ## Backlog (diminta, belum dikerjakan)
 
@@ -69,7 +69,7 @@ Jenis: 🐞 bug/salah paham · ✨ fitur · ❓ pertanyaan (cukup dijawab / mung
 | C17 | Gaji | Download slip gaji per karyawan per periode (PDF) | ✨ | ✅ Jawaban client: PDF A4, hanya kolom ttd Finance Star Garage (tanpa kolom tanda terima karyawan), tidak perlu dikirim lewat WA. Tombol "Unduh slip" di dialog slip gaji (`lib/modules/gaji/slip_pdf.dart`, gaya sama dengan nota invoice) — simpan ke folder export/Slip. |
 | C18 | Semua | Mode terkunci (bukan owner) = hanya lihat; kasir hanya boleh tambah penjualan & customer | ✨ | ✅ Terkunci = hanya lihat. Kasir boleh: invoice/pemesanan + DP, pembayaran, buat invoice dari pemesanan, tambah & ubah customer, catat biaya baru, lihat grafik. Selain itu `requireOwner()` di repo (produk, ubah dokumen apa pun, hapus customer, import, transfer, uang masuk, rekening, biaya ubah/hapus, kategori, karyawan, gaji, pengaturan lewat `PengaturanController._set`). Tombol terkait minta PIN dulu. Test: `test/akses_test.dart`. |
 
-## Masukan client R3 (22 Okt) — ✅ dikerjakan & di-commit (belum di-push/di-build)
+## Masukan client R3 (22 Okt) — ✅ dikerjakan, di-push, masuk build 1.2.0+5
 
 23 nomor asli (nomor 4 dobel = 24 butir) → 18 pekerjaan (C1–C18), semua ✅. #4a: owner memutuskan tetap lewat tombol "Buat invoice" (tidak otomatis saat lunas). analyze bersih, 88 test lulus. Jawaban client: pemesanan lunas → jadi invoice di Tagihan; biaya berulang dicatat manual per klik; jurnal otomatis cukup (tanpa input jurnal manual). Skema DB naik ke **v3** (additive; migrasi dites di `test/r3_test.dart`).
 
@@ -105,10 +105,27 @@ Jenis: 🐞 bug/salah paham · ✨ fitur · ❓ pertanyaan (cukup dijawab / mung
 
 **Masih menunggu client:** saldo awal 4 rekening, data produk bersih, definisi proyeksi arus kas, hasil testing build 1.1.0+2. Owner testing sendiri `dist/Garage-ERP-1.2.0+3.dmg` dulu sebelum dikirim.
 
+## Masukan client R4 (28 Okt) — ✅ dikerjakan, diverifikasi, build 1.3.0+6
+
+Jawaban owner (Yoga, 28 Okt): SKU & no. pembelian ditentukan dari data yang ada; export khusus owner; ukuran logo berlaku untuk nota **dan** slip gaji; paket `printing` disetujui. Skema DB naik ke **v4** (additive: `purchases.no`; dites di `test/r4_test.dart`).
+
+| # | Masukan | Hasil |
+|---|---|---|
+| 1 | Form tambah barang/jasa dari Tagihan & Pemesanan selengkap form Gudang | ✅ Form produk diekstrak ke `lib/modules/gudang/product_form.dart` (`ProductFields` + `ProductFormFields` + `showProductDialog`), dipakai panel Gudang, Penjualan, dan Pembelian. Dari Penjualan barang tetap wajib stok awal ≥ 1 (aturan 23 Okt) |
+| 2 | SKU otomatis, tidak dobel | ✅ Format client = `PREFIX/NNN` per **merek**, bukan kategori (HVT ada di 4 kategori). Prefix ditebak dari produk yang namanya paling mirip (`guessSkuPrefix`, kata umum seperti LED/WHITE berbobot kecil); nomor = terbesar prefix itu + 1 (`nextSku`), prefix baru mulai `/001`; tombol ▾ di field SKU untuk pilih prefix lain; tetap bisa diketik. Hanya produk baru. Unik tetap dijaga kolom unik + `saveProduct` |
+| 3 | Export per rentang tanggal: Tagihan, Pemesanan, Tagihan Pembelian, Biaya, Kas & Bank | ✅ Tombol `exportButton` (`core/ui.dart`, minta PIN) di Tagihan/Pemesanan, Pembelian/Tagihan Pembelian, Biaya; Kas sudah ada sejak R3 (dipindah ke tombol yang sama). Isi = yang sedang tampil (rentang + filter status/jenis), satu baris per dokumen; **kotak cari tidak ikut**. Semua lewat `exportXlsx` (`core/xlsx.dart`: `requireOwner` + nama file + pesan), termasuk Kas. Sisa tagihan pakai `DocSummary.outstanding` (batal/sudah diinvoice = 0), sama dengan tabel |
+| 4 | No. pembelian otomatis `0000400` dst | ✅ Kolom baru `purchases.no` (v4) **di samping** no. nota supplier (`billNo`, label jadi "Nota supplier"). Setting `next_purchase_no` (default 400, bisa diubah di Pengaturan ▸ Nomor nota); nomor diambil di dalam transaksi `recordPurchase`; nomor yang sudah dipakai dilewati oleh `takeNumber(taken:)` (sama dengan INV/SO). Pembelian lama tanpa nomor (tampil "—"). Kolom No. juga di Buku besar pembantu utang & Detail pembelian |
+| 5 | Tambah barang dari kolom barang di Pembelian stok | ✅ Tombol "Barang baru" di dialog pembelian: form Gudang, tipe dikunci Barang, **tanpa stok awal** (stok masuk lewat baris pembelian; dicek di `tool/preview`: qty 3 → stok 3), harga beli baris terisi dari produk |
+| 6 | Ukuran logo nota bisa diatur + preview | ✅ Setting `logo_scale` 50–200% dari kotak 150×80 (`logoBox` di `invoice_pdf.dart`), dipakai nota & slip; 200% dicek tidak menabrak judul. Pengaturan ▸ Bengkel & nota: slider (tersimpan saat dilepas) + `PdfPreview` (paket `printing` 5.14.3) dari invoice terbaru. Preview hanya dibangun saat halaman Pengaturan tampil (`Visibility.of`, karena shell = `IndexedStack`) dan hanya dirender ulang saat key (ukuran/logo) berubah |
+
+**Close-out 28 Okt:** `/code-review` (3 diperbaiki: slider kembali bila simpan gagal, cek nomor terpakai pakai `limit(1)`, label status satu sumber = enum `PayStatus.label`) + `/simplify` (lewati-nomor ke `takeNumber`, `exportXlsx`, `showProductDialog` mengembalikan `Product` & memakai daftar produk pemanggil, `_Line.dispose`, getter kategori Gudang yang mati dihapus). **Sengaja dilewati:** export tidak ikut kotak cari; barang baru dari Pembelian tetap tersimpan walau pembelian dibatalkan (sama dengan Penjualan); saran SKU di panel Gudang yang sedang terbuka tidak ikut produk yang baru disimpan dari tempat lain; cache dekode logo PDF (logo client kecil); Export/Import Gudang & Kontak belum memakai `exportButton`.
+
+**Verifikasi 30 Okt (sebelum build 1.3.0+6):** analyze bersih, 93 test lulus. Migrasi v3→v4 dicoba pada salinan DB lokal Mac dev (69 produk, 7 invoice + 1 pembelian lama disisipkan): data utuh, pembelian lama tanpa nomor, pembelian baru `0000400`, `user_version` 4. Preview nota di Pengaturan dicek lewat integration test sementara di app macOS sungguhan (plugin `printing` aktif): preview tampil (bukan spinner) dan logo membesar saat slider 100%→200% dilepas. Test sementara sudah dihapus. **Belum:** uji migrasi pada salinan DB asli milik client (salinan belum ada) — client disarankan backup dulu sebelum memasang 1.3.0.
+
 ## Catatan teknis
 
 - **Struktur:** `lib/core/` (theme, format, owner/PIN, ui, table, xlsx), `lib/db/database.dart` (semua tabel), `lib/modules/<modul>/` (repo = aturan bisnis + test, controller GetX, page, dialogs), `lib/shell.dart`.
-- **Alat:** preview UI ke PNG `flutter test tool/preview --update-goldens`; cek import file asli `IMPORT_FILE=… flutter test tool/check_import_test.dart`; rilis `sh tool/release_macos.sh` (panduan `docs/rilis-macos.md`).
+- **Alat:** preview UI ke PNG `flutter test tool/preview --update-goldens` (layar Pengaturan diambil tanpa `pumpAndSettle`: `PdfPreview` butuh plugin native); cek import file asli `IMPORT_FILE=… flutter test tool/check_import_test.dart`; rilis `sh tool/release_macos.sh` (panduan `docs/rilis-macos.md`).
 - **Skema:** schemaVersion tetap 1 sampai terpasang di client; tabel baru otomatis dibuat di DB lama (`CREATE TABLE IF NOT EXISTS`). Perubahan **kolom** = hapus DB dev (`~/Library/Application Support/com.mpratama.garageErp/`) selama belum di client.
 - **Aturan bisnis di repo, bukan di UI** (pelajaran sirviu): aturan owner dicek lewat `AppDb.requireOwner()` (sesi PIN) di repo. Sejak R2 (C18) kebalikannya: tanpa PIN hanya boleh tambah penjualan/pemesanan/pembayaran, customer (tambah/ubah), biaya baru — daftar lengkap di `test/akses_test.dart`. Pembelian hanya barang & rekening aktif. `setSetting` sengaja tidak dikunci (nomor nota kasir, catatan backup).
 - **Penjualan:** invoice & pemesanan satu tabel (`kind`); total/terbayar/status dihitung (tidak disimpan); DP tetap di pemesanan dan ikut dihitung di invoice turunannya; nomor otomatis melompati nomor yang sudah dipakai transaksi lama; invoice butuh stok > 0 per barang (sejak 23 Okt), qty melebihi stok tetap boleh (stok bisa minus, dengan peringatan).

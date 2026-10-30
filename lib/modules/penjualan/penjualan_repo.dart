@@ -7,7 +7,16 @@ abstract final class DocKind {
   static const invoice = 'invoice', order = 'order';
 }
 
-enum PayStatus { unpaid, partial, paid, invoiced, voided }
+enum PayStatus {
+  unpaid('Belum Lunas'),
+  partial('Dibayar Sebagian'),
+  paid('Lunas'),
+  invoiced('Sudah diinvoice'),
+  voided('Batal');
+
+  const PayStatus(this.label);
+  final String label; // tabel, filter & export
+}
 
 /// Ringkasan invoice/pemesanan untuk daftar: total & terbayar dihitung dari baris & buku kas.
 class DocSummary {
@@ -25,6 +34,9 @@ class DocSummary {
   final bool hasInvoice; // pemesanan yang sudah dibuatkan invoice
 
   int get remaining => total - paid;
+
+  /// Sisa yang benar-benar masih ditagih: dokumen batal & pemesanan yang sudah diinvoice = 0 (tabel & export).
+  int get outstanding => doc.isVoid || status == PayStatus.invoiced || remaining < 0 ? 0 : remaining;
   int get omzet => total - doc.tax; // pendapatan: setelah semua diskon, tanpa PPN (PPN bukan pendapatan)
   int get subtotal => omzet + doc.discount; // jumlah baris sebelum diskon invoice
 
@@ -260,15 +272,11 @@ extension PenjualanRepo on AppDb {
           no = legacyNo.trim().toUpperCase();
           if (await taken(no)) throw ArgumentError('Nomor $no sudah dipakai');
         } else {
-          // Lewati nomor yang sudah dipakai (mis. oleh transaksi lama) supaya penomoran tidak macet.
-          var n = '';
-          do {
-            n = await takeNumber(
-              kind == DocKind.invoice ? 'next_invoice_no' : 'next_so_no',
-              kind == DocKind.invoice ? 'INV' : 'SO',
-            );
-          } while (await taken(n));
-          no = n;
+          no = await takeNumber(
+            kind == DocKind.invoice ? 'next_invoice_no' : 'next_so_no',
+            kind == DocKind.invoice ? 'INV' : 'SO',
+            taken: taken,
+          );
         }
         docId = await into(invoices).insert(data.copyWith(no: Value(no), legacy: Value(legacy)));
       } else {

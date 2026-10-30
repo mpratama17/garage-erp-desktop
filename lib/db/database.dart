@@ -155,6 +155,7 @@ class Purchases extends Table {
   TextColumn get note => text().withDefault(const Constant(''))();
   TextColumn get billNo => text().withDefault(const Constant(''))(); // no. nota supplier (v2)
   TextColumn get proofPath => text().withDefault(const Constant(''))(); // foto nota (v2)
+  TextColumn get no => text().withDefault(const Constant(''))(); // no. pembelian otomatis "0000400" (v4); lama = ''
 }
 
 /// Slip gaji per karyawan per periode (mis. 27 Sep – 26 Okt). Dibayar = ada cash_entries kind=salary, refId=id.
@@ -231,10 +232,12 @@ const settingDefaults = {
   'shop_phone': '',
   'shop_email': '',
   'logo_path': '',
+  'logo_scale': '100', // ukuran logo di nota & slip, % dari kotak 150×80 (R4 #6)
   'invoice_note': '',
   'gmaps_review_url': '',
   'next_invoice_no': '247',
   'next_so_no': '13',
+  'next_purchase_no': '400', // no. pembelian 0000400 (R4 #4)
   'payroll_start_day': '27',
   'sales_commission_pct': '3',
   'backup_dir': '',
@@ -319,7 +322,7 @@ class AppDb extends _$AppDb {
 
   // App sudah dipakai client sejak v1: tiap perubahan kolom = naikkan versi + langkah di onUpgrade.
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 4;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -359,6 +362,7 @@ class AppDb extends _$AppDb {
           'WHERE TRIM(supplier) <> \'\'',
         );
       }
+      if (from < 4) await m.addColumn(purchases, purchases.no); // pembelian lama tanpa nomor (tampil "—")
     },
     beforeOpen: (details) async {
       await customStatement('PRAGMA foreign_keys = ON');
@@ -390,12 +394,18 @@ class AppDb extends _$AppDb {
   Future<void> setSetting(String key, String value) =>
       into(settings).insertOnConflictUpdate(SettingsCompanion.insert(key: key, value: value));
 
-  /// Ambil nomor berikutnya (mis. 'next_invoice_no' -> "INV/00247") lalu naikkan.
-  Future<String> takeNumber(String key, String prefix) => transaction(() async {
-    final n = int.parse(await setting(key));
-    await setSetting(key, '${n + 1}');
-    return '$prefix/${n.toString().padLeft(5, '0')}';
-  });
+  /// Ambil nomor berikutnya (mis. 'next_invoice_no' -> "INV/00247"; tanpa prefix -> "0000400") lalu naikkan.
+  /// Nomor yang sudah dipakai ([taken], mis. oleh transaksi lama) dilewati supaya penomoran tidak macet/dobel.
+  Future<String> takeNumber(String key, String prefix, {int width = 5, Future<bool> Function(String no)? taken}) =>
+      transaction(() async {
+        while (true) {
+          final n = int.parse(await setting(key));
+          await setSetting(key, '${n + 1}');
+          final digits = n.toString().padLeft(width, '0');
+          final no = prefix.isEmpty ? digits : '$prefix/$digits';
+          if (taken == null || !await taken(no)) return no;
+        }
+      });
 
   // ---- PIN owner ----
   static String _hash(String salt, String pin) => sha256.convert(utf8.encode('$salt:$pin')).toString();

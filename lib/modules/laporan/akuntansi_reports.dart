@@ -253,19 +253,20 @@ extension LaporanBaru on AppDb {
         final total = unpaid.fold<int>(0, (t, p) => t + p.purchase.total);
         return ReportData(
           'Buku besar pembantu — utang usaha per vendor',
-          const ['Vendor', 'Tgl beli', 'No. nota', 'Umur (hari)', 'Sisa utang'],
+          const ['Vendor', 'No.', 'Tgl beli', 'Nota supplier', 'Umur (hari)', 'Sisa utang'],
           [
             for (final p in unpaid)
               RRow([
                 p.purchase.supplier.isEmpty ? '(tanpa vendor)' : p.purchase.supplier,
+                p.purchase.no,
                 tgl(p.purchase.at),
                 p.purchase.billNo,
                 today.difference(p.purchase.at).inDays,
                 p.purchase.total,
               ]),
-            RRow(['Total', '', '', null, total], bold: true),
+            RRow(['Total', '', '', '', null, total], bold: true),
           ],
-          countCols: const {3},
+          countCols: const {4},
         );
       case 'persediaan':
         final items = (await productsQuery().get()).where((s) => !s.isService && s.stock != 0).toList();
@@ -420,6 +421,7 @@ extension LaporanBaru on AppDb {
       final lunas = paidAt[p.id];
       rows.add(
         RRow([
+          p.no,
           tgl(p.at),
           p.supplier,
           p.billNo,
@@ -432,12 +434,23 @@ extension LaporanBaru on AppDb {
         ]),
       );
     }
-    rows.add(RRow(['Total', '', '', '', qty, null, total, '', ''], bold: true));
+    rows.add(RRow(['Total', '', '', '', '', qty, null, total, '', ''], bold: true));
     return ReportData(
       'Detail pembelian ${tgl(from)} – ${tgl(end)}',
-      const ['Tgl beli', 'Vendor', 'No. nota', 'Barang', 'Qty', 'Harga beli', 'Jumlah', 'Status', 'Tgl lunas'],
+      const [
+        'No.',
+        'Tgl beli',
+        'Vendor',
+        'Nota supplier',
+        'Barang',
+        'Qty',
+        'Harga beli',
+        'Jumlah',
+        'Status',
+        'Tgl lunas',
+      ],
       rows,
-      countCols: const {4},
+      countCols: const {5},
     );
   }
 }

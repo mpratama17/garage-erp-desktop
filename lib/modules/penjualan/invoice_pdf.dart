@@ -30,6 +30,13 @@ pw.ImageProvider? pdfLogo(String path) {
   return pw.ImageImage(img.trim(im, mode: mode));
 }
 
+/// Ukuran kotak logo nota & slip (dasar 150×80 pt, R4 #6). Batas 200% supaya tidak menabrak judul di kanan.
+const logoScaleRange = (min: 50, max: 200);
+PdfPoint logoBox(String setting) {
+  final k = (int.tryParse(setting) ?? 100).clamp(logoScaleRange.min, logoScaleRange.max) / 100;
+  return PdfPoint(150 * k, 80 * k);
+}
+
 /// Layout mengikuti nota client dari Kledo (INV/00245 & INV/00246).
 Future<Uint8List> buildInvoicePdf(AppDb db, int docId) async {
   final s = await db.docSummary(docId);
@@ -43,6 +50,7 @@ Future<Uint8List> buildInvoicePdf(AppDb db, int docId) async {
       : await (db.select(db.invoices)..where((i) => i.id.equals(inv.orderId!))).getSingleOrNull();
   final set = await db.allSettings();
   final logo = pdfLogo(set['logo_path']!);
+  final box = logoBox(set['logo_scale']!);
   final shop = set['shop_name']!;
   final isOrder = s.isOrder;
 
@@ -106,8 +114,8 @@ Future<Uint8List> buildInvoicePdf(AppDb db, int docId) async {
                 crossAxisAlignment: pw.CrossAxisAlignment.start,
                 children: [
                   pw.SizedBox(
-                    width: 150,
-                    height: 80,
+                    width: box.x,
+                    height: box.y,
                     child: logo != null
                         ? pw.Image(logo, fit: pw.BoxFit.contain, alignment: pw.Alignment.centerLeft)
                         : pw.Text(shop, style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold)),

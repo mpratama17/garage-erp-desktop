@@ -3,11 +3,11 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart' hide Value;
 
 import '../../core/format.dart';
-import '../../core/owner.dart';
 import '../../core/theme.dart';
 import '../../core/ui.dart';
 import '../../db/database.dart';
 import '../gudang/gudang_repo.dart';
+import '../gudang/product_form.dart';
 import '../kontak/kontak_repo.dart';
 import 'penjualan_controller.dart';
 import 'penjualan_repo.dart';
@@ -179,69 +179,12 @@ class _DocEditorState extends State<_DocEditor> {
     _pickCustomer(x);
   }
 
-  /// Barang/jasa baru langsung dari form (keputusan owner 23 Okt): butuh PIN owner (saveProduct dikunci owner),
-  /// harga beli kosong = modal 0 (dilengkapi di Gudang), barang wajib stok awal ≥ 1 supaya bisa masuk invoice.
+  /// Barang/jasa baru langsung dari form (keputusan owner 23 Okt; form lengkap seperti Gudang sejak R4 #1).
+  /// Barang wajib stok awal ≥ 1 supaya bisa masuk invoice.
   Future<void> _newProduct() async {
-    if (!await Get.find<OwnerController>().ensure(context) || !mounted) return;
-    final name = TextEditingController(), price = TextEditingController(), stock = TextEditingController(text: '1');
-    var isService = false;
-    final id = await showDialog<int>(
-      context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setDialog) => AlertDialog(
-          title: const Text('Barang / jasa baru'),
-          content: SizedBox(
-            width: 360,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                SegmentedButton<bool>(
-                  segments: const [
-                    ButtonSegment(value: false, label: Text('Barang')),
-                    ButtonSegment(value: true, label: Text('Jasa')),
-                  ],
-                  selected: {isService},
-                  onSelectionChanged: (v) => setDialog(() => isService = v.first),
-                ),
-                const SizedBox(height: S.md),
-                Labeled('Nama *', TextField(controller: name, autofocus: true)),
-                const SizedBox(height: S.md),
-                MoneyField(controller: price, label: 'Harga jual'),
-                if (!isService) ...[
-                  const SizedBox(height: S.md),
-                  MoneyField(controller: stock, label: 'Stok awal (minimal 1)', prefix: ''),
-                ],
-                const SizedBox(height: S.md),
-                Text('Harga beli belum diisi, jadi modalnya 0. Lengkapi di Gudang.', style: T.label),
-              ],
-            ),
-          ),
-          actions: [
-            OutlinedButton(onPressed: () => Navigator.pop(ctx), child: const Text('Batal')),
-            FilledButton(
-              onPressed: () => runAction(ctx, () async {
-                final opening = isService ? 0 : parseRupiah(stock.text);
-                if (!isService && opening < 1) throw ArgumentError('Stok awal minimal 1 supaya bisa masuk invoice');
-                final id = await c.db.saveProduct(
-                  ProductsCompanion.insert(
-                    name: name.text,
-                    isService: Value(isService),
-                    sellPrice: Value(parseRupiah(price.text)),
-                  ),
-                  openingStock: opening,
-                );
-                if (ctx.mounted) Navigator.pop(ctx, id);
-              }),
-              child: const Text('Simpan'),
-            ),
-          ],
-        ),
-      ),
-    );
-    if (id == null || !mounted) return;
-    final p = await (c.db.select(c.db.products)..where((x) => x.id.equals(id))).getSingle();
-    final item = StockedProduct(p, await c.db.stockOf(id));
+    final p = await showProductDialog(context, c.db, [for (final s in c.products) s.product], minOpening: 1);
+    if (p == null || !mounted) return;
+    final item = StockedProduct(p, await c.db.stockOf(p.id));
     if (!mounted) return;
     setState(() {
       // Baris terakhir yang belum terisi diganti baris berisi produk baru.

@@ -326,7 +326,29 @@ void main() {
     await tester.tap(find.widgetWithText(FilledButton, 'Pembelian stok'));
     await settle();
     await shot('pembelian-dialog');
-    await tester.tap(find.text('Batal').last);
+    // R4 #5: barang baru dari dialog pembelian (form Gudang, tanpa stok awal), langsung jadi baris pembelian.
+    await tester.tap(find.text('Barang baru'));
+    await settle();
+    final buyDialog = find.byType(AlertDialog).last;
+    await tester.enterText(find.descendant(of: buyDialog, matching: find.byType(TextField)).first, 'CANBUS LED 20');
+    await tester.enterText(find.descendant(of: buyDialog, matching: find.byType(TextField)).at(5), '90000');
+    await settle();
+    await shot('pembelian-barang-baru');
+    await tester.tap(find.descendant(of: buyDialog, matching: find.text('Simpan')));
+    await settle();
+    await shot('pembelian-barang-baru-tersimpan');
+    // Stok barang baru = qty pembelian saja (tidak ada stok awal yang ikut terhitung).
+    await tester.enterText(
+      find.descendant(of: find.widgetWithText(Labeled, 'Qty'), matching: find.byType(TextField)),
+      '3',
+    );
+    await tester.tap(find.text('Simpan pembelian'));
+    await settle();
+    final stock = await tester.runAsync(() async {
+      final p = await (db.select(db.products)..where((x) => x.name.equals('CANBUS LED 20'))).getSingle();
+      return db.stockOf(p.id);
+    });
+    expect(stock, 3);
     await settle();
     await tester.tap(find.text('Tagihan Pembelian'));
     await settle();
@@ -353,8 +375,11 @@ void main() {
     await settle();
     await shot('tagihan-produk-baru');
     final dialog = find.byType(AlertDialog);
-    await tester.enterText(find.descendant(of: dialog, matching: find.byType(TextField)).first, 'LED BARU UJI');
-    await tester.enterText(find.descendant(of: dialog, matching: find.byType(TextField)).at(1), '150000');
+    // R4 #1–2: form lengkap; SKU ditebak dari produk yang mirip (CANBUS → CB/003).
+    await tester.enterText(find.descendant(of: dialog, matching: find.byType(TextField)).first, 'CANBUS LED BARU');
+    await tester.enterText(find.descendant(of: dialog, matching: find.byType(TextField)).at(4), '150000');
+    await settle();
+    await shot('tagihan-produk-baru-isi');
     await tester.tap(find.descendant(of: dialog, matching: find.text('Simpan')));
     await settle();
     await shot('tagihan-produk-baru-tersimpan'); // baris kosong diganti produk baru (harga terisi)
@@ -420,7 +445,10 @@ void main() {
     // Kategori dicari dengan mengetik.
     await tester.tap(find.byType(DropdownMenu<int>));
     await settle();
-    await tester.enterText(find.descendant(of: find.byType(DropdownMenu<int>), matching: find.byType(TextField)), 'list');
+    await tester.enterText(
+      find.descendant(of: find.byType(DropdownMenu<int>), matching: find.byType(TextField)),
+      'list',
+    );
     await settle();
     await shot('biaya-cari-kategori');
     await tester.tap(find.text('Batal').last);
@@ -471,7 +499,11 @@ void main() {
     await shot('kontak');
 
     await tester.tap(find.text('Pengaturan'));
-    await settle();
+    // Tanpa pumpAndSettle: preview nota (paket printing) butuh plugin native yang tidak ada di test → spinner.
+    // Hasil PDF-nya dicek lewat pdf_preview_test.dart.
+    await tester.pump();
+    await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 300)));
+    await tester.pump(const Duration(milliseconds: 300));
     await shot('pengaturan');
 
     // Terakhir: Kas saat owner terkunci (saldo ••••). Tanpa pumpAndSettle — halaman owner lain

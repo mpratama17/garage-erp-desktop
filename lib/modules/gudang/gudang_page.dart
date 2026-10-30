@@ -1,4 +1,3 @@
-import 'package:drift/drift.dart' show Value;
 import 'package:flutter/material.dart';
 import 'package:get/get.dart' hide Value;
 
@@ -12,6 +11,7 @@ import '../../shell.dart' show openDoc, openPurchase;
 import 'gudang_controller.dart';
 import 'gudang_dialogs.dart';
 import 'gudang_repo.dart';
+import 'product_form.dart';
 
 class GudangPage extends StatelessWidget {
   const GudangPage({super.key});
@@ -252,51 +252,25 @@ class ProductPanel extends StatefulWidget {
 }
 
 class _ProductPanelState extends State<ProductPanel> {
-  late final Product? p = widget.item?.product;
-  late bool isService = p?.isService ?? widget.newIsService;
-  late bool active = p?.active ?? true;
-  late final name = TextEditingController(text: p?.name);
-  late final sku = TextEditingController(text: p?.sku);
-  late final category = TextEditingController(text: p?.category);
-  late final unit = TextEditingController(text: p?.unit ?? 'PCS');
-  late final sell = TextEditingController(text: p == null ? '' : rp(p!.sellPrice));
-  late final buy = TextEditingController(text: p == null ? '' : rp(p!.buyPrice));
-  late final minStock = TextEditingController(text: '${p?.minStock ?? 0}');
-  late final incentive = TextEditingController(text: p == null ? '' : rp(p!.incentive));
-  late final opening = TextEditingController(text: '0');
+  late final f = ProductFields(widget.item?.product, isService: widget.newIsService);
 
   @override
   void dispose() {
-    for (final t in [name, sku, category, unit, sell, buy, minStock, incentive, opening]) {
-      t.dispose();
-    }
+    f.dispose();
     super.dispose();
   }
 
   Future<void> _save() async {
     if (!await Get.find<OwnerController>().ensure(context) || !mounted) return;
-    final data = ProductsCompanion(
-      id: p == null ? const Value.absent() : Value(p!.id),
-      name: Value(name.text),
-      sku: Value(sku.text),
-      category: Value(category.text.trim()),
-      unit: Value(unit.text.trim().isEmpty ? 'PCS' : unit.text.trim().toUpperCase()),
-      isService: Value(isService),
-      sellPrice: Value(parseRupiah(sell.text)),
-      buyPrice: Value(parseRupiah(buy.text)),
-      minStock: Value(isService ? 0 : parseRupiah(minStock.text)),
-      incentive: Value(parseRupiah(incentive.text)),
-      active: Value(active),
-    );
     await runAction(context, () async {
-      final id = await widget.controller.db.saveProduct(data, openingStock: parseRupiah(opening.text));
+      final id = await widget.controller.db.saveProduct(f.toCompanion(), openingStock: parseRupiah(f.opening.text));
       widget.controller.panelId.value = id;
     }, 'Produk tersimpan');
   }
 
   @override
   Widget build(BuildContext context) {
-    final owner = Get.find<OwnerController>();
+    final p = f.p;
     final isNew = p == null;
     Widget gap() => const SizedBox(height: S.md);
     return Card(
@@ -308,7 +282,7 @@ class _ProductPanelState extends State<ProductPanel> {
             child: Row(
               children: [
                 Expanded(
-                  child: Text(isNew ? 'Produk baru' : p!.name, style: T.section, overflow: TextOverflow.ellipsis),
+                  child: Text(isNew ? 'Produk baru' : p.name, style: T.section, overflow: TextOverflow.ellipsis),
                 ),
                 IconButton(
                   tooltip: 'Tutup',
@@ -323,85 +297,15 @@ class _ProductPanelState extends State<ProductPanel> {
             child: ListView(
               padding: const EdgeInsets.all(S.xl),
               children: [
-                // Tipe hanya bisa dipilih saat membuat produk (stok & riwayat bergantung padanya).
-                if (isNew)
-                  SegmentedButton<bool>(
-                    showSelectedIcon: false,
-                    segments: const [
-                      ButtonSegment(value: false, label: Text('Barang')),
-                      ButtonSegment(value: true, label: Text('Jasa')),
-                    ],
-                    selected: {isService},
-                    onSelectionChanged: (s) => setState(() => isService = s.first),
-                  )
-                else
-                  Align(alignment: Alignment.centerLeft, child: Pill(isService ? 'Jasa' : 'Barang', Tone.neutral)),
-                gap(),
-                Labeled('Nama *', TextField(controller: name)),
-                gap(),
-                Row(
-                  children: [
-                    Expanded(child: Labeled('Kode / SKU', TextField(controller: sku))),
-                    const SizedBox(width: S.md),
-                    SizedBox(width: 100, child: Labeled('Satuan', TextField(controller: unit))),
-                  ],
-                ),
-                gap(),
-                Autocomplete<String>(
-                  initialValue: TextEditingValue(text: category.text),
-                  optionsBuilder: (v) =>
-                      widget.controller.categories.where((c) => c.toLowerCase().contains(v.text.toLowerCase())),
-                  onSelected: (v) => category.text = v,
-                  fieldViewBuilder: (_, ctrl, focus, _) => Labeled(
-                    'Kategori',
-                    TextField(controller: ctrl, focusNode: focus, onChanged: (v) => category.text = v),
-                  ),
-                ),
-                gap(),
-                Row(
-                  children: [
-                    Expanded(
-                      child: MoneyField(controller: sell, label: 'Harga jual *'),
-                    ),
-                    const SizedBox(width: S.md),
-                    Expanded(
-                      child: Obx(
-                        () => owner.isOwner.value
-                            ? MoneyField(controller: buy, label: 'Harga beli')
-                            : const Labeled(
-                                'Harga beli',
-                                InputDecorator(
-                                  decoration: InputDecoration(),
-                                  child: OwnerOnly(child: SizedBox()),
-                                ),
-                              ),
-                      ),
-                    ),
-                  ],
-                ),
-                gap(),
-                Row(
-                  children: [
-                    Expanded(
-                      child: MoneyField(controller: incentive, label: 'Tarif insentif teknisi'),
-                    ),
-                    if (!isService) ...[
-                      const SizedBox(width: S.md),
-                      Expanded(
-                        child: MoneyField(controller: minStock, label: 'Stok minimal', prefix: ''),
-                      ),
-                    ],
-                  ],
-                ),
-                if (isNew && !isService) ...[gap(), MoneyField(controller: opening, label: 'Stok awal', prefix: '')],
+                ProductFormFields(f: f, products: [for (final s in widget.controller.products) s.product]),
                 if (!isNew) ...[
                   gap(),
                   SwitchListTile(
                     contentPadding: EdgeInsets.zero,
                     title: const Text('Aktif'),
                     subtitle: const Text('Tidak muncul di invoice.'),
-                    value: active,
-                    onChanged: (v) => setState(() => active = v),
+                    value: f.active,
+                    onChanged: (v) => setState(() => f.active = v),
                   ),
                 ],
                 gap(),
@@ -413,7 +317,7 @@ class _ProductPanelState extends State<ProductPanel> {
                     FilledButton(onPressed: _save, child: const Text('Simpan')),
                   ],
                 ),
-                if (!isNew && !isService) ...[
+                if (!isNew && !f.isService) ...[
                   const SizedBox(height: S.xl),
                   _StockHistory(controller: widget.controller, item: widget.item!),
                 ],

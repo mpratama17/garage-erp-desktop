@@ -2651,6 +2651,16 @@ class $PurchasesTable extends Purchases
     requiredDuringInsert: false,
     defaultValue: const Constant(''),
   );
+  static const VerificationMeta _noMeta = const VerificationMeta('no');
+  @override
+  late final GeneratedColumn<String> no = GeneratedColumn<String>(
+    'no',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -2662,6 +2672,7 @@ class $PurchasesTable extends Purchases
     note,
     billNo,
     proofPath,
+    no,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -2729,6 +2740,9 @@ class $PurchasesTable extends Purchases
         proofPath.isAcceptableOrUnknown(data['proof_path']!, _proofPathMeta),
       );
     }
+    if (data.containsKey('no')) {
+      context.handle(_noMeta, no.isAcceptableOrUnknown(data['no']!, _noMeta));
+    }
     return context;
   }
 
@@ -2774,6 +2788,10 @@ class $PurchasesTable extends Purchases
         DriftSqlType.string,
         data['${effectivePrefix}proof_path'],
       )!,
+      no: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}no'],
+      )!,
     );
   }
 
@@ -2793,6 +2811,7 @@ class Purchase extends DataClass implements Insertable<Purchase> {
   final String note;
   final String billNo;
   final String proofPath;
+  final String no;
   const Purchase({
     required this.id,
     required this.at,
@@ -2803,6 +2822,7 @@ class Purchase extends DataClass implements Insertable<Purchase> {
     required this.note,
     required this.billNo,
     required this.proofPath,
+    required this.no,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -2818,6 +2838,7 @@ class Purchase extends DataClass implements Insertable<Purchase> {
     map['note'] = Variable<String>(note);
     map['bill_no'] = Variable<String>(billNo);
     map['proof_path'] = Variable<String>(proofPath);
+    map['no'] = Variable<String>(no);
     return map;
   }
 
@@ -2834,6 +2855,7 @@ class Purchase extends DataClass implements Insertable<Purchase> {
       note: Value(note),
       billNo: Value(billNo),
       proofPath: Value(proofPath),
+      no: Value(no),
     );
   }
 
@@ -2852,6 +2874,7 @@ class Purchase extends DataClass implements Insertable<Purchase> {
       note: serializer.fromJson<String>(json['note']),
       billNo: serializer.fromJson<String>(json['billNo']),
       proofPath: serializer.fromJson<String>(json['proofPath']),
+      no: serializer.fromJson<String>(json['no']),
     );
   }
   @override
@@ -2867,6 +2890,7 @@ class Purchase extends DataClass implements Insertable<Purchase> {
       'note': serializer.toJson<String>(note),
       'billNo': serializer.toJson<String>(billNo),
       'proofPath': serializer.toJson<String>(proofPath),
+      'no': serializer.toJson<String>(no),
     };
   }
 
@@ -2880,6 +2904,7 @@ class Purchase extends DataClass implements Insertable<Purchase> {
     String? note,
     String? billNo,
     String? proofPath,
+    String? no,
   }) => Purchase(
     id: id ?? this.id,
     at: at ?? this.at,
@@ -2890,6 +2915,7 @@ class Purchase extends DataClass implements Insertable<Purchase> {
     note: note ?? this.note,
     billNo: billNo ?? this.billNo,
     proofPath: proofPath ?? this.proofPath,
+    no: no ?? this.no,
   );
   Purchase copyWithCompanion(PurchasesCompanion data) {
     return Purchase(
@@ -2902,6 +2928,7 @@ class Purchase extends DataClass implements Insertable<Purchase> {
       note: data.note.present ? data.note.value : this.note,
       billNo: data.billNo.present ? data.billNo.value : this.billNo,
       proofPath: data.proofPath.present ? data.proofPath.value : this.proofPath,
+      no: data.no.present ? data.no.value : this.no,
     );
   }
 
@@ -2916,7 +2943,8 @@ class Purchase extends DataClass implements Insertable<Purchase> {
           ..write('total: $total, ')
           ..write('note: $note, ')
           ..write('billNo: $billNo, ')
-          ..write('proofPath: $proofPath')
+          ..write('proofPath: $proofPath, ')
+          ..write('no: $no')
           ..write(')'))
         .toString();
   }
@@ -2932,6 +2960,7 @@ class Purchase extends DataClass implements Insertable<Purchase> {
     note,
     billNo,
     proofPath,
+    no,
   );
   @override
   bool operator ==(Object other) =>
@@ -2945,7 +2974,8 @@ class Purchase extends DataClass implements Insertable<Purchase> {
           other.total == this.total &&
           other.note == this.note &&
           other.billNo == this.billNo &&
-          other.proofPath == this.proofPath);
+          other.proofPath == this.proofPath &&
+          other.no == this.no);
 }
 
 class PurchasesCompanion extends UpdateCompanion<Purchase> {
@@ -2958,6 +2988,7 @@ class PurchasesCompanion extends UpdateCompanion<Purchase> {
   final Value<String> note;
   final Value<String> billNo;
   final Value<String> proofPath;
+  final Value<String> no;
   const PurchasesCompanion({
     this.id = const Value.absent(),
     this.at = const Value.absent(),
@@ -2968,6 +2999,7 @@ class PurchasesCompanion extends UpdateCompanion<Purchase> {
     this.note = const Value.absent(),
     this.billNo = const Value.absent(),
     this.proofPath = const Value.absent(),
+    this.no = const Value.absent(),
   });
   PurchasesCompanion.insert({
     this.id = const Value.absent(),
@@ -2979,6 +3011,7 @@ class PurchasesCompanion extends UpdateCompanion<Purchase> {
     this.note = const Value.absent(),
     this.billNo = const Value.absent(),
     this.proofPath = const Value.absent(),
+    this.no = const Value.absent(),
   }) : at = Value(at),
        accountId = Value(accountId),
        total = Value(total);
@@ -2992,6 +3025,7 @@ class PurchasesCompanion extends UpdateCompanion<Purchase> {
     Expression<String>? note,
     Expression<String>? billNo,
     Expression<String>? proofPath,
+    Expression<String>? no,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -3003,6 +3037,7 @@ class PurchasesCompanion extends UpdateCompanion<Purchase> {
       if (note != null) 'note': note,
       if (billNo != null) 'bill_no': billNo,
       if (proofPath != null) 'proof_path': proofPath,
+      if (no != null) 'no': no,
     });
   }
 
@@ -3016,6 +3051,7 @@ class PurchasesCompanion extends UpdateCompanion<Purchase> {
     Value<String>? note,
     Value<String>? billNo,
     Value<String>? proofPath,
+    Value<String>? no,
   }) {
     return PurchasesCompanion(
       id: id ?? this.id,
@@ -3027,6 +3063,7 @@ class PurchasesCompanion extends UpdateCompanion<Purchase> {
       note: note ?? this.note,
       billNo: billNo ?? this.billNo,
       proofPath: proofPath ?? this.proofPath,
+      no: no ?? this.no,
     );
   }
 
@@ -3060,6 +3097,9 @@ class PurchasesCompanion extends UpdateCompanion<Purchase> {
     if (proofPath.present) {
       map['proof_path'] = Variable<String>(proofPath.value);
     }
+    if (no.present) {
+      map['no'] = Variable<String>(no.value);
+    }
     return map;
   }
 
@@ -3074,7 +3114,8 @@ class PurchasesCompanion extends UpdateCompanion<Purchase> {
           ..write('total: $total, ')
           ..write('note: $note, ')
           ..write('billNo: $billNo, ')
-          ..write('proofPath: $proofPath')
+          ..write('proofPath: $proofPath, ')
+          ..write('no: $no')
           ..write(')'))
         .toString();
   }
@@ -9292,6 +9333,7 @@ typedef $$PurchasesTableCreateCompanionBuilder = PurchasesCompanion Function({
   Value<String> note,
   Value<String> billNo,
   Value<String> proofPath,
+  Value<String> no,
 });
 typedef $$PurchasesTableUpdateCompanionBuilder = PurchasesCompanion Function({
   Value<int> id,
@@ -9303,6 +9345,7 @@ typedef $$PurchasesTableUpdateCompanionBuilder = PurchasesCompanion Function({
   Value<String> note,
   Value<String> billNo,
   Value<String> proofPath,
+  Value<String> no,
 });
 
 final class $$PurchasesTableReferences
@@ -9385,6 +9428,11 @@ class $$PurchasesTableFilterComposer
 
   ColumnFilters<String> get proofPath => $composableBuilder(
     column: $table.proofPath,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get no => $composableBuilder(
+    column: $table.no,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -9479,6 +9527,11 @@ class $$PurchasesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get no => $composableBuilder(
+    column: $table.no,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   $$VendorsTableOrderingComposer get vendorId {
     final $$VendorsTableOrderingComposer composer = $composerBuilder(
       composer: this,
@@ -9555,6 +9608,9 @@ class $$PurchasesTableAnnotationComposer
 
   GeneratedColumn<String> get proofPath =>
       $composableBuilder(column: $table.proofPath, builder: (column) => column);
+
+  GeneratedColumn<String> get no =>
+      $composableBuilder(column: $table.no, builder: (column) => column);
 
   $$VendorsTableAnnotationComposer get vendorId {
     final $$VendorsTableAnnotationComposer composer = $composerBuilder(
@@ -9640,6 +9696,7 @@ class $$PurchasesTableTableManager
                 Value<String> note = const Value.absent(),
                 Value<String> billNo = const Value.absent(),
                 Value<String> proofPath = const Value.absent(),
+                Value<String> no = const Value.absent(),
               }) => PurchasesCompanion(
                 id: id,
                 at: at,
@@ -9650,6 +9707,7 @@ class $$PurchasesTableTableManager
                 note: note,
                 billNo: billNo,
                 proofPath: proofPath,
+                no: no,
               ),
           createCompanionCallback:
               ({
@@ -9662,6 +9720,7 @@ class $$PurchasesTableTableManager
                 Value<String> note = const Value.absent(),
                 Value<String> billNo = const Value.absent(),
                 Value<String> proofPath = const Value.absent(),
+                Value<String> no = const Value.absent(),
               }) => PurchasesCompanion.insert(
                 id: id,
                 at: at,
@@ -9672,6 +9731,7 @@ class $$PurchasesTableTableManager
                 note: note,
                 billNo: billNo,
                 proofPath: proofPath,
+                no: no,
               ),
           withReferenceMapper: (p0) => p0
               .map(
