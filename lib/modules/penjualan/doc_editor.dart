@@ -1,5 +1,6 @@
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart' hide Value;
 
 import '../../core/format.dart';
@@ -122,6 +123,42 @@ class _DocEditorState extends State<_DocEditor> {
   void initState() {
     super.initState();
     payNow = isNew && !isOrder && !widget.legacy; // kasir: default langsung lunas
+    _initial = _snapshot();
+  }
+
+  /// Ringkasan isian form; beda dari [_initial] = ada perubahan yang belum disimpan.
+  late final String _initial;
+  String _snapshot() => [
+    date,
+    due,
+    customer?.id,
+    car.text,
+    plate.text,
+    note.text,
+    legacyNo.text,
+    payNow,
+    payAmount.text,
+    accountId,
+    discountIsPct,
+    docDiscount.text,
+    withTax,
+    for (final r in rows)
+      [r.item?.product.id, r.description.text, r.qty.text, r.price.text, r.discount.text, r.tech1, r.tech2],
+  ].join('|');
+
+  /// Batal: tanya dulu bila isian sudah diubah, supaya invoice yang sudah diketik tidak hilang karena salah klik.
+  Future<void> _cancel() async {
+    if (_snapshot() != _initial &&
+        !await confirmAction(
+          context,
+          title: 'Buang perubahan?',
+          message: 'Isian ${isNew ? 'dokumen baru ini' : 'perubahan ini'} belum disimpan dan akan hilang.',
+          confirmLabel: 'Buang',
+          destructive: true,
+        )) {
+      return;
+    }
+    if (mounted) Navigator.pop(context);
   }
 
   @override
@@ -263,6 +300,17 @@ class _DocEditorState extends State<_DocEditor> {
       ),
     );
 
+    // ⌘S = simpan, Esc = batal (tetap minta konfirmasi bila ada isian).
+    return CallbackShortcuts(
+      bindings: {
+        const SingleActivator(LogicalKeyboardKey.keyS, meta: true): _save,
+        const SingleActivator(LogicalKeyboardKey.escape): _cancel,
+      },
+      child: Focus(autofocus: true, child: _body(title, label, date_)),
+    );
+  }
+
+  Widget _body(String title, String label, Widget Function(String, DateTime?, VoidCallback) date_) {
     return SizedBox(
       width: 1180,
       child: Column(
@@ -274,7 +322,7 @@ class _DocEditorState extends State<_DocEditor> {
               children: [
                 Text(title, style: T.pageTitle.copyWith(fontSize: 20)),
                 const Spacer(),
-                OutlinedButton(onPressed: () => Navigator.pop(context), child: const Text('Batal')),
+                OutlinedButton(onPressed: _cancel, child: const Text('Batal')),
                 const SizedBox(width: S.sm),
                 FilledButton(onPressed: _save, child: Text(isNew ? 'Simpan $label' : 'Simpan perubahan')),
               ],
@@ -417,14 +465,14 @@ class _DocEditorState extends State<_DocEditor> {
     ),
     onSelected: _pickCustomer,
     fieldViewBuilder: (_, ctrl, focus, _) => Labeled(
-      'Customer',
+      'Customer (kosong = UMUM)',
       TextField(
         controller: ctrl,
         focusNode: focus,
         onChanged: (v) {
           if (customer != null && v != customer!.name) setState(() => customer = null);
         },
-        decoration: _iconField(Icons.search, 'Nama / HP / plat · kosong = UMUM'),
+        decoration: _iconField(Icons.search, 'Nama / HP / plat'),
       ),
     ),
   );
@@ -644,11 +692,7 @@ class _DocEditorState extends State<_DocEditor> {
             Row(
               children: [
                 Expanded(
-                  child: MoneyField(
-                    controller: payAmount,
-                    label: isOrder ? 'Nominal DP' : 'Nominal',
-                    hint: isOrder ? null : 'kosong = lunas',
-                  ),
+                  child: MoneyField(controller: payAmount, label: isOrder ? 'Nominal DP' : 'Nominal (kosong = lunas)'),
                 ),
                 const SizedBox(width: S.sm),
                 SizedBox(

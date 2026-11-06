@@ -404,6 +404,9 @@ void main() {
     owner.isOwner.value = wasOwner;
     await tester.tap(find.text('Batal').last);
     await settle();
+    await shot('tagihan-batal-konfirmasi'); // isian belum disimpan → tanya dulu
+    await tester.tap(find.text('Buang'));
+    await settle();
     await tester.tap(find.text('Pemesanan').first);
     await settle();
     await shot('pemesanan');

@@ -22,7 +22,7 @@ Platform: Flutter desktop (**macOS** — PC kasir Mac; kode tetap lintas-platfor
 | `border` | `#E5E9F2` | Garis kartu, pemisah baris tabel |
 | `field` | `#F2F5FA` | Latar input & tombol pemilih teknisi |
 | `ink` | `#0F172A` | Teks utama, angka (navy) |
-| `inkMuted` | `#64748B` | Label, subjudul, teks sekunder (slate; kontras ≥ 4.5:1 di `surface`) |
+| `inkMuted` | `#5B6B80` | Label, subjudul, teks sekunder (slate; kontras ≥ 4.5:1 di `surface`, `bg`, dan `field` — dulu `#64748B`, 4,4 di `bg`) |
 | `primary` | `#2F5BEA` | Tombol utama, menu aktif (blok solid, teks putih), link, fokus, garis grafik. Teks putih di atasnya ≥ 4.5:1 |
 | `primarySoft` | `#EEF3FF` | Hover menu, baris terpilih, segmen tab terpilih |
 | `danger` | `#B42318` | **Hanya** aksi destruktif, error, lewat jatuh tempo, stok minus |
@@ -107,7 +107,7 @@ Toolbar tabel dan header halaman **membungkus** (`Wrap`) alih-alih meluap. Dijag
 - **Sidebar** = widget sendiri di `lib/shell.dart` (`_Sidebar`; paket `sidebarx` **dilepas** — tidak mendukung pemisah/dropdown). Lebar **232 px** (lebar) atau **76 px** (ciut: ikon saja); tombol panah di bawah mengciutkan/melebarkan, otomatis ciut < 1000 px (§4a). Isi: header (ikon sidebar + nama bengkel), menu, Pengaturan, kartu status backup.
   - **Urutan & pemisah** (garis tipis, tanpa judul grup): `Beranda` │ `Penjualan ▾` `Pembelian ▾` │ `Gudang` `Biaya` │ `Kontak` `Kas & Bank` `Gaji` │ `Laporan`; **Pengaturan** item biasa paling bawah, status backup di bawahnya.
   - **Dropdown** (anak menu muncul saat induknya aktif & sidebar lebar): Penjualan ▸ **Tagihan**, **Pemesanan**; Pembelian ▸ **Tagihan Pembelian** (pembelian yang belum dibayar). Induk tanpa anak terpilih = baris induk disorot.
-  - **Ikon berwarna per menu** (biru Beranda, hijau Penjualan, oranye Pembelian, ungu Gudang, merah muda Biaya, tosca Kontak, hijau tua Kas & Bank, kuning tua Gaji, biru Laporan, abu Pengaturan) — hanya ikon; teks tetap `ink`.
+  - **Ikon berwarna per menu** (biru Beranda, hijau Penjualan, oranye tua Pembelian (`#B86A00`, ≥ 3:1 di putih), ungu Gudang, merah muda Biaya, tosca Kontak, hijau tua Kas & Bank, kuning tua Gaji, biru Laporan, abu Pengaturan) — hanya ikon; teks tetap `ink`.
   - **Item aktif = pil lembut `primarySoft`, teks `primary`** (bukan blok solid — diubah dari draft awal mengikuti referensi); hover = `bg`.
   - Tidak ada notifikasi lonceng (sengaja). Cari global ada di topbar, bukan di sidebar.
 - **Logo**: versi gelap tanpa latar (putih → tinta, oranye tetap) agar terbaca di sidebar putih & nota PDF. Logo penuh = nota, ikon SG = sidebar.
@@ -140,7 +140,7 @@ Toolbar tabel dan header halaman **membungkus** (`Wrap`) alih-alih meluap. Dijag
 - **Input Rupiah**: ketik angka polos, tampil `2.250.000` saat fokus hilang; prefix `Rp`. Input diskon menerima `10%` lalu dikonversi ke Rupiah.
 - Tanggal: pemilih tanggal format `dd/MM/yyyy`. **Rentang tanggal** (filter daftar & grafik) memakai **pop-up kecil** `pickRange` (`lib/core/range_picker.dart`): **dua bulan berdampingan** (satu bulan bila sempit) + **pilihan cepat** di kiri — Kemarin, Hari ini, Bulan ini, Bulan lalu, 7/30 hari terakhir, Tahun ini, Tahun lalu, 1/2 tahun terakhir (di jendela sempit pilihan cepat pindah ke atas kalender). Tombolnya `RangeButton` (ikon kalender + `dd/MM/yyyy – dd/MM/yyyy`; "Semua tanggal" bila kosong). Dipakai Dashboard, Penjualan, Pembelian, Biaya, Kas & Bank, Laporan.
 - Tombol di kanan bawah: `Batal` (garis) lalu aksi utama (`primary`). Enter = simpan; Esc = batal.
-- **Form invoice/pemesanan** (dialog 1180 px): field memakai **ikon + contoh isian** supaya fungsinya jelas — tanggal/jatuh tempo (ikon kalender), customer (ikon cari, "Nama / HP / plat · kosong = UMUM"), mobil (ikon mobil, "mis. Honda Jazz"), plat ("N 1234 AB"), catatan ("Opsional — tampil di nota"). **Rincian** = satu kotak berbingkai (`border`, radius 16): judul kolom (Produk / jasa · Keterangan · Qty · Harga satuan · Diskon · Teknisi · Jumlah; angka rata kanan, sejajar isi field), tiap baris dipisah garis tipis; kolom produk = Autocomplete dengan ikon cari ("Cari barang / jasa…", tampil harga & stok); harga berprefix `Rp`; teknisi = tombol ber-ikon ("Pilih teknisi" + panah, maks. 2). Di bawah rincian: **Tambah baris** dan **Barang/jasa baru** (minta PIN owner; lihat PRD PJ-12). Panel kanan bawah: subtotal, diskon (Rp/%), PPN (centang), total + terbilang, dan "Terima pembayaran sekarang".
+- **Form invoice/pemesanan** (dialog 1180 px): field memakai **ikon + contoh isian** supaya fungsinya jelas — tanggal/jatuh tempo (ikon kalender), customer (label "Customer (kosong = UMUM)", ikon cari, "Nama / HP / plat"), mobil (ikon mobil, "mis. Honda Jazz"), plat ("N 1234 AB"), catatan ("Opsional — tampil di nota"). **Rincian** = satu kotak berbingkai (`border`, radius 16): judul kolom (Produk / jasa · Keterangan · Qty · Harga satuan · Diskon · Teknisi · Jumlah; angka rata kanan, sejajar isi field), tiap baris dipisah garis tipis; kolom produk = Autocomplete dengan ikon cari ("Cari barang / jasa…", tampil harga & stok); harga berprefix `Rp`; teknisi = tombol ber-ikon ("Pilih teknisi" + panah, maks. 2). Di bawah rincian: **Tambah baris** dan **Barang/jasa baru** (minta PIN owner; lihat PRD PJ-12). Panel kanan bawah: subtotal, diskon (Rp/%), PPN (centang), total + terbilang, dan "Terima pembayaran sekarang".
 - **Aturan stok di form invoice baru**: barang berstok 0/minus **tidak ditawarkan** di pilihan produk (jasa selalu tampil); pemesanan & transaksi lama menampilkan semua barang aktif. Qty melebihi stok yang masih > 0 → peringatan merah "stok tersedia N" (tetap boleh).
 
 ### Dialog
@@ -177,7 +177,7 @@ Toolbar tabel dan header halaman **membungkus** (`Wrap`) alih-alih meluap. Dijag
 
 ## 9. Keyboard (desktop)
 
-> **Belum dibuat** (per 1.2.0+3): tidak ada pintasan global. Yang berlaku hanya bawaan Flutter — `Tab` berpindah field, `Enter` menekan tombol terfokus, `Esc` menutup dialog/pop-up. Tabel di bawah = **target** (belum diminta client).
+> **Sebagian dibuat** (branch `uiux`): `⌘N` di Penjualan (Tagihan/Pemesanan baru), `⌘S` & `Esc` di form invoice/pemesanan (`Esc` = Batal, tetap minta konfirmasi bila ada isian). Sisanya bawaan Flutter — `Tab` berpindah field (termasuk menu sidebar & tanggal di pemilih rentang), `Enter` menekan tombol terfokus, `Esc` menutup dialog/pop-up. Baris lain di tabel = **target**.
 
 | Tombol | Aksi |
 |---|---|
@@ -192,10 +192,10 @@ Semua elemen bisa dijangkau `Tab`; field yang fokus berbingkai `primary` 1,5 px.
 ## 10. Grafik
 
 - Hanya di **Dashboard**: garis (omzet per waktu) dan batang (pemasukan vs pengeluaran). Tidak ada pie/donut (referensi punya; batang lebih mudah dibandingkan).
-- Warna seri **soft/pastel** (sejak R3): `primary` dengan area biru muda untuk omzet; pemasukan = hijau pastel, pengeluaran = merah pastel (batang); tooltip navy. Sumbu & grid `border`; label `inkMuted`. Label sumbu yang terlalu dekat dengan titik akhir dilewati (tidak tabrakan).
+- Warna seri (branch `uiux`, kontras ≥ 3:1): `primary` dengan area biru tipis untuk omzet; pemasukan = `primary`, pengeluaran = kuning tua `#C77700` (batang; biru vs kuning tetap terbedakan oleh buta warna merah-hijau — dulu pastel hijau/merah, kontras 1,7–1,9); tooltip navy. Sumbu & grid `border`; label `inkMuted`. Label sumbu yang terlalu dekat dengan titik akhir dilewati (tidak tabrakan).
 - **Dashboard**: pilihan periode **Harian / Bulanan / Tahunan** + `RangeButton` rentang bebas (default bulanan 12 bulan); dua grafik — *Omzet* (garis) dan *Pemasukan & pengeluaran* (batang); lalu tiga daftar (Belum lunas, Terlaris bulan ini, Stok menipis) dengan tautan "Lihat semua". Grafik terlihat untuk semua pengguna; saldo & laba tetap owner-only.
 - Laporan tidak memakai grafik: tabel angka + **Export Excel** tiap laporan (Dashboard saja yang bergrafik).
 
 ## 11. Tidak dipakai (sengaja)
 
-Dark mode, foto/avatar produk & customer, gradien, animasi selain transisi 150 ms, notifikasi lonceng, donut chart, ilustrasi empty state, pintasan keyboard global (belum diminta).
+Dark mode, foto/avatar produk & customer, gradien, animasi selain transisi 150 ms, notifikasi lonceng, donut chart, ilustrasi empty state, pintasan keyboard global selain di §9.

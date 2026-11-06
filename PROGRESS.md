@@ -36,6 +36,10 @@ Last updated: 2026-11-03 (**R5 kategori produk + perbaikan test bom waktu, dibui
 
 Total test saat ini: **99 lulus** (per R5). **Semua modul R1 + upgrade UI selesai** — berikutnya: uji manual end-to-end di Mac, backlog B3, rilis .dmg pertama ke client. Importer dicoba dengan file asli client: produk 68 masuk / 1 ditolak (SKU kembar CB/001); customer 142 masuk / 6 digabung (no. HP sama) — semua sesuai temuan analisis awal.
 
+## Audit UI/UX (6 Nov, branch `uiux`, di-commit — belum di-push)
+
+Audit dengan skill `ui-ux-pro-max`; perbaikan: kunci klik dobel di `runAction` (cegah invoice/stok/bayar ganda, + `test/run_action_test.dart`), konfirmasi "Buang perubahan?" saat Batal/Esc di form invoice, `inkMuted` → `#5B6B80` (≥ 4.5:1 di semua latar), warna grafik Dashboard ≥ 3:1 (biru/kuning tua), ikon Pembelian lebih tua, sidebar & tanggal pemilih rentang bisa di-Tab + tooltip saat ciut, aturan "kosong = UMUM/lunas" pindah ke label, pintasan ⌘N (Penjualan) / ⌘S / Esc (form invoice). Tidak diubah (keputusan sadar): field abu tanpa garis. 101 test lulus.
+
 ## Backlog (diminta, belum dikerjakan)
 
 | # | Fitur | Asal | Catatan |

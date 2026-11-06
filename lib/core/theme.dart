@@ -8,7 +8,7 @@ abstract final class C {
   static const border = Color(0xFFE5E9F2);
   static const field = Color(0xFFF2F5FA); // latar input
   static const ink = Color(0xFF0F172A);
-  static const inkMuted = Color(0xFF64748B);
+  static const inkMuted = Color(0xFF5B6B80); // ≥ 4.5:1 juga di bg & field (dulu #64748B: 4,4)
   static const primary = Color(0xFF2F5BEA);
   static const primarySoft = Color(0xFFEEF3FF);
   static const danger = Color(0xFFB42318);

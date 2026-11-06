@@ -187,8 +187,9 @@ class _DashboardPageState extends State<DashboardPage> {
   }
 }
 
-/// Warna grafik dibuat lembut (pastel) supaya tidak menyilaukan.
-const _softBlue = Color(0xFF86A2F4), _softMint = Color(0xFF8ED6B6), _softCoral = Color(0xFFF2A9A3);
+/// Warna seri grafik: kontras ≥ 3:1 di kartu putih; masuk/keluar = biru vs kuning tua (tetap terbedakan
+/// oleh buta warna merah-hijau, tidak seperti hijau vs merah).
+const _income = C.primary, _expense = Color(0xFFC77700);
 
 /// Jarak antar label sumbu X supaya tidak sesak (maks. ~6 label).
 double _axisInterval(int n) => (n / 6).ceilToDouble().clamp(1, double.infinity);
@@ -318,10 +319,10 @@ class _SalesChart extends StatelessWidget {
                             spots: [for (final (i, p) in points.indexed) FlSpot(i.toDouble(), p.omzet.toDouble())],
                             isCurved: true,
                             preventCurveOverShooting: true,
-                            color: _softBlue,
+                            color: C.primary,
                             barWidth: 2.5,
                             dotData: const FlDotData(show: false),
-                            belowBarData: BarAreaData(show: true, color: _softBlue.withValues(alpha: 0.14)),
+                            belowBarData: BarAreaData(show: true, color: C.primary.withValues(alpha: 0.10)),
                           ),
                         ],
                       ),
@@ -356,9 +357,9 @@ class _FlowChart extends StatelessWidget {
                   child: Text('Pemasukan & pengeluaran', style: T.section, overflow: TextOverflow.ellipsis),
                 ),
                 const SizedBox(width: S.md),
-                _Dot(_softMint, 'Masuk'),
+                _Dot(_income, 'Masuk'),
                 const SizedBox(width: S.md),
-                _Dot(_softCoral, 'Keluar'),
+                _Dot(_expense, 'Keluar'),
               ],
             ),
             const SizedBox(height: S.lg),
@@ -418,13 +419,13 @@ class _FlowChart extends StatelessWidget {
                               barRods: [
                                 BarChartRodData(
                                   toY: f.income.toDouble(),
-                                  color: _softMint,
+                                  color: _income,
                                   width: 8,
                                   borderRadius: const BorderRadius.vertical(top: Radius.circular(3)),
                                 ),
                                 BarChartRodData(
                                   toY: f.expense.toDouble(),
-                                  color: _softCoral,
+                                  color: _expense,
                                   width: 8,
                                   borderRadius: const BorderRadius.vertical(top: Radius.circular(3)),
                                 ),
