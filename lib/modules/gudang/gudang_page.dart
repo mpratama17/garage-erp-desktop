@@ -46,6 +46,26 @@ class GudangPage extends StatelessWidget {
                 return r.summary;
               }),
             ),
+            OutlinedButton(
+              onPressed: () async {
+                if (!await owner.ensure(context) || !context.mounted) return;
+                // Ganti nama kategori bisa mengubah produk yang sedang terbuka (panelnya dimuat ulang dari DB), jadi
+                // panel ditutup dulu; isian yang belum disimpan tidak dibuang tanpa konfirmasi.
+                if ((c.editing?.dirty ?? false) &&
+                    !await confirmAction(
+                      context,
+                      title: 'Tutup tanpa menyimpan?',
+                      message: 'Ada perubahan produk yang belum disimpan. Panel produk ditutup sebelum membuka Kategori.',
+                      confirmLabel: 'Tutup tanpa simpan',
+                      destructive: true,
+                    )) {
+                  return;
+                }
+                c.panelId.value = null;
+                if (context.mounted) await showCategoriesDialog(context, c.db);
+              },
+              child: const Text('Kategori'),
+            ),
             OutlinedButton(onPressed: () => ownerAction(c.export), child: const Text('Export')),
             FilledButton.icon(
               onPressed: () async {
@@ -255,7 +275,15 @@ class _ProductPanelState extends State<ProductPanel> {
   late final f = ProductFields(widget.item?.product, isService: widget.newIsService);
 
   @override
+  void initState() {
+    super.initState();
+    widget.controller.editing = f;
+  }
+
+  @override
   void dispose() {
+    // Panel baru (key berubah) sudah memasang form-nya sebelum panel lama dibuang.
+    if (identical(widget.controller.editing, f)) widget.controller.editing = null;
     f.dispose();
     super.dispose();
   }

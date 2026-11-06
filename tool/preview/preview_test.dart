@@ -305,6 +305,24 @@ void main() {
     await tester.tap(find.text('CANBUS LED 15'));
     await settle();
     await shot('gudang-panel');
+    // Kategori: ketik nama baru → baris "+ Tambah kategori"; ⊕ di ujung field.
+    final panelFields = find.descendant(of: find.byType(ListView).last, matching: find.byType(TextField));
+    await tester.enterText(panelFields.at(3), 'strobo');
+    await settle();
+    await shot('gudang-kategori-tambah');
+    FocusManager.instance.primaryFocus?.unfocus();
+    await settle();
+    // Panel berisi perubahan belum disimpan → konfirmasi dulu, lalu panel ditutup sebelum Kelola kategori.
+    await tester.tap(find.widgetWithText(OutlinedButton, 'Kategori'));
+    await settle();
+    await shot('gudang-kategori-konfirmasi');
+    await tester.tap(find.text('Tutup tanpa simpan'));
+    await settle();
+    await shot('gudang-kategori');
+    await tester.tap(find.text('Selesai'));
+    await settle();
+    await tester.tap(find.text('CANBUS LED 15'));
+    await settle();
     await tester.drag(find.byType(ListView).last, const Offset(0, -800));
     await settle();
     await shot('gudang-riwayat');

@@ -371,16 +371,16 @@ extension PenjualanRepo on AppDb {
     await (update(invoices)..where((i) => i.id.equals(docId))).write(
       InvoicesCompanion(isVoid: const Value(true), voidReason: Value(reason.trim())),
     );
-    final now = DateTime.now();
+    final at = now(); // waktu pembatalan: refund & stok kembali dicatat hari dibatalkan
     for (final m in await (select(stockMoves)..where((m) => m.kind.equals('sale') & m.refId.equals(docId))).get()) {
       await into(stockMoves).insert(
-        StockMovesCompanion.insert(at: now, productId: m.productId, qty: -m.qty, kind: 'void', refId: Value(docId)),
+        StockMovesCompanion.insert(at: at, productId: m.productId, qty: -m.qty, kind: 'void', refId: Value(docId)),
       );
     }
     for (final p in await (select(cashEntries)..where((c) => c.kind.equals('payment') & c.refId.equals(docId))).get()) {
       await into(cashEntries).insert(
         CashEntriesCompanion.insert(
-          at: now,
+          at: at,
           accountId: p.accountId,
           amount: -p.amount,
           kind: 'refund',
@@ -400,7 +400,7 @@ extension PenjualanRepo on AppDb {
     if (s.doc.isVoid) throw ArgumentError('${s.doc.no} sudah dibatalkan');
     if (s.hasInvoice) throw ArgumentError('${s.doc.no} sudah dibuatkan invoice');
     final lines = await (select(invoiceLines)..where((l) => l.invoiceId.equals(orderId))).get();
-    final date = at ?? DateTime.now();
+    final date = at ?? now();
     final invId = await saveDoc(
       kind: DocKind.invoice,
       at: date,

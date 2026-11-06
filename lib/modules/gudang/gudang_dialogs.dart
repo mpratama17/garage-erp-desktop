@@ -368,3 +368,74 @@ class _PurchaseDialogState extends State<_PurchaseDialog> {
     );
   }
 }
+
+/// Kelola kategori produk (owner): tambah, ganti nama (produknya ikut pindah), hapus yang tidak dipakai.
+Future<void> showCategoriesDialog(BuildContext context, AppDb db) => showDialog<void>(
+  context: context,
+  builder: (ctx) => AlertDialog(
+    title: const Text('Kategori produk'),
+    content: SizedBox(
+      width: 480,
+      height: 480,
+      child: StreamBuilder(
+        stream: db.productCategoriesQuery().watch(),
+        builder: (ctx, snap) {
+          if (snap.hasError) return Center(child: Text('Kategori gagal dimuat: ${snap.error}'));
+          final cats = snap.data ?? const [];
+          if (snap.hasData && cats.isEmpty) return const EmptyState(message: 'Belum ada kategori.');
+          return ListView(
+            children: [
+              for (final k in cats)
+                ListTile(
+                  dense: true,
+                  title: Text(k.name),
+                  subtitle: Text(k.count == 0 ? 'Belum dipakai' : '${k.count} produk'),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        tooltip: 'Ganti nama',
+                        icon: const Icon(Icons.edit_outlined, size: 18),
+                        onPressed: () async {
+                          final n = await askCategoryName(ctx, 'Ganti nama kategori', k.name);
+                          if (n != null && ctx.mounted) {
+                            await runAction(ctx, () => db.renameProductCategory(k.name, n), 'Kategori tersimpan');
+                          }
+                        },
+                      ),
+                      IconButton(
+                        tooltip: 'Hapus',
+                        icon: const Icon(Icons.delete_outline, size: 18, color: C.danger),
+                        onPressed: () async {
+                          if (await confirmAction(
+                                ctx,
+                                title: 'Hapus kategori?',
+                                message: 'Kategori "${k.name}" dihapus dari daftar.',
+                                confirmLabel: 'Hapus',
+                                destructive: true,
+                              ) &&
+                              ctx.mounted) {
+                            await runAction(ctx, () => db.deleteProductCategory(k.name), 'Kategori dihapus');
+                          }
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+            ],
+          );
+        },
+      ),
+    ),
+    actions: [
+      OutlinedButton(
+        onPressed: () async {
+          final n = await askCategoryName(ctx, 'Kategori baru');
+          if (n != null && ctx.mounted) await runAction(ctx, () => db.addProductCategory(n), 'Kategori ditambahkan');
+        },
+        child: const Text('+ Kategori'),
+      ),
+      FilledButton(onPressed: () => Navigator.pop(ctx), child: const Text('Selesai')),
+    ],
+  ),
+);

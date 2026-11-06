@@ -182,6 +182,14 @@ class Payslips extends Table {
   ];
 }
 
+/// Kategori produk yang dibuat sendiri (v5). Produk tetap menyimpan nama kategori sebagai teks; daftar kategori
+/// = kategori yang dipakai produk ∪ tabel ini (supaya kategori bisa dibuat sebelum ada produknya).
+class ProductCategories extends Table {
+  TextColumn get name => text()();
+  @override
+  Set<Column> get primaryKey => {name};
+}
+
 /// Kategori biaya. [personal] = pengeluaran rumah/pribadi: dicatat, tapi di laba rugi
 /// tampil di bawah laba bersih usaha (bukan biaya operasional).
 class ExpenseCategories extends Table {
@@ -283,6 +291,7 @@ Future<File> dbFile() async => File(p.join((await getApplicationSupportDirectory
     Accounts,
     CashEntries,
     Products,
+    ProductCategories,
     StockMoves,
     Purchases,
     Customers,
@@ -309,6 +318,11 @@ class AppDb extends _$AppDb {
   /// sehingga aturan khusus owner tidak hanya hidup di UI.
   bool ownerUnlocked = false;
 
+  /// Jam untuk waktu transaksi yang dicatat repo sendiri (stok awal, stok opname, pembatalan, invoice dari
+  /// pemesanan). Satu sumber supaya test bisa memakai tanggal tetap (`db.now = () => tanggal`) dan hasilnya
+  /// tidak bergantung pada hari test dijalankan.
+  DateTime Function() now = DateTime.now;
+
   void requireOwner() {
     if (!ownerUnlocked) throw ArgumentError('Butuh PIN owner');
   }
@@ -322,7 +336,7 @@ class AppDb extends _$AppDb {
 
   // App sudah dipakai client sejak v1: tiap perubahan kolom = naikkan versi + langkah di onUpgrade.
   @override
-  int get schemaVersion => 4;
+  int get schemaVersion => 5;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -363,6 +377,16 @@ class AppDb extends _$AppDb {
         );
       }
       if (from < 4) await m.addColumn(purchases, purchases.no); // pembelian lama tanpa nomor (tampil "—")
+      if (from < 5) {
+        await m.createTable(productCategories);
+        // Rapikan kategori lama sekali (sejak v5 semua penulisan sudah rapi): spasi dipangkas, varian huruf
+        // besar/kecil digabung ke satu ejaan — supaya Laporan & daftar kategori tidak memecah "LED"/"Led".
+        await customStatement('UPDATE products SET category = TRIM(category)');
+        await customStatement(
+          'UPDATE products SET category = (SELECT MIN(p.category) FROM products p '
+          'WHERE LOWER(p.category) = LOWER(products.category))',
+        );
+      }
     },
     beforeOpen: (details) async {
       await customStatement('PRAGMA foreign_keys = ON');

@@ -7,6 +7,7 @@ import '../../core/owner.dart';
 import '../../core/xlsx.dart';
 import '../../db/database.dart';
 import 'gudang_repo.dart';
+import 'product_form.dart';
 
 enum GudangTab { barang, jasa, ready }
 
@@ -20,6 +21,9 @@ class GudangController extends GetxController {
 
   /// Panel kanan: null = tertutup, 0 = produk baru, >0 = id produk yang dibuka.
   final panelId = RxnInt();
+
+  /// Form produk di panel yang sedang terbuka (dipasang/dilepas oleh panelnya).
+  ProductFields? editing;
   StreamSubscription<List<StockedProduct>>? _sub;
   Worker? _ownerWorker;
 
