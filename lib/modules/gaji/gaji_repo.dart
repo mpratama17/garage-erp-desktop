@@ -91,10 +91,12 @@ extension GajiRepo on AppDb {
   }
 
   /// Invoice yang dihitung untuk gaji: invoice (bukan pemesanan — barisnya tersalin ke invoice), tidak batal,
-  /// termasuk transaksi lama, lunas atau belum (insentif = per pekerjaan).
+  /// termasuk transaksi lama yang diketik di app, lunas atau belum (insentif = per pekerjaan). Hasil import
+  /// catatan lama tidak dihitung: gajinya sudah dibayar & tercatat di catatan itu (baris GAJI).
   Expression<bool> _payrollInvoice(DateTime from, DateTime to) =>
       invoices.kind.equals(DocKind.invoice) &
       invoices.isVoid.equals(false) &
+      invoices.imported.equals(false) &
       invoices.at.isBiggerOrEqualValue(from) &
       invoices.at.isSmallerThanValue(to);
 

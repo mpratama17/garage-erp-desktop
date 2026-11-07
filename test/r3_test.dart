@@ -200,6 +200,9 @@ void main() {
     for (final s in ['Toko Jaya', 'toko jaya ', '', 'CV Lampu']) {
       sql.execute("INSERT INTO purchases (at, supplier, account_id, total) VALUES (0, '$s', 1, 100)");
     }
+    for (final t in ['invoices', 'cash_entries', 'customers', 'products']) {
+      sql.execute('ALTER TABLE $t DROP COLUMN imported'); // kolom v6
+    }
     sql.execute('PRAGMA user_version = 2');
 
     final migrated = AppDb(NativeDatabase.opened(sql));

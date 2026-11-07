@@ -6,6 +6,15 @@ import '../../db/database.dart';
 abstract final class CashKind {
   static const transfer = 'transfer', capital = 'capital', income = 'income';
   static const manual = [transfer, capital, income];
+
+  /// Pembelian stok dari import catatan lama: uang keluar tanpa gerak stok. Bukan biaya di laba rugi (modal barang
+  /// sudah dihitung per baris invoice lama), jurnal: Modal / Kas — pasangan HPP invoice lama (HPP / Modal).
+  static const oldStock = 'old_stock';
+
+  /// Boleh dihapus dari Kas & Bank: transaksi manual, atau gaji/pembelian stok hasil import catatan lama
+  /// (tidak punya modul pemilik; biaya hasil import diurus di Biaya, pembayaran lewat invoice-nya).
+  static bool deletableHere(CashEntry e) =>
+      manual.contains(e.kind) || (e.imported && (e.kind == oldStock || e.kind == 'salary'));
 }
 
 /// Label jenis transaksi untuk ditampilkan.
@@ -13,6 +22,7 @@ const cashKindLabel = {
   'payment': 'Penjualan',
   'refund': 'Pengembalian',
   'purchase': 'Pembelian stok',
+  CashKind.oldStock: 'Pembelian stok',
   'expense': 'Biaya',
   'salary': 'Gaji',
   'transfer': 'Transfer',
@@ -183,7 +193,7 @@ extension KasRepo on AppDb {
   Future<void> deleteManualEntry(int id) => transaction(() async {
     requireOwner();
     final e = await (select(cashEntries)..where((x) => x.id.equals(id))).getSingle();
-    if (!CashKind.manual.contains(e.kind)) {
+    if (!CashKind.deletableHere(e)) {
       throw ArgumentError('Transaksi ${cashKindLabel[e.kind] ?? e.kind} diubah dari modulnya, bukan dari Kas & Bank');
     }
     await (delete(cashEntries)..where((x) => x.id.isIn([id, if (e.kind == CashKind.transfer) ?e.refId]))).go();

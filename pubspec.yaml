@@ -41,6 +41,8 @@ dependencies:
   pdf: ^3.12.0
   intl: ^0.20.3
   excel: ^4.0.6
+  archive: ^3.6.1 # sudah ikut lewat excel; dipakai langsung oleh core/xlsx_values.dart
+  xml: ^6.6.1
   crypto: ^3.0.7
   file_selector: ^1.1.0
   get: ^4.7.3

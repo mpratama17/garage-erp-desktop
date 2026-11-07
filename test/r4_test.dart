@@ -42,6 +42,9 @@ void main() {
     await first.customSelect('SELECT 1').get();
     await first.close();
     sql.execute('ALTER TABLE purchases DROP COLUMN no');
+    for (final t in ['invoices', 'cash_entries', 'customers', 'products']) {
+      sql.execute('ALTER TABLE $t DROP COLUMN imported'); // kolom v6
+    }
     sql.execute("INSERT INTO products (name) VALUES ('LED')");
     sql.execute('INSERT INTO purchases (at, account_id, total) VALUES (0, 1, 100)');
     sql.execute('PRAGMA user_version = 3');

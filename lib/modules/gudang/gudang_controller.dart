@@ -31,7 +31,7 @@ class GudangController extends GetxController {
   void onInit() {
     super.onInit();
     _sub = db.watchProducts().listen((p) {
-      products.assignAll(p);
+      products.assignAll(p.where((s) => !s.product.imported)); // penampung import catatan lama: bukan barang stok
       // Stok berubah karena penjualan/pembelian → ikut segarkan total.
       _loadFlow();
     });

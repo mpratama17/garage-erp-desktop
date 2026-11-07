@@ -19,6 +19,8 @@ import 'package:garage_erp_desktop/modules/gudang/gudang_repo.dart';
 import 'package:garage_erp_desktop/modules/kas/kas_repo.dart';
 import 'package:garage_erp_desktop/modules/kontak/kontak_repo.dart';
 import 'package:garage_erp_desktop/modules/penjualan/penjualan_repo.dart';
+import 'package:garage_erp_desktop/modules/riwayat/riwayat_page.dart';
+import 'package:garage_erp_desktop/modules/riwayat/riwayat_parser.dart';
 
 Future<void> _loadFonts() async {
   final inter = FontLoader('Inter');
@@ -526,6 +528,61 @@ void main() {
     await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 300)));
     await tester.pump(const Duration(milliseconds: 300));
     await shot('pengaturan');
+    await tester.tap(find.text('File, backup & PIN'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.scrollUntilVisible(find.text('Kosongkan transaksi'), 200, scrollable: find.byType(Scrollable).last);
+    await tester.pump();
+    await shot('pengaturan-data');
+    // Pratinjau import catatan lama (data fiktif; file asli client tidak pernah dipakai di preview).
+    final old = OldData();
+    for (final (s, n, jual, keluar) in [('JAN25', 12, 41250000, 38200000), ('FEB25', 9, 30100000, 29350000)]) {
+      old.checks.add(
+        SheetCheck(s)
+          ..invoices = n
+          ..sales = jual
+          ..salesLabel = jual
+          ..expenses = keluar
+          ..expenseLabel = keluar,
+      );
+    }
+    old.invoices.add(
+      OldInvoice(sheet: 'JAN25', row: 2, at: DateTime(2025, 1, 3), customer: 'Contoh', car: '', plate: '')
+        ..payments.add(OldPayment('BCA', 41250000)),
+    );
+    for (final (cat, amount) in [
+      ('TRANSPORT', 20000),
+      ('GAJI', 2500000),
+      ('PROJECTOR', 1500000),
+      ('ALAT BAHAN', 75000),
+    ]) {
+      old.expenses.add(
+        OldExpense(
+          sheet: 'JAN25',
+          row: 3,
+          at: DateTime(2025, 2, 27),
+          name: 'Contoh',
+          qty: '',
+          amount: amount,
+          account: 'TUNAI',
+          category: cat,
+        ),
+      );
+    }
+    old.problems.add('FEB25 baris 9: diskon disesuaikan supaya total sama dengan sheet');
+    showDialog<DateTime>(
+      context: tester.element(find.text('Kosongkan transaksi')),
+      builder: (_) => OldImportPreview(old),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.tap(find.textContaining('Kategori pengeluaran'));
+    for (var i = 0; i < 5; i++) {
+      await tester.pump(const Duration(milliseconds: 100)); // animasi buka ExpansionTile
+    }
+    await shot('import-catatan-lama');
+    await tester.tap(find.text('Batal').last);
+    await tester.pump(const Duration(milliseconds: 300));
 
     // Terakhir: Kas saat owner terkunci (saldo ••••). Tanpa pumpAndSettle — halaman owner lain
     // dibangun ulang & memuat data di zona test (spinner tak berujung).

@@ -210,7 +210,9 @@ extension KontakRepo on AppDb {
             note: Value(r.note),
           ),
         );
-        index(Customer(id: id, name: r.name, phone: r.phone, car: r.car, plate: r.plate, note: r.note));
+        index(
+          Customer(id: id, name: r.name, phone: r.phone, car: r.car, plate: r.plate, note: r.note, imported: false),
+        );
         created++;
         continue;
       }

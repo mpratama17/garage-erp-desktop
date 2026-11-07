@@ -107,6 +107,9 @@ void main() {
     await first.customSelect('SELECT 1').get();
     await first.close();
     sql.execute('DROP TABLE product_categories');
+    for (final t in ['invoices', 'cash_entries', 'customers', 'products']) {
+      sql.execute('ALTER TABLE $t DROP COLUMN imported'); // kolom v6
+    }
     sql.execute("INSERT INTO products (name, category) VALUES ('Canbus', 'LED'), ('Lama', 'Led'), ('Spasi', ' LED ')");
     sql.execute('PRAGMA user_version = 4');
 

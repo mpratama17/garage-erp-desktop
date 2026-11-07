@@ -292,7 +292,7 @@ class _RowActions extends StatelessWidget {
           ),
           icon: const Icon(Icons.attach_file, size: 18),
         ),
-      if (CashKind.manual.contains(r.entry.kind))
+      if (CashKind.deletableHere(r.entry))
         IconButton(
           tooltip: 'Hapus transaksi',
           visualDensity: VisualDensity.compact,

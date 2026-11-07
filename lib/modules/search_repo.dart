@@ -39,7 +39,7 @@ extension SearchRepo on AppDb {
       ..orderBy([(c) => OrderingTerm.asc(c.name)])
       ..limit(limit);
     final prodQ = select(products)
-      ..where((p) => has(p.name) | has(p.sku) | has(p.category))
+      ..where((p) => (has(p.name) | has(p.sku) | has(p.category)) & p.imported.equals(false))
       ..orderBy([(p) => OrderingTerm.desc(p.active), (p) => OrderingTerm.asc(p.name)])
       ..limit(limit);
 

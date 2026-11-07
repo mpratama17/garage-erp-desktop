@@ -16,6 +16,7 @@ import '../../core/ui.dart';
 import '../../db/database.dart';
 import '../penjualan/invoice_pdf.dart' show buildInvoicePdf, logoScaleRange, waPlaceholders, waTemplateKeys;
 import '../penjualan/penjualan_repo.dart' show DocKind;
+import '../riwayat/riwayat_page.dart';
 
 /// Field teks yang diedit di halaman ini: key setting -> label.
 const _textFields = {
@@ -308,6 +309,7 @@ class _FormState extends State<_Form> {
         ],
       ),
     ]);
+    final data = _Card('Data', [const DataActions()]);
     final pin = _Card('PIN owner', [
       Align(
         alignment: Alignment.centerLeft,
@@ -328,7 +330,7 @@ class _FormState extends State<_Form> {
     final (left, right) = switch (_tab) {
       0 => ([bengkel, nomor, notaText], [logo]),
       1 => ([wa], [wa2]),
-      _ => ([folder, pin], [backup]),
+      _ => ([folder, pin], [backup, data]),
     };
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,

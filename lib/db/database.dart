@@ -43,6 +43,7 @@ class CashEntries extends Table {
   TextColumn get description => text()();
   TextColumn get note => text().withDefault(const Constant(''))();
   TextColumn get proofPath => text().withDefault(const Constant(''))();
+  BoolColumn get imported => boolean().withDefault(const Constant(false))(); // dari import catatan lama (v6)
 }
 
 /// Barang & jasa. Stok tidak disimpan di sini: stok = SUM(stock_moves.qty).
@@ -58,6 +59,7 @@ class Products extends Table {
   IntColumn get minStock => integer().withDefault(const Constant(0))();
   IntColumn get incentive => integer().withDefault(const Constant(0))(); // tarif insentif teknisi
   BoolColumn get active => boolean().withDefault(const Constant(true))();
+  BoolColumn get imported => boolean().withDefault(const Constant(false))(); // dari import catatan lama (v6)
 }
 
 /// Buku stok (hanya barang). kind: opening | purchase | sale | void | adjust.
@@ -81,6 +83,7 @@ class Customers extends Table {
   TextColumn get car => text().withDefault(const Constant(''))();
   TextColumn get plate => text().withDefault(const Constant(''))();
   TextColumn get note => text().withDefault(const Constant(''))();
+  BoolColumn get imported => boolean().withDefault(const Constant(false))(); // dari import catatan lama (v6)
 }
 
 /// Karyawan (dikelola di modul Gaji). role: teknisi | sales.
@@ -127,6 +130,7 @@ class Invoices extends Table {
   IntColumn get discount => integer().withDefault(const Constant(0))();
   IntColumn get taxPct => integer().withDefault(const Constant(0))();
   IntColumn get tax => integer().withDefault(const Constant(0))();
+  BoolColumn get imported => boolean().withDefault(const Constant(false))(); // dari import catatan lama (v6)
 }
 
 class InvoiceLines extends Table {
@@ -336,7 +340,7 @@ class AppDb extends _$AppDb {
 
   // App sudah dipakai client sejak v1: tiap perubahan kolom = naikkan versi + langkah di onUpgrade.
   @override
-  int get schemaVersion => 5;
+  int get schemaVersion => 6;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -386,6 +390,12 @@ class AppDb extends _$AppDb {
           'UPDATE products SET category = (SELECT MIN(p.category) FROM products p '
           'WHERE LOWER(p.category) = LOWER(products.category))',
         );
+      }
+      if (from < 6) {
+        await m.addColumn(invoices, invoices.imported);
+        await m.addColumn(cashEntries, cashEntries.imported);
+        await m.addColumn(customers, customers.imported);
+        await m.addColumn(products, products.imported);
       }
     },
     beforeOpen: (details) async {

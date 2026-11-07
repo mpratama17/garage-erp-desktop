@@ -492,7 +492,8 @@ extension GudangRepo on AppDb {
   Future<({int created, int updated})> applyImport(List<ProductRow> rows) => transaction(() async {
     requireOwner(); // import menulis harga beli
     var created = 0, updated = 0;
-    final existing = await select(products).get();
+    // Penampung import catatan lama bukan barang: tidak ikut dicocokkan.
+    final existing = await (select(products)..where((p) => p.imported.equals(false))).get();
     final bySku = {
       for (final p in existing)
         if (p.sku != null) p.sku!.toUpperCase(): p,
