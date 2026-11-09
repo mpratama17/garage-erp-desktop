@@ -14,7 +14,8 @@ import '../../core/owner.dart';
 import '../../core/theme.dart';
 import '../../core/ui.dart';
 import '../../db/database.dart';
-import '../penjualan/invoice_pdf.dart' show buildInvoicePdf, logoScaleRange, waPlaceholders, waTemplateKeys;
+import '../penjualan/invoice_pdf.dart'
+    show buildInvoicePdf, invoiceColors, logoScaleRange, waPlaceholders, waTemplateKeys;
 import '../penjualan/penjualan_repo.dart' show DocKind;
 import '../riwayat/riwayat_page.dart';
 
@@ -47,6 +48,7 @@ class PengaturanController extends GetxController {
   final logoPath = ''.obs; // logo penuh, untuk nota
   final iconPath = ''.obs; // ikon kecil, untuk sidebar
   final logoScale = 100.obs; // ukuran logo nota & slip (%)
+  final invoiceColor = 'navy'.obs; // warna tabel nota (invoiceColors)
   final backupDir = ''.obs;
   final backupSchedule = 'close'.obs;
   final exportDir = ''.obs;
@@ -66,6 +68,7 @@ class PengaturanController extends GetxController {
     logoPath.value = s['logo_path']!;
     iconPath.value = s['logo_icon_path']!;
     logoScale.value = int.tryParse(s['logo_scale']!) ?? 100;
+    invoiceColor.value = invoiceColors.containsKey(s['invoice_color']) ? s['invoice_color']! : 'navy'; // = PDF
     backupDir.value = await db.backupDir();
     backupSchedule.value = s['backup_schedule']!;
     exportDir.value = await db.exportDir();
@@ -121,6 +124,11 @@ class PengaturanController extends GetxController {
         // logo lama sudah tidak ada — tidak masalah
       }
     }
+  }
+
+  Future<void> setInvoiceColor(String v) async {
+    await _set('invoice_color', v);
+    invoiceColor.value = v;
   }
 
   Future<void> setLogoScale(int v) async {
@@ -235,7 +243,7 @@ class _FormState extends State<_Form> {
       for (final k in ['shop_name', 'shop_address', 'shop_phone', 'shop_email'])
         field(k, _textFields[k]!, lines: k == 'shop_address' ? 4 : 1),
     ]);
-    final logo = _Card('Ukuran logo di nota & slip gaji', [_LogoSize(c)]);
+    final logo = _Card('Tampilan nota', [_LogoSize(c)]);
     final notaText = _Card('Teks nota & review', [
       for (final k in ['invoice_note', 'gmaps_review_url'])
         field(k, _textFields[k]!, lines: k == 'invoice_note' ? 4 : 1),
@@ -453,6 +461,26 @@ class _LogoSizeState extends State<_LogoSize> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        Text('Warna tabel', style: T.label),
+        const SizedBox(height: S.sm),
+        Obx(
+          () => Wrap(
+            spacing: S.sm,
+            runSpacing: S.sm,
+            children: [
+              for (final MapEntry(key: k, value: (name, head, cell)) in invoiceColors.entries)
+                _ColorChoice(
+                  name: name,
+                  head: Color(head),
+                  cell: Color(cell),
+                  selected: c.invoiceColor.value == k,
+                  onTap: () => runAction(context, () => c.setInvoiceColor(k)),
+                ),
+            ],
+          ),
+        ),
+        const SizedBox(height: S.lg),
+        Text('Ukuran logo (nota & slip gaji)', style: T.label),
         Row(
           children: [
             Expanded(
@@ -479,7 +507,8 @@ class _LogoSizeState extends State<_LogoSize> {
           const SizedBox(height: _previewHeight)
         else
           Obx(() {
-            final key = ValueKey((c.logoScale.value, c.logoPath.value)); // preview dibuat ulang bila berubah
+            // preview dibuat ulang bila berubah
+            final key = ValueKey((c.logoScale.value, c.logoPath.value, c.invoiceColor.value));
             return FutureBuilder(
               future: _latest ??= c.latestInvoiceId(),
               builder: (_, snap) {
@@ -501,10 +530,71 @@ class _LogoSizeState extends State<_LogoSize> {
             );
           }),
         const SizedBox(height: S.sm),
-        Text('Contoh dari invoice terbaru. Ukuran yang sama dipakai di slip gaji.', style: T.label),
+        Text(
+          'Contoh dari invoice terbaru. Warna berlaku untuk semua nota (cetak & WA), juga yang dicetak ulang.',
+          style: T.label,
+        ),
       ],
     );
   }
+}
+
+/// Satu pilihan warna nota: contoh header + latar baris, nama di bawahnya.
+class _ColorChoice extends StatelessWidget {
+  const _ColorChoice({
+    required this.name,
+    required this.head,
+    required this.cell,
+    required this.selected,
+    required this.onTap,
+  });
+  final String name;
+  final Color head, cell;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+    selected: selected,
+    button: true,
+    child: Material(
+      color: selected ? C.primarySoft : C.field,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(S.rInput),
+        side: BorderSide(color: selected ? C.primary : Colors.transparent, width: 2),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(S.sm),
+          child: SizedBox(
+            width: 76,
+            child: Column(
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(4),
+                  child: Column(
+                    children: [
+                      Container(height: 12, color: head),
+                      Container(height: 12, color: cell),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: S.xs),
+                Text(
+                  name,
+                  style: selected ? T.label.copyWith(color: C.ink, fontWeight: FontWeight.w600) : T.label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
 }
 
 class _Card extends StatelessWidget {

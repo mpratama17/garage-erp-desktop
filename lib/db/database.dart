@@ -246,6 +246,7 @@ const settingDefaults = {
   'logo_path': '',
   'logo_scale': '100', // ukuran logo di nota & slip, % dari kotak 150×80 (R4 #6)
   'invoice_note': '',
+  'invoice_color': 'navy', // warna tabel nota, lihat invoiceColors (R6)
   'gmaps_review_url': '',
   'next_invoice_no': '247',
   'next_so_no': '13',

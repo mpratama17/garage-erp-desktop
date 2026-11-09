@@ -1,4 +1,4 @@
-// Render contoh nota ke PDF (lokal): OUT=/path flutter test tool/preview/pdf_preview_test.dart
+// Render contoh nota ke PDF (lokal): OUT=/path [WARNA=hijau] flutter test tool/preview/pdf_preview_test.dart
 import 'dart:io';
 
 import 'package:path/path.dart' as p;
@@ -26,6 +26,7 @@ void main() {
         'invoice_note',
         'REKENING BCA\n0000000000\nAN CONTOH NAMA\n"Barang yang sudah dibeli tidak dapat ditukar/dikembalikan kecuali ada perjanjian"\n"KLAIM GARANSI WAJIB BAWA NOTA"',
       ),
+      if (Platform.environment['WARNA'] case final w?) ('invoice_color', w), // warna nota (R6), mis. WARNA=hijau
       if (File('docs/logo-star-garage.png').existsSync())
         ('logo_path', File('docs/logo-star-garage.png').absolute.path),
     ]) {
