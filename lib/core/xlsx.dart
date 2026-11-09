@@ -108,15 +108,15 @@ Future<String?> exportXlsx(
   return path == null ? null : 'Export tersimpan (${rows.length} $noun)';
 }
 
+const xlsxFiles = XTypeGroup(label: 'Excel', extensions: ['xlsx']);
+
 /// Dialog "Simpan sebagai" (mulai di folder Export dari Pengaturan) lalu tulis file.
 /// Path tujuan, atau null bila dibatalkan.
 Future<String?> saveXlsx(AppDb db, List<int> bytes, String suggestedName) async {
   final loc = await getSaveLocation(
     initialDirectory: await db.exportDir('Export'),
     suggestedName: suggestedName,
-    acceptedTypeGroups: const [
-      XTypeGroup(label: 'Excel', extensions: ['xlsx']),
-    ],
+    acceptedTypeGroups: const [xlsxFiles],
   );
   if (loc == null) return null;
   await File(loc.path).writeAsBytes(bytes);

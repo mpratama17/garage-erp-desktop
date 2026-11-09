@@ -1,6 +1,6 @@
 # star-garage-erp (repo: garage-erp-desktop) — Progress Snapshot
 
-Last updated: 2026-11-03 (**R5 kategori produk + perbaikan test bom waktu, dibuild 1.4.0+7** — `dist/Garage-ERP-1.4.0+7.dmg` (universal, 29,1 MB) dibuat dari working tree yang **belum di-commit** (user minta tunda commit). Skema DB v5. `dist/Garage-ERP-1.3.0+6.dmg` (R4) masih ada, belum pernah dikirim ke client.)
+Last updated: 2026-11-09 (**branch `uiux` di-merge ke main** — R5 kategori produk (skema v5), audit UI/UX, import catatan lama + kosongkan transaksi (skema **v6**). `/security-review` 0 temuan, `/simplify` diterapkan, 118 test lulus. Versi masih 1.4.0+7 — naikkan sebelum build .dmg berikutnya. `dist/` berisi .dmg 1.3.0+6 & 1.4.0+7 (skema v5), belum ada yang dikirim ke client.)
 
 **Apa:** mini-ERP desktop **macOS** offline (Flutter + SQLite/drift + GetX) untuk Star Garage (bengkel modif lampu, member Yoong Motor Pasuruan), pengganti Kledo + Google Sheet. Dashboard + 7 modul + Pengaturan (`docs/PRD.md` v2.3). Kasir: MacBook Air M1. Ringkasan untuk GitHub: `README.md`.
 
@@ -36,7 +36,7 @@ Last updated: 2026-11-03 (**R5 kategori produk + perbaikan test bom waktu, dibui
 
 Total test saat ini: **118 lulus** (per import catatan lama). **Semua modul R1 + upgrade UI selesai** — berikutnya: uji manual end-to-end di Mac, backlog B3, rilis .dmg pertama ke client. Importer dicoba dengan file asli client: produk 68 masuk / 1 ditolak (SKU kembar CB/001); customer 142 masuk / 6 digabung (no. HP sama) — semua sesuai temuan analisis awal.
 
-## Import catatan lama + kosongkan transaksi (6 Nov, branch `uiux`, belum di-commit)
+## Import catatan lama + kosongkan transaksi (6–7 Nov, `0feff33`)
 
 Permintaan: data dummy di app dikosongkan, riwayat Des 2024 → sekarang dari spreadsheet client masuk tanpa input ulang. Sumber = **satu file** "PEMASUKAN + HITUNG UANG" (sheet per bulan: penjualan per baris barang A–P + pengeluaran V–AA); "PENGELUARAN + INSENTIF" tidak dipakai (salinan daftar pengeluaran; insentif sudah termasuk baris GAJI). File client **tidak pernah masuk repo** — disimpan di folder Porto, dibaca lokal.
 
@@ -46,11 +46,17 @@ Permintaan: data dummy di app dikosongkan, riwayat Des 2024 → sekarang dari sp
 - **Pengaturan → File, backup & PIN → kartu Data:** Import (pratinjau per sheet + pemetaan kategori + catatan + tanggal batas), Samakan saldo, Batalkan import, Kosongkan transaksi (ketik KOSONGKAN; produk, stok awal/opname, customer, karyawan, rekening, kategori, pengaturan, nomor nota tetap). Semua didahului backup otomatis.
 - **Verifikasi:** dry-run `tool/riwayat/dryrun_test.dart` pada salinan DB (path dari env, cetak agregat saja): kas masuk & keluar per bulan = hitungan Python independen untuk semua bulan; semua label total sheet cocok; 0 invoice tidak lunas; migrasi v5→v6 pada DB nyata. `test/riwayat_test.dart` (17 test, data fiktif, xlsx dengan hasil rumus dibuat manual; kontrol negatif jurnal). Preview `pengaturan-data`, `import-catatan-lama`. 118 test lulus.
 - **Diketahui, dibiarkan:** satu pasangan uang masuk + PINJAM bernilai sama (pinjaman) tercatat sebagai penjualan + Lain-lain → laba usaha benar (saling menghapus), omzet & biaya sama-sama sedikit lebih besar. Pencocokan customer baru teruji dengan DB lokal (1 customer) — di Mac client diuji saat import sungguhan.
-- **DB dev Mac ini sudah dikosongkan** (6 Nov, backup `…-sebelum-kosongkan.sqlite` di folder backup).
+- **DB dev Mac ini sudah dikosongkan** (6 Nov, backup `…-sebelum-kosongkan.sqlite` di folder backup). Data lama di DB dev (invoice/karyawan percobaan) dipastikan dummy oleh user (9 Nov).
 - **Uji di app (user, 6 Nov 14:15):** Import lewat Pengaturan di DB dev → hasil dicek read-only: kas masuk/keluar = total sheet, 0 invoice tidak lunas, kategori Biaya tetap 18, gerak stok tidak berubah. (Dijalankan dengan kode sebelum perbaikan review di bawah; datanya benar.)
 - **`/code-review` (10 temuan → semua diperbaiki):** batalkan import hanya mengembalikan saldo awal rekening yang tercatat saat import; import produk Excel tidak mencocokkan penampung; catatan yang muncul saat import ditampilkan di dialog hasil; tanggal batas default = sehari sebelum transaksi app pertama; parser: barang tanpa tanggal sesudah uang tanpa rincian ikut uang itu, total di baris lanjutan tetap terbaca; Samakan saldo memuat rekening nonaktif; Kosongkan ikut membersihkan customer/produk hasil import (import ulang tidak dobel); gaji & pembelian stok hasil import bisa dihapus dari Kas & Bank; undo pakai subquery. Invoice hasil import tidak ikut omzet gaji (tunjangan sales). Penampung disembunyikan dari Gudang & cari; kategorinya hanya bila sama dengan kategori produk yang ada. 118 test lulus; dry-run ulang identik.
 
-## Audit UI/UX (6 Nov, branch `uiux`, di-commit — belum di-push)
+## Review sebelum merge (9 Nov)
+
+- `/security-review`: 0 temuan. Semua aksi owner baru (import, batalkan import, kosongkan, samakan saldo, kelola kategori, hapus gaji/pembelian stok hasil import) dicek `requireOwner()` di repo; SQL berparameter; pembaca xlsx tidak mengekstrak ke disk; tidak ada data client di repo. Backup otomatis sebelum aksi destruktif dipanggil di halaman.
+- `/simplify` diterapkan: parser satu konstruktor invoice, satu helper jumlah kas per rekening, `hasImportedData` satu query, plat customer hasil import lewat `normalizePlate`, regex di-hoist, konstanta `xlsxFiles` bersama.
+- **Dicatat, belum dikerjakan:** produk penampung hasil import tidak tampil di Gudang tapi ikut terhitung saat kelola kategori (hapus kategori bisa ditolak "masih dipakai" oleh produk yang tidak terlihat; ganti nama ikut memindahkan penampung); kategori yang hanya ada di tabel `product_categories` tidak dipakai saat import memberi kategori penampung; panel produk Gudang bisa membuang isian tanpa tanya selain lewat tombol Kategori; pratinjau import bukan dry-run sungguhan.
+
+## Audit UI/UX (6 Nov, `e7a6996`)
 
 Audit dengan skill `ui-ux-pro-max`; perbaikan: kunci klik dobel di `runAction` (cegah invoice/stok/bayar ganda, + `test/run_action_test.dart`), konfirmasi "Buang perubahan?" saat Batal/Esc di form invoice, `inkMuted` → `#5B6B80` (≥ 4.5:1 di semua latar), warna grafik Dashboard ≥ 3:1 (biru/kuning tua), ikon Pembelian lebih tua, sidebar & tanggal pemilih rentang bisa di-Tab + tooltip saat ciut, aturan "kosong = UMUM/lunas" pindah ke label, pintasan ⌘N (Penjualan) / ⌘S / Esc (form invoice). Tidak diubah (keputusan sadar): field abu tanpa garis. 101 test lulus.
 

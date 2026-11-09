@@ -8,6 +8,7 @@ import '../../core/format.dart';
 import '../../core/owner.dart';
 import '../../core/theme.dart';
 import '../../core/ui.dart';
+import '../../core/xlsx.dart' show xlsxFiles;
 import '../../core/xlsx_values.dart';
 import '../../db/database.dart';
 import 'riwayat_parser.dart';
@@ -92,11 +93,7 @@ Future<void> _import(BuildContext context) async {
     }
     return;
   }
-  final f = await openFile(
-    acceptedTypeGroups: const [
-      XTypeGroup(label: 'Excel', extensions: ['xlsx']),
-    ],
-  );
+  final f = await openFile(acceptedTypeGroups: const [xlsxFiles]);
   if (f == null || !context.mounted) return;
   final bytes = await f.readAsBytes();
   if (!context.mounted) return;

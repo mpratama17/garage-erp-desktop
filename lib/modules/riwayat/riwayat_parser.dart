@@ -72,7 +72,7 @@ class SheetCheck {
   SheetCheck(this.sheet);
   final String sheet;
   int? salesLabel, expenseLabel; // sel "TOTAL" & "TOTAL PENGELUARAN"; null = tidak ditemukan
-  int sales = 0, expenses = 0, invoices = 0, expenseRows = 0;
+  int sales = 0, expenses = 0, invoices = 0;
   bool get ok => (salesLabel ?? sales) == sales && (expenseLabel ?? expenses) == expenses;
 }
 
@@ -112,33 +112,26 @@ OldData parseOldWorkbook(XlsxValues x) {
       // --- penjualan: baris barang = kolom BARANG (nama) terisi; tanggal terisi = invoice baru.
       final item = _text(at(r, _item));
       final rowDate = x.date(at(r, _date)), rowTotal = _int(at(r, _total));
+      OldInvoice start(DateTime at_) => OldInvoice(
+        sheet: sheet,
+        row: row,
+        at: at_,
+        customer: _text(at(r, _owner)),
+        car: _text(at(r, _car)),
+        plate: _text(at(r, _plate)).toUpperCase(),
+      );
       if (item.isEmpty && rowDate != null && rowTotal != null && rowTotal != 0) {
         // Uang masuk tanpa rincian barang (DP/pelunasan yang barangnya tidak ditulis): ikut total sheet,
         // jadi invoice tanpa baris — repo memberinya satu baris "Penjualan".
-        final v = OldInvoice(
-          sheet: sheet,
-          row: row,
-          at: rowDate,
-          customer: _text(at(r, _owner)),
-          car: _text(at(r, _car)),
-          plate: _text(at(r, _plate)).toUpperCase(),
-        )..payments.add(OldPayment(_text(at(r, _pay)), rowTotal));
+        final v = start(rowDate)..payments.add(OldPayment(_text(at(r, _pay)), rowTotal));
         out.invoices.add(v);
         cur = v; // baris barang tanpa tanggal sesudahnya milik uang masuk ini, bukan invoice sebelumnya
         check.invoices++;
         check.sales += rowTotal;
       }
       if (item.isNotEmpty) {
-        final date = x.date(at(r, _date));
-        if (date != null) {
-          cur = OldInvoice(
-            sheet: sheet,
-            row: row,
-            at: date,
-            customer: _text(at(r, _owner)),
-            car: _text(at(r, _car)),
-            plate: _text(at(r, _plate)).toUpperCase(),
-          );
+        if (rowDate != null) {
+          cur = start(rowDate);
           out.invoices.add(cur);
           check.invoices++;
         }
@@ -199,7 +192,6 @@ OldData parseOldWorkbook(XlsxValues x) {
             ),
           );
           check.expenses += amount;
-          check.expenseRows++;
         }
       }
 

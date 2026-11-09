@@ -60,8 +60,6 @@ class GudangController extends GetxController {
 
   StockedProduct? get opened => products.firstWhereOrNull((s) => s.product.id == panelId.value);
 
-  static const _xlsx = XTypeGroup(label: 'Excel', extensions: ['xlsx']);
-
   Future<bool> _save(List<int> bytes, String name) async => await saveXlsx(db, bytes, name) != null;
 
   Future<String?> downloadTemplate() async =>
@@ -75,7 +73,7 @@ class GudangController extends GetxController {
   /// Kembalikan ringkasan hasil import, atau null bila dibatalkan.
   /// Import berjalan dalam satu transaksi: bila gagal, tidak ada data yang berubah.
   Future<({String summary, List<String> errors})?> import() async {
-    final f = await openFile(acceptedTypeGroups: [_xlsx]);
+    final f = await openFile(acceptedTypeGroups: [xlsxFiles]);
     if (f == null) return null;
     final ImportResult res;
     try {

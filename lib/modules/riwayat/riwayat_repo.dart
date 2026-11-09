@@ -6,6 +6,7 @@ import '../../db/database.dart';
 import '../biaya/biaya_repo.dart' show expenseKind;
 import '../gaji/gaji_repo.dart' show salaryKind;
 import '../kas/kas_repo.dart' show CashKind;
+import '../kontak/kontak_repo.dart' show normalizePlate;
 import '../penjualan/penjualan_repo.dart' show DocKind;
 import 'riwayat_parser.dart';
 
@@ -60,8 +61,9 @@ const _oldAccounts = {
   'DANA': 'DANA',
 };
 
-String _letters(String s) => s.toUpperCase().replaceAll(RegExp('[^A-Z]'), '');
-String _key(String s) => s.toUpperCase().replaceAll(RegExp(r'\s+'), ' ').trim();
+final _nonLetters = RegExp('[^A-Z]'), _spaces = RegExp(r'\s+'), _nonAlnum = RegExp('[^A-Z0-9]');
+String _letters(String s) => s.toUpperCase().replaceAll(_nonLetters, '');
+String _key(String s) => s.toUpperCase().replaceAll(_spaces, ' ').trim();
 
 /// Ringkasan hasil import (juga dipakai pratinjau/dry-run).
 class OldImportResult {
@@ -72,17 +74,16 @@ class OldImportResult {
 }
 
 extension RiwayatRepo on AppDb {
-  Future<bool> hasImportedData() async =>
-      await (select(invoices)
-                ..where((i) => i.imported)
-                ..limit(1))
-              .getSingleOrNull() !=
-          null ||
-      await (select(cashEntries)
-                ..where((c) => c.imported)
-                ..limit(1))
-              .getSingleOrNull() !=
-          null;
+  Future<bool> hasImportedData() async => (await customSelect(
+    'SELECT EXISTS(SELECT 1 FROM invoices WHERE imported = 1) '
+    'OR EXISTS(SELECT 1 FROM cash_entries WHERE imported = 1) AS x',
+  ).getSingle()).read<bool>('x');
+
+  /// Jumlah semua transaksi kas sebuah rekening (saldo = saldo awal + ini).
+  Future<int> _cashSum(int accountId) async => (await customSelect(
+    'SELECT COALESCE(SUM(amount), 0) AS n FROM cash_entries WHERE account_id = ?',
+    variables: [Variable.withInt(accountId)],
+  ).getSingle()).read<int>('n');
 
   /// Masukkan catatan lama ke app dalam satu transaksi (gagal = tidak ada yang tersimpan). Hanya baris bertanggal
   /// sebelum [before] (null = semua) — sejak tanggal itu sumbernya app, supaya tidak tercatat dua kali.
@@ -176,7 +177,7 @@ extension RiwayatRepo on AppDb {
         CustomersCompanion.insert(
           name: v.customer,
           car: Value(v.car),
-          plate: Value(v.plate),
+          plate: Value(normalizePlate(v.plate)),
           imported: const Value(true),
         ),
       );
@@ -283,26 +284,27 @@ extension RiwayatRepo on AppDb {
           catId = other;
         }
       }
+      final kind = switch (target) {
+        oldSalary => salaryKind,
+        oldStockBuy => CashKind.oldStock,
+        _ => expenseKind,
+      };
       await into(cashEntries).insert(
         CashEntriesCompanion.insert(
           at: e.at,
           accountId: acc!,
           amount: -e.amount,
-          kind: switch (target) {
-            oldSalary => salaryKind,
-            oldStockBuy => CashKind.oldStock,
-            _ => expenseKind,
-          },
+          kind: kind,
           refId: Value(catId),
           description: e.name.isEmpty ? '(tanpa nama)' : e.name,
           note: Value(e.qty.isEmpty ? '' : 'Jumlah: ${e.qty}'),
           imported: const Value(true),
         ),
       );
-      switch (target) {
-        case oldStockBuy:
+      switch (kind) {
+        case CashKind.oldStock:
           res.stockBuys++;
-        case oldSalary:
+        case salaryKind:
           res.salaries++;
         default:
           res.expenses++;
@@ -354,12 +356,7 @@ extension RiwayatRepo on AppDb {
   /// Saldo tiap rekening menurut app sekarang (saldo awal + semua transaksi).
   Future<Map<Account, int>> accountBalances() async => {
     for (final a in await select(accounts).get()) // juga nonaktif: catatan lama bisa masuk ke sana
-      a:
-          a.openingBalance +
-          (await customSelect(
-            'SELECT COALESCE(SUM(amount), 0) AS n FROM cash_entries WHERE account_id = ?',
-            variables: [Variable.withInt(a.id)],
-          ).getSingle()).read<int>('n'),
+      a: a.openingBalance + await _cashSum(a.id),
   };
 
   /// Samakan saldo dengan saldo nyata hari ini (owner): saldo awal = saldo nyata − semua transaksi rekening itu.
@@ -368,10 +365,7 @@ extension RiwayatRepo on AppDb {
   Future<void> setActualBalances(Map<int, int> actual) => transaction(() async {
     requireOwner();
     for (final MapEntry(key: id, value: real) in actual.entries) {
-      final sum = (await customSelect(
-        'SELECT COALESCE(SUM(amount), 0) AS n FROM cash_entries WHERE account_id = ?',
-        variables: [Variable.withInt(id)],
-      ).getSingle()).read<int>('n');
+      final sum = await _cashSum(id);
       await (update(
         accounts,
       )..where((a) => a.id.equals(id))).write(AccountsCompanion(openingBalance: Value(real - sum)));
@@ -412,4 +406,4 @@ extension RiwayatRepo on AppDb {
 
 const _openingKey = 'import_opening_balances';
 
-String _plate(String s) => s.toUpperCase().replaceAll(RegExp('[^A-Z0-9]'), '');
+String _plate(String s) => s.toUpperCase().replaceAll(_nonAlnum, '');
