@@ -150,6 +150,8 @@ extension AkuntansiRepo on AppDb {
           move(c.at, ref, c.description, kas, onOpenInvoice ? Ac.piutang : Ac.uangMuka, a);
         case 'purchase':
           move(c.at, ref, c.description, Ac.utangUsaha, kas, -a);
+        case CashKind.oldStock:
+          move(c.at, ref, c.description, Ac.modal, kas, -a);
         case expenseKind:
           final cat = cats[c.refId];
           final code = cat == null ? Ac.biayaLain : (cat.personal ? Ac.prive : Ac.biaya(cat.id));

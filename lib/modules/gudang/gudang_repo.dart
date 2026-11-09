@@ -194,6 +194,72 @@ extension GudangRepo on AppDb {
 
   Stream<List<StockedProduct>> watchProducts() => productsQuery().watch();
 
+  // ---- kategori produk (v5): yang dipakai produk ∪ tabel product_categories ----
+
+  /// Semua kategori + jumlah produk yang memakainya (0 = sudah dibuat, belum dipakai).
+  Selectable<({String name, int count})> productCategoriesQuery() => customSelect(
+    'SELECT name, SUM(n) AS n FROM ('
+    "SELECT category AS name, COUNT(*) AS n FROM products WHERE category <> '' GROUP BY category "
+    'UNION ALL SELECT name, 0 FROM product_categories) GROUP BY name ORDER BY name COLLATE NOCASE',
+    readsFrom: {products, productCategories},
+  ).map((r) => (name: r.read<String>('name'), count: r.read<int>('n')));
+
+  /// Ejaan kategori yang sudah ada untuk [name] (tanpa beda huruf besar/kecil), selain varian [except].
+  Future<String?> _existingCategory(String name, {String except = ''}) async => (await customSelect(
+    'SELECT name FROM (SELECT category AS name FROM products UNION SELECT name FROM product_categories) '
+    'WHERE LOWER(name) = LOWER(?) AND LOWER(name) <> LOWER(?) LIMIT 1',
+    variables: [Variable(name), Variable(except)],
+    readsFrom: {products, productCategories},
+  ).getSingleOrNull())?.read<String>('name');
+
+  /// Kategori yang diketik/diimport: dipangkas, dan memakai ejaan kategori yang sudah ada (mis. "led" → "LED")
+  /// supaya tidak ada kategori kembar.
+  Future<String> _canonicalCategory(String name) async {
+    final n = name.trim();
+    return n.isEmpty ? n : await _existingCategory(n) ?? n;
+  }
+
+  /// Nama untuk kategori baru / ganti nama: dipangkas, wajib diisi, tidak kembar (selain varian [except]).
+  Future<String> _newCategoryName(String name, {String except = ''}) async {
+    final n = name.trim();
+    if (n.isEmpty) throw ArgumentError('Nama kategori wajib diisi');
+    final dup = await _existingCategory(n, except: except);
+    if (dup != null) throw ArgumentError('Kategori "$dup" sudah ada');
+    return n;
+  }
+
+  /// Tambah kategori kosong (owner). Huruf besar/kecil disimpan apa adanya.
+  Future<void> addProductCategory(String name) => transaction(() async {
+    requireOwner();
+    final n = await _newCategoryName(name);
+    await into(productCategories).insert(ProductCategoriesCompanion.insert(name: n));
+  });
+
+  /// Ganti nama kategori (owner): semua produknya ikut pindah. Boleh hanya mengubah huruf besar/kecil.
+  Future<void> renameProductCategory(String old, String name) => transaction(() async {
+    requireOwner();
+    final n = await _newCategoryName(name, except: old);
+    await (update(products)..where((x) => x.category.equals(old))).write(ProductsCompanion(category: Value(n)));
+    await (update(productCategories)..where((x) => x.name.equals(old))).write(ProductCategoriesCompanion(name: Value(n)));
+  });
+
+  /// Hapus kategori (owner) — ditolak bila masih dipakai produk (aktif maupun nonaktif).
+  Future<void> deleteProductCategory(String name) => transaction(() async {
+    requireOwner();
+    final count = products.id.count();
+    final used = await (selectOnly(products)
+          ..addColumns([count])
+          ..where(products.category.equals(name)))
+        .map((r) => r.read(count)!)
+        .getSingle();
+    if (used > 0) {
+      throw ArgumentError(
+        'Kategori "$name" masih dipakai $used produk — pindahkan produknya dulu atau ganti nama kategorinya',
+      );
+    }
+    await (delete(productCategories)..where((x) => x.name.equals(name))).go();
+  });
+
   Future<int> stockOf(int productId) async {
     final sum = stockMoves.qty.sum();
     final row =
@@ -276,7 +342,11 @@ extension GudangRepo on AppDb {
     final name = p.name.value.trim();
     if (name.isEmpty) throw ArgumentError('Nama produk wajib diisi');
     final sku = p.sku.present ? p.sku.value?.trim() : null;
-    final clean = p.copyWith(name: Value(name), sku: Value(sku == null || sku.isEmpty ? null : sku));
+    final clean = p.copyWith(
+      name: Value(name),
+      sku: Value(sku == null || sku.isEmpty ? null : sku),
+      category: p.category.present ? Value(await _canonicalCategory(p.category.value)) : const Value.absent(),
+    );
     if (clean.sku.value != null) {
       final dup =
           await (select(products)..where(
@@ -295,7 +365,7 @@ extension GudangRepo on AppDb {
       final id = await into(products).insert(clean);
       if (openingStock > 0 && !(clean.isService.present && clean.isService.value)) {
         await into(stockMoves)
-            .insert(StockMovesCompanion.insert(at: DateTime.now(), productId: id, qty: openingStock, kind: 'opening'));
+            .insert(StockMovesCompanion.insert(at: now(), productId: id, qty: openingStock, kind: 'opening'));
       }
       return id;
     });
@@ -310,7 +380,7 @@ extension GudangRepo on AppDb {
       if (delta == 0) return;
       await into(stockMoves).insert(
         StockMovesCompanion.insert(
-          at: DateTime.now(),
+          at: now(),
           productId: productId,
           qty: delta,
           kind: 'adjust',
@@ -422,7 +492,8 @@ extension GudangRepo on AppDb {
   Future<({int created, int updated})> applyImport(List<ProductRow> rows) => transaction(() async {
     requireOwner(); // import menulis harga beli
     var created = 0, updated = 0;
-    final existing = await select(products).get();
+    // Penampung import catatan lama bukan barang: tidak ikut dicocokkan.
+    final existing = await (select(products)..where((p) => p.imported.equals(false))).get();
     final bySku = {
       for (final p in existing)
         if (p.sku != null) p.sku!.toUpperCase(): p,
@@ -434,7 +505,7 @@ extension GudangRepo on AppDb {
       final data = ProductsCompanion(
         name: Value(r.name),
         sku: r.sku == null ? const Value.absent() : Value(r.sku),
-        category: r.category == null ? const Value.absent() : Value(r.category!),
+        category: r.category == null ? const Value.absent() : Value(await _canonicalCategory(r.category!)),
         unit: Value(r.unit),
         buyPrice: r.buyPrice == null ? const Value.absent() : Value(r.buyPrice!),
         sellPrice: r.sellPrice == null ? const Value.absent() : Value(r.sellPrice!),

@@ -105,7 +105,7 @@ extension LaporanBaru on AppDb {
       switch (c.kind) {
         case 'payment' || 'refund' || 'income':
           masuk += c.amount;
-        case 'expense' || 'salary' || 'purchase':
+        case 'expense' || 'salary' || 'purchase' || CashKind.oldStock:
           keluar -= c.amount;
       }
     }

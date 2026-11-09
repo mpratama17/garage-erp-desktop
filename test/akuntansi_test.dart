@@ -19,7 +19,10 @@ void main() {
   final end = DateTime(2026, 10, 31);
 
   setUp(() async {
-    db = AppDb(NativeDatabase.memory())..ownerUnlocked = true;
+    // Jam repo dipatok ke tanggal fixture: pembatalan (refund) tidak ikut tanggal test dijalankan.
+    db = AppDb(NativeDatabase.memory())
+      ..ownerUnlocked = true
+      ..now = () => d;
     final acc = {for (final a in await db.select(db.accounts).get()) a.name: a.id};
     bca = acc['BCA']!;
     tunai = acc['Tunai']!;

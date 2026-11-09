@@ -11,6 +11,7 @@ import '../../core/table.dart';
 import '../../core/theme.dart';
 import '../../core/ui.dart';
 import '../../db/database.dart';
+import '../../shell.dart' show AppPage, Nav;
 import 'doc_editor.dart';
 import 'penjualan_controller.dart';
 import 'penjualan_repo.dart';
@@ -154,6 +155,8 @@ class PenjualanPage extends StatelessWidget {
       c.panelId.value = id;
       if (context.mounted) await _savedDialog(context, c, id);
     }
+
+    Get.find<Nav>().newDoc[AppPage.penjualan] = () => create(c.kind.value);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,

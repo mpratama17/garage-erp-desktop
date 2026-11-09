@@ -362,7 +362,7 @@ class MoneyField extends StatelessWidget {
   final TextEditingController controller;
   final String label;
   final String prefix;
-  final String? hint; // teks samar saat kosong, mis. 'kosong = lunas'
+  final String? hint; // teks samar saat kosong, mis. '0'
   final ValueChanged<String>? onChanged;
 
   @override
@@ -384,12 +384,19 @@ class MoneyField extends StatelessWidget {
 /// Jalankan aksi repo dan tampilkan hasilnya:
 /// berhasil → [done] (sukses); [ArgumentError] = aturan bisnis → pesan untuk diperbaiki user;
 /// error lain = masalah sistem → pesan ramah + detail teknis dicatat di log (bukan ditampilkan mentah).
+/// Selama satu aksi berjalan, aksi lain ditolak (klik dobel "Simpan" = invoice/stok/pembayaran ganda).
 Future<bool> runAction(
   BuildContext context,
   Future<void> Function() action, [
   String? done,
   String failed = 'Terjadi kesalahan, aksi tidak selesai. Coba sekali lagi; bila tetap gagal, kirim file log ke admin.',
 ]) async {
+  // ponytail: satu kunci global (aksi = tulis DB singkat / panel file modal). Kunci per tombol bila perlu paralel.
+  if (_actionRunning) {
+    if (context.mounted) notify(context, 'Masih memproses aksi sebelumnya…', kind: Notice.info);
+    return false;
+  }
+  _actionRunning = true;
   try {
     await action();
     if (done != null && context.mounted) notify(context, done);
@@ -402,9 +409,13 @@ Future<bool> runAction(
       FlutterError.reportError(FlutterErrorDetails(exception: e, stack: st, library: 'runAction'));
       if (context.mounted) notify(context, failed, kind: Notice.error);
     }
+  } finally {
+    _actionRunning = false;
   }
   return false;
 }
+
+var _actionRunning = false;
 
 /// Tombol Export daftar yang sedang tampil (khusus owner: minta PIN). [export] = pesan hasil, null bila batal.
 Widget exportButton(BuildContext context, Future<String?> Function() export) => OutlinedButton.icon(

@@ -256,23 +256,27 @@ class _Month extends StatelessWidget {
       final disabled = d.isBefore(lo) || d.isAfter(hi);
       final isEdge = d == start || d == end;
       final inside = start != null && end != null && d.isAfter(start!) && d.isBefore(end!);
-      return GestureDetector(
-        onTap: disabled ? null : () => onTap(d),
-        behavior: HitTestBehavior.opaque,
-        child: Container(
-          margin: const EdgeInsets.symmetric(vertical: 1),
-          alignment: Alignment.center,
-          height: 32,
-          decoration: BoxDecoration(
-            color: isEdge ? C.primary : (inside ? C.primarySoft : null),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Text(
-            '$day',
-            style: T.body.copyWith(
-              fontSize: 13,
-              color: isEdge ? C.surface : (disabled ? C.border : C.ink),
-              fontWeight: isEdge ? FontWeight.w600 : FontWeight.w400,
+      // InkWell (bukan GestureDetector): bisa dijangkau Tab, dipilih Enter/Spasi, kursor tangan saat hover.
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 1),
+        child: InkWell(
+          onTap: disabled ? null : () => onTap(d),
+          borderRadius: BorderRadius.circular(8),
+          child: Ink(
+            height: 32,
+            decoration: BoxDecoration(
+              color: isEdge ? C.primary : (inside ? C.primarySoft : null),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Center(
+              child: Text(
+                '$day',
+                style: T.body.copyWith(
+                  fontSize: 13,
+                  color: isEdge ? C.surface : (disabled ? C.border : C.ink),
+                  fontWeight: isEdge ? FontWeight.w600 : FontWeight.w400,
+                ),
+              ),
             ),
           ),
         ),

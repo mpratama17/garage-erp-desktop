@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 
@@ -30,7 +31,7 @@ import 'modules/search_repo.dart';
 enum AppPage {
   dashboard('Beranda', Icons.space_dashboard_outlined, Color(0xFF2F5BEA)),
   penjualan('Penjualan', Icons.receipt_long_outlined, Color(0xFF0F9D6B)),
-  pembelian('Pembelian', Icons.shopping_cart_outlined, Color(0xFFE8890C)),
+  pembelian('Pembelian', Icons.shopping_cart_outlined, Color(0xFFB86A00)),
   gudang('Gudang', Icons.inventory_2_outlined, Color(0xFF7C4DDB)),
   biaya('Biaya', Icons.payments_outlined, Color(0xFFD6336C)),
   kontak('Kontak', Icons.people_alt_outlined, Color(0xFF0B8FA3)),
@@ -64,6 +65,9 @@ class Nav extends GetxController {
   final page = AppPage.dashboard.obs;
   final sidebarExpanded = true.obs;
   final pembelianTagihan = false.obs;
+
+  /// Aksi "data baru" (⌘N) per halaman; halaman yang belum mendaftar = ⌘N tidak berbuat apa-apa.
+  final newDoc = <AppPage, VoidCallback>{};
 }
 
 class Shell extends StatelessWidget {
@@ -72,6 +76,14 @@ class Shell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final nav = Get.put(Nav());
+    // Pintasan global (design.md §9). Tidak aktif saat dialog terbuka (dialog = rute lain, fokus di sana).
+    return CallbackShortcuts(
+      bindings: {const SingleActivator(LogicalKeyboardKey.keyN, meta: true): () => nav.newDoc[nav.page.value]?.call()},
+      child: Focus(autofocus: true, child: _scaffold(nav)),
+    );
+  }
+
+  Widget _scaffold(Nav nav) {
     return Scaffold(
       body: Row(
         children: [
@@ -217,58 +229,54 @@ List<_Child> _childrenOf(AppPage page) {
 }
 
 /// Satu menu: ikon berwarna + label (label disembunyikan saat ciut), pil lembut saat aktif, hover halus.
-class _NavItem extends StatefulWidget {
+/// InkWell (bukan GestureDetector) → bisa dijangkau Tab & dibuka Enter/Spasi; saat ciut, nama menu = tooltip.
+class _NavItem extends StatelessWidget {
   const _NavItem(this.page, {required this.extended});
   final AppPage page;
   final bool extended;
 
   @override
-  State<_NavItem> createState() => _NavItemState();
-}
-
-class _NavItemState extends State<_NavItem> {
-  var _hovered = false;
-
-  @override
   Widget build(BuildContext context) {
     final nav = Get.find<Nav>();
-    final children = _childrenOf(widget.page);
+    final children = _childrenOf(page);
     return Obx(() {
-      final selected = nav.page.value == widget.page;
+      final selected = nav.page.value == page;
       final color = selected ? C.primary : C.inkMuted;
       return Column(
         children: [
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 1),
-            child: MouseRegion(
-              cursor: SystemMouseCursors.click,
-              onEnter: (_) => setState(() => _hovered = true),
-              onExit: (_) => setState(() => _hovered = false),
-              child: GestureDetector(
+            child: _tooltipWhen(
+              !extended,
+              page.label,
+              InkWell(
                 onTap: () {
-                  if (widget.page == AppPage.pembelian) nav.pembelianTagihan.value = false;
-                  nav.page.value = widget.page;
+                  if (page == AppPage.pembelian) nav.pembelianTagihan.value = false;
+                  nav.page.value = page;
                 },
-                behavior: HitTestBehavior.opaque,
-                child: Container(
+                borderRadius: BorderRadius.circular(12),
+                // Lapisan transparan: tetap terlihat di atas pil aktif (fokus Tab = biru tipis).
+                hoverColor: C.ink.withValues(alpha: 0.04),
+                focusColor: C.primary.withValues(alpha: 0.14),
+                child: Ink(
                   padding: const EdgeInsets.symmetric(horizontal: S.md, vertical: S.xs + 2),
                   decoration: BoxDecoration(
-                    color: selected && !children.any((ch) => ch.selected()) ? C.primarySoft : (_hovered ? C.bg : null),
+                    color: selected && !children.any((ch) => ch.selected()) ? C.primarySoft : null,
                     borderRadius: BorderRadius.circular(12),
                   ),
                   // Label baru tampil saat panel cukup lebar (selama animasi ciut/lebar tidak meluber).
                   child: LayoutBuilder(
                     builder: (context, box) {
-                      final label = widget.extended && box.maxWidth > 110;
+                      final label = extended && box.maxWidth > 110;
                       return Row(
                         mainAxisAlignment: label ? MainAxisAlignment.start : MainAxisAlignment.center,
                         children: [
-                          Icon(widget.page.icon, size: 21, color: widget.page.color),
+                          Icon(page.icon, size: 21, color: page.color),
                           if (label) ...[
                             const SizedBox(width: S.md),
                             Expanded(
                               child: Text(
-                                widget.page.label,
+                                page.label,
                                 maxLines: 1,
                                 overflow: TextOverflow.fade,
                                 style: T.body.copyWith(
@@ -288,13 +296,17 @@ class _NavItemState extends State<_NavItem> {
               ),
             ),
           ),
-          if (selected && widget.extended)
-            for (final ch in children) _ChildItem(widget.page, ch),
+          if (selected && extended)
+            for (final ch in children) _ChildItem(page, ch),
         ],
       );
     });
   }
 }
+
+/// Nama menu sebagai tooltip saat sidebar ciut (ikon saja).
+Widget _tooltipWhen(bool show, String message, Widget child) =>
+    show ? Tooltip(message: message, waitDuration: const Duration(milliseconds: 300), child: child) : child;
 
 class _ChildItem extends StatelessWidget {
   const _ChildItem(this.page, this.child);

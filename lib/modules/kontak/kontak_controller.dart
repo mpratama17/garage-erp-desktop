@@ -42,8 +42,6 @@ class KontakController extends GetxController {
 
   Customer? get opened => customers.firstWhereOrNull((c) => c.id == panelId.value);
 
-  static const _xlsx = XTypeGroup(label: 'Excel', extensions: ['xlsx']);
-
   Future<String?> _save(List<int> bytes, String name) => saveXlsx(db, bytes, name);
 
   Future<String?> downloadTemplate() async =>
@@ -60,7 +58,7 @@ class KontakController extends GetxController {
 
   /// Ringkasan + daftar baris dilewati/digabung, atau null bila dibatalkan.
   Future<({String summary, List<String> notes})?> import() async {
-    final f = await openFile(acceptedTypeGroups: [_xlsx]);
+    final f = await openFile(acceptedTypeGroups: [xlsxFiles]);
     if (f == null) return null;
     final CustomerImport res;
     try {

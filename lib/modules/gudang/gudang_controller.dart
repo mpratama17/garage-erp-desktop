@@ -7,6 +7,7 @@ import '../../core/owner.dart';
 import '../../core/xlsx.dart';
 import '../../db/database.dart';
 import 'gudang_repo.dart';
+import 'product_form.dart';
 
 enum GudangTab { barang, jasa, ready }
 
@@ -20,6 +21,9 @@ class GudangController extends GetxController {
 
   /// Panel kanan: null = tertutup, 0 = produk baru, >0 = id produk yang dibuka.
   final panelId = RxnInt();
+
+  /// Form produk di panel yang sedang terbuka (dipasang/dilepas oleh panelnya).
+  ProductFields? editing;
   StreamSubscription<List<StockedProduct>>? _sub;
   Worker? _ownerWorker;
 
@@ -27,7 +31,7 @@ class GudangController extends GetxController {
   void onInit() {
     super.onInit();
     _sub = db.watchProducts().listen((p) {
-      products.assignAll(p);
+      products.assignAll(p.where((s) => !s.product.imported)); // penampung import catatan lama: bukan barang stok
       // Stok berubah karena penjualan/pembelian → ikut segarkan total.
       _loadFlow();
     });
@@ -56,8 +60,6 @@ class GudangController extends GetxController {
 
   StockedProduct? get opened => products.firstWhereOrNull((s) => s.product.id == panelId.value);
 
-  static const _xlsx = XTypeGroup(label: 'Excel', extensions: ['xlsx']);
-
   Future<bool> _save(List<int> bytes, String name) async => await saveXlsx(db, bytes, name) != null;
 
   Future<String?> downloadTemplate() async =>
@@ -71,7 +73,7 @@ class GudangController extends GetxController {
   /// Kembalikan ringkasan hasil import, atau null bila dibatalkan.
   /// Import berjalan dalam satu transaksi: bila gagal, tidak ada data yang berubah.
   Future<({String summary, List<String> errors})?> import() async {
-    final f = await openFile(acceptedTypeGroups: [_xlsx]);
+    final f = await openFile(acceptedTypeGroups: [xlsxFiles]);
     if (f == null) return null;
     final ImportResult res;
     try {
