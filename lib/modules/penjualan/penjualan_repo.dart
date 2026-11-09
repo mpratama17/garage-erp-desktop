@@ -360,6 +360,66 @@ extension PenjualanRepo on AppDb {
     );
   });
 
+  /// Pembayaran (bukan refund) dari dokumen yang belum dibatalkan — satu-satunya yang boleh diubah/dihapus (R6).
+  /// Ringkasan yang dikembalikan = dokumen yang menghitung uang itu: DP pemesanan yang sudah diinvoice → invoicenya
+  /// (batas nominal & status mengikuti invoice, sama dengan yang tampil di panel invoice).
+  Future<(CashEntry, DocSummary)> _editablePayment(int cashId) async {
+    final p = await (select(cashEntries)..where((c) => c.id.equals(cashId))).getSingle();
+    if (p.kind != 'payment' || p.refId == null) throw ArgumentError('Bukan pembayaran invoice');
+    var s = await docSummary(p.refId!);
+    if (s.doc.isVoid) throw ArgumentError('${s.doc.no} sudah dibatalkan — pembayarannya tidak bisa diubah');
+    if (s.hasInvoice) {
+      final inv = await (select(
+        invoices,
+      )..where((i) => i.orderId.equals(s.doc.id) & i.isVoid.equals(false))).getSingle();
+      s = await docSummary(inv.id);
+    }
+    return (p, s);
+  }
+
+  /// Ubah pembayaran (owner, R6): rekening, nominal, tanggal, keterangan, bukti. Mis. tercatat Tunai, ternyata BCA.
+  Future<void> updatePayment(int cashId, PaymentInput p) => transaction(() async {
+    requireOwner();
+    final (old, s) = await _editablePayment(cashId);
+    if (p.amount <= 0) throw ArgumentError('Nominal pembayaran harus lebih dari 0');
+    if (p.amount > s.remaining + old.amount) {
+      throw ArgumentError('Nominal melebihi sisa tagihan (${s.remaining + old.amount})');
+    }
+    if (p.accountId != old.accountId) await requireActiveAccount(p.accountId); // rekening lama boleh sudah nonaktif
+    await (update(cashEntries)..where((c) => c.id.equals(cashId))).write(
+      CashEntriesCompanion(
+        at: Value(p.at),
+        accountId: Value(p.accountId),
+        amount: Value(p.amount),
+        note: Value(p.note.trim()),
+        proofPath: Value(p.proofPath),
+      ),
+    );
+  });
+
+  /// Hapus pembayaran (owner, R6): uangnya dianggap tidak pernah masuk; status invoice ikut kembali.
+  Future<void> deletePayment(int cashId) => transaction(() async {
+    requireOwner();
+    await _editablePayment(cashId);
+    await (delete(cashEntries)..where((c) => c.id.equals(cashId))).go();
+  });
+
+  /// Hapus permanen (owner, R6): dokumen, barisnya, pembayaran/refund-nya, dan gerak stoknya — seolah tidak pernah
+  /// ada (stok kembali, uang keluar dari rekening). Nomornya tidak dipakai ulang dan tidak dicatat di mana pun.
+  /// Invoice dari pemesanan: DP tetap milik pemesanan, yang terbuka lagi. Pemesanan yang sudah diinvoice ditolak.
+  Future<void> deleteDoc(int docId) => transaction(() async {
+    requireOwner();
+    final s = await docSummary(docId);
+    // Termasuk invoice yang sudah batal: orderId-nya jangan menunjuk dokumen yang tidak ada.
+    if (await (select(invoices)..where((i) => i.orderId.equals(docId))).get() case [final inv, ...]) {
+      throw ArgumentError('${s.doc.no} sudah dibuatkan invoice ${inv.no} — hapus invoicenya dulu');
+    }
+    await (delete(cashEntries)..where((c) => c.kind.isIn(['payment', 'refund']) & c.refId.equals(docId))).go();
+    await (delete(stockMoves)..where((m) => m.kind.isIn(['sale', 'void']) & m.refId.equals(docId))).go();
+    await (delete(invoiceLines)..where((l) => l.invoiceId.equals(docId))).go();
+    await (delete(invoices)..where((i) => i.id.equals(docId))).go();
+  });
+
   /// Batalkan (owner): stok dikembalikan, uang yang diterima DOKUMEN INI dicatat keluar lagi (refund)
   /// ke rekening asalnya. Invoice dari pemesanan: DP tetap milik pemesanan, yang kembali terbuka.
   Future<void> voidDoc(int docId, String reason) => transaction(() async {

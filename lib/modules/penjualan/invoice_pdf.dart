@@ -13,10 +13,20 @@ import 'penjualan_repo.dart';
 
 const _blue = PdfColor.fromInt(0xFF3B6CB7);
 const _navy = PdfColor.fromInt(0xFF1E2A44);
-const _head = PdfColor.fromInt(0xFF2F3B52);
-const _cell = PdfColor.fromInt(0xFFE8EAEE);
 const _grey = PdfColor.fromInt(0xFF555555);
 const _stamp = PdfColor.fromInt(0xFF2E9E6B);
+
+/// Warna tabel nota yang bisa dipilih di Pengaturan (R6): key → (nama, header, latar baris).
+/// Header cukup gelap untuk tulisan putih; latar baris terang supaya hemat tinta. Tulisan lain tidak berubah.
+const invoiceColors = {
+  'navy': ('Navy', 0xFF2F3B52, 0xFFE8EAEE),
+  'biru': ('Biru', 0xFF2F5BEA, 0xFFEEF2FD),
+  'hijau': ('Hijau', 0xFF1F7A54, 0xFFEDF7F2),
+  'marun': ('Marun', 0xFF9F1D35, 0xFFFBEFF1),
+  'oranye': ('Oranye', 0xFFB4530A, 0xFFFDF3EA),
+  'ungu': ('Ungu', 0xFF5B3FA8, 0xFFF2EFFA),
+  'abu': ('Abu-abu', 0xFF4B5563, 0xFFF3F4F6),
+};
 
 /// Logo untuk nota/slip, padding polos di sekelilingnya dipotong — logo persegi berpadding
 /// (mis. 500×500 dengan logo di tengah) kalau tidak dipotong tercetak kecil di kotak logo.
@@ -38,8 +48,12 @@ PdfPoint logoBox(String setting) {
 }
 
 /// Layout mengikuti nota client dari Kledo (INV/00245 & INV/00246).
-Future<Uint8List> buildInvoicePdf(AppDb db, int docId) async {
+/// [asPaid] (R6): cetak sebagai lunas sebelum uangnya dicatat — client menyerahkan nota berstempel LUNAS dulu,
+/// customer membayar sesudahnya (rekeningnya belum tahu). Tidak mengubah data; pembayaran dicatat saat uang masuk.
+Future<Uint8List> buildInvoicePdf(AppDb db, int docId, {bool asPaid = false}) async {
   final s = await db.docSummary(docId);
+  final paidStamp = asPaid || s.status == PayStatus.paid;
+  final paid = asPaid ? s.total : s.paid, remaining = asPaid || s.remaining < 0 ? 0 : s.remaining;
   final inv = s.doc;
   final lines = await db.linesQuery(docId).get();
   final cust = inv.customerId == null
@@ -53,6 +67,9 @@ Future<Uint8List> buildInvoicePdf(AppDb db, int docId) async {
   final box = logoBox(set['logo_scale']!);
   final shop = set['shop_name']!;
   final isOrder = s.isOrder;
+  final (_, head, cell) = invoiceColors[set['invoice_color']] ?? invoiceColors['navy']!;
+  final headDeco = pw.BoxDecoration(color: PdfColor.fromInt(head)),
+      cellDeco = pw.BoxDecoration(color: PdfColor.fromInt(cell));
 
   final theme = pw.ThemeData.withFont(
     base: pw.Font.ttf(await rootBundle.load('assets/fonts/Inter-Regular.ttf')),
@@ -147,7 +164,7 @@ Future<Uint8List> buildInvoicePdf(AppDb db, int docId) async {
                 ],
               ),
               // Lebih lega bila ada stempel LUNAS di bawah blok judul.
-              pw.SizedBox(height: s.status == PayStatus.paid ? 48 : 24),
+              pw.SizedBox(height: paidStamp ? 48 : 24),
               pw.Row(
                 crossAxisAlignment: pw.CrossAxisAlignment.start,
                 children: [
@@ -194,9 +211,9 @@ Future<Uint8List> buildInvoicePdf(AppDb db, int docId) async {
                     ],
                 ],
                 headerStyle: pw.TextStyle(color: PdfColors.white, fontWeight: pw.FontWeight.bold, fontSize: 9),
-                headerDecoration: const pw.BoxDecoration(color: _head),
+                headerDecoration: headDeco,
                 cellStyle: const pw.TextStyle(fontSize: 9, color: _grey),
-                cellDecoration: (_, _, _) => const pw.BoxDecoration(color: _cell),
+                cellDecoration: (_, _, _) => cellDeco,
                 border: pw.TableBorder.symmetric(inside: const pw.BorderSide(color: PdfColors.white, width: 2)),
                 cellPadding: const pw.EdgeInsets.all(6),
                 columnWidths: {0: const pw.FlexColumnWidth(3), 1: const pw.FlexColumnWidth(2.5)},
@@ -240,8 +257,8 @@ Future<Uint8List> buildInvoicePdf(AppDb db, int docId) async {
                         totalRow('Subtotal', rupiah(s.subtotal)),
                         for (final (label, v) in s.adjustments) totalRow(label, rupiah(v)),
                         totalRow('Total', rupiah(s.total), big: true),
-                        if (s.paid > 0) totalRow('Pembayaran Diterima', rupiah(s.paid)),
-                        totalRow('Sisa Tagihan', rupiah(s.remaining < 0 ? 0 : s.remaining)),
+                        if (paid > 0) totalRow('Pembayaran Diterima', rupiah(paid)),
+                        totalRow('Sisa Tagihan', rupiah(remaining)),
                       ],
                     ),
                   ),
@@ -265,7 +282,7 @@ Future<Uint8List> buildInvoicePdf(AppDb db, int docId) async {
             ],
           ),
           // Stempel LUNAS: pojok kanan, tepat di bawah blok judul "Invoice" + nomor/tanggal.
-          if (s.status == PayStatus.paid)
+          if (paidStamp)
             pw.Positioned(
               top: 86,
               right: 4,
@@ -302,12 +319,12 @@ Future<Uint8List> buildInvoicePdf(AppDb db, int docId) async {
 }
 
 /// Simpan PDF ke `folder export/Nota/INV-00247.pdf` dan kembalikan path-nya.
-Future<String> saveInvoicePdf(AppDb db, int docId, {String? dir}) async {
+Future<String> saveInvoicePdf(AppDb db, int docId, {String? dir, bool asPaid = false}) async {
   final s = await db.docSummary(docId);
   final folder = dir ?? await db.exportDir('Nota');
   await Directory(folder).create(recursive: true);
-  final file = File(p.join(folder, '${s.doc.no.replaceAll('/', '-')}.pdf'));
-  await file.writeAsBytes(await buildInvoicePdf(db, docId));
+  final file = File(p.join(folder, '${s.doc.no.replaceAll('/', '-')}${asPaid ? '-LUNAS' : ''}.pdf'));
+  await file.writeAsBytes(await buildInvoicePdf(db, docId, asPaid: asPaid));
   return file.path;
 }
 

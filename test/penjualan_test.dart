@@ -44,20 +44,23 @@ void main() {
   );
   LineInput jasaLine() => LineInput(productId: jasa, name: 'Jasa Pasang', qty: 1, price: 250000);
 
-  test('stok 0: barang tidak bisa masuk invoice baru; pemesanan, transaksi lama & ubah invoice lama tetap boleh', () async {
-    // Stok 5 habis terjual (qty melebihi stok tetap boleh selama stok > 0, dengan peringatan di form).
-    final sold = await db.saveDoc(kind: DocKind.invoice, at: d, lines: [lampLine(qty: 5)]);
-    expect(await db.stockOf(lamp), 0);
-    expect(() => db.saveDoc(kind: DocKind.invoice, at: d, lines: [lampLine()]), throwsArgumentError);
-    // Jasa tidak punya stok.
-    await db.saveDoc(kind: DocKind.invoice, at: d, lines: [jasaLine()]);
-    final so = await db.saveDoc(kind: DocKind.order, at: d, lines: [lampLine()]);
-    await db.saveDoc(kind: DocKind.invoice, at: d, legacyNo: 'KLEDO/1', lines: [lampLine()]);
-    // Mengubah invoice lama yang sudah memuat barang itu tidak terhalang.
-    await db.saveDoc(id: sold, kind: DocKind.invoice, at: d, lines: [lampLine(qty: 5), jasaLine()]);
-    // Pemesanan → invoice juga butuh stok.
-    expect(() => db.invoiceFromOrder(so, at: d), throwsArgumentError);
-  });
+  test(
+    'stok 0: barang tidak bisa masuk invoice baru; pemesanan, transaksi lama & ubah invoice lama tetap boleh',
+    () async {
+      // Stok 5 habis terjual (qty melebihi stok tetap boleh selama stok > 0, dengan peringatan di form).
+      final sold = await db.saveDoc(kind: DocKind.invoice, at: d, lines: [lampLine(qty: 5)]);
+      expect(await db.stockOf(lamp), 0);
+      expect(() => db.saveDoc(kind: DocKind.invoice, at: d, lines: [lampLine()]), throwsArgumentError);
+      // Jasa tidak punya stok.
+      await db.saveDoc(kind: DocKind.invoice, at: d, lines: [jasaLine()]);
+      final so = await db.saveDoc(kind: DocKind.order, at: d, lines: [lampLine()]);
+      await db.saveDoc(kind: DocKind.invoice, at: d, legacyNo: 'KLEDO/1', lines: [lampLine()]);
+      // Mengubah invoice lama yang sudah memuat barang itu tidak terhalang.
+      await db.saveDoc(id: sold, kind: DocKind.invoice, at: d, lines: [lampLine(qty: 5), jasaLine()]);
+      // Pemesanan → invoice juga butuh stok.
+      expect(() => db.invoiceFromOrder(so, at: d), throwsArgumentError);
+    },
+  );
 
   test('kasir: invoice lunas langsung, nomor lanjut, stok barang berkurang (jasa tidak)', () async {
     final id = await db.saveDoc(
@@ -79,7 +82,14 @@ void main() {
   });
 
   test('mobil & plat customer mengikuti invoice baru terakhir (customer bisa ganti mobil/plat)', () async {
-    await db.saveDoc(kind: DocKind.invoice, at: d, customerId: budi, car: 'Avanza', plate: 'n 1 ab', lines: [jasaLine()]);
+    await db.saveDoc(
+      kind: DocKind.invoice,
+      at: d,
+      customerId: budi,
+      car: 'Avanza',
+      plate: 'n 1 ab',
+      lines: [jasaLine()],
+    );
     Future<Customer> get() => (db.select(db.customers)..where((c) => c.id.equals(budi))).getSingle();
     expect(((await get()).car, (await get()).plate), ('Avanza', 'N 1 AB'));
     await db.saveDoc(kind: DocKind.invoice, at: d, customerId: budi, car: 'Brio', plate: 'L 2 CD', lines: [jasaLine()]);
@@ -218,6 +228,112 @@ void main() {
     expect(st.top.map((t) => (t.customer.name, t.total, t.count)), [('BUDI', 2250000, 1), ('SITI', 250000, 1)]);
   });
 
+  test(
+    'R6: ubah & hapus pembayaran (owner) — pindah rekening, batas sisa, status ikut; dokumen batal terkunci',
+    () async {
+      final id = await db.saveDoc(
+        kind: DocKind.invoice,
+        at: d,
+        lines: [jasaLine()], // total 250.000
+        payNow: PaymentInput(accountId: tunai, amount: 250000, at: d),
+      );
+      final pay = await (db.select(db.cashEntries)..where((c) => c.refId.equals(id))).getSingle();
+      Future<int> sum(int acc) async => (await (db.select(
+        db.cashEntries,
+      )..where((c) => c.accountId.equals(acc))).get()).fold<int>(0, (t, c) => t + c.amount);
+
+      db.ownerUnlocked = false;
+      await expectLater(
+        () => db.updatePayment(pay.id, PaymentInput(accountId: bca, amount: 250000, at: d)),
+        throwsArgumentError,
+      );
+      await expectLater(() => db.deletePayment(pay.id), throwsArgumentError);
+      db.ownerUnlocked = true;
+
+      // Tercatat Tunai, ternyata BCA: saldo pindah, status tetap lunas.
+      await db.updatePayment(pay.id, PaymentInput(accountId: bca, amount: 250000, at: d, note: 'transfer'));
+      expect((await sum(tunai), await sum(bca)), (0, 250000));
+      expect((await db.docSummary(id)).status, PayStatus.paid);
+      // Nominal tidak boleh melebihi total tagihan; diturunkan → dibayar sebagian.
+      await expectLater(
+        () => db.updatePayment(pay.id, PaymentInput(accountId: bca, amount: 250001, at: d)),
+        throwsArgumentError,
+      );
+      await db.updatePayment(pay.id, PaymentInput(accountId: bca, amount: 100000, at: d));
+      expect((await db.docSummary(id)).status, PayStatus.partial);
+      // Hapus → belum lunas, uang hilang dari rekening.
+      await db.deletePayment(pay.id);
+      expect(((await db.docSummary(id)).status, await sum(bca)), (PayStatus.unpaid, 0));
+      // Refund & pembayaran dokumen batal tidak bisa diubah (pasangan refund-nya akan tidak cocok).
+      await db.addPayment(id, PaymentInput(accountId: bca, amount: 250000, at: d));
+      await db.voidDoc(id, 'salah input');
+      for (final c in await (db.select(db.cashEntries)..where((c) => c.refId.equals(id))).get()) {
+        await expectLater(
+          () => db.updatePayment(c.id, PaymentInput(accountId: bca, amount: 1, at: d)),
+          throwsArgumentError,
+        );
+        await expectLater(() => db.deletePayment(c.id), throwsArgumentError);
+      }
+    },
+  );
+
+  test('R6: hapus invoice (owner) — stok & uang kembali tanpa jejak; DP tetap di pemesanan', () async {
+    Future<int> stock() async => (await (db.select(
+      db.stockMoves,
+    )..where((m) => m.productId.equals(lamp))).get()).fold<int>(0, (t, m) => t + m.qty);
+    Future<int> cash() async => (await db.select(db.cashEntries).get()).fold<int>(0, (t, c) => t + c.amount);
+    final id = await db.saveDoc(
+      kind: DocKind.invoice,
+      at: d,
+      lines: [lampLine(qty: 2)],
+      payNow: PaymentInput(accountId: bca, amount: 1000000, at: d),
+    );
+    expect((await stock(), await cash()), (3, 1000000));
+
+    db.ownerUnlocked = false;
+    await expectLater(() => db.deleteDoc(id), throwsArgumentError);
+    db.ownerUnlocked = true;
+
+    await db.deleteDoc(id);
+    expect((await stock(), await cash()), (5, 0));
+    expect(await (db.select(db.invoices)..where((i) => i.id.equals(id))).getSingleOrNull(), isNull);
+    expect(await (db.select(db.invoiceLines)..where((l) => l.invoiceId.equals(id))).get(), isEmpty);
+    // Dokumen yang sudah batal juga bisa dihapus: gerak stok batal & refund ikut hilang.
+    final v = await db.saveDoc(
+      kind: DocKind.invoice,
+      at: d,
+      lines: [lampLine()],
+      payNow: PaymentInput(accountId: bca, amount: 500000, at: d),
+    );
+    await db.voidDoc(v, 'salah');
+    await db.deleteDoc(v);
+    expect((await stock(), await cash()), (5, 0));
+    expect(await db.select(db.stockMoves).get(), hasLength(1)); // tinggal stok awal
+
+    // Pemesanan + DP → invoice: pemesanan terkunci; invoice dihapus → pemesanan terbuka lagi, DP tetap.
+    final so = await db.saveDoc(
+      kind: DocKind.order,
+      at: d,
+      lines: [jasaLine()],
+      payNow: PaymentInput(accountId: tunai, amount: 100000, at: d),
+    );
+    final inv = await db.invoiceFromOrder(so, at: d);
+    await expectLater(() => db.deleteDoc(so), throwsArgumentError);
+    // DP diubah lewat invoice: batasnya sisa INVOICE (sudah lunas → DP tidak bisa dinaikkan).
+    await db.addPayment(inv, PaymentInput(accountId: bca, amount: 150000, at: d));
+    final dp = await (db.select(db.cashEntries)..where((c) => c.refId.equals(so))).getSingle();
+    await expectLater(
+      () => db.updatePayment(dp.id, PaymentInput(accountId: tunai, amount: 250000, at: d)),
+      throwsArgumentError,
+    );
+    await db.deleteDoc(inv);
+    final order = await db.docSummary(so);
+    expect((order.hasInvoice, order.paid, await cash()), (false, 100000, 100000));
+    // Invoice batal dari pemesanan tetap menahan hapus pemesanan (orderId-nya tidak boleh menggantung).
+    await db.voidDoc(await db.invoiceFromOrder(so, at: d), 'salah');
+    await expectLater(() => db.deleteDoc(so), throwsArgumentError);
+  });
+
   test('PDF invoice terbentuk; pesan & link WA', () async {
     await db.setSetting('shop_name', 'Star Garage');
     await db.setSetting('gmaps_review_url', 'https://g.page/r/contoh/review');
@@ -230,6 +346,11 @@ void main() {
     );
     final pdf = await buildInvoicePdf(db, id);
     expect(String.fromCharCodes(pdf.take(5)), '%PDF-');
+    // Warna nota (R6): semua pilihan tercetak; key tak dikenal (mis. setelan lama/rusak) jatuh ke Navy.
+    for (final k in [...invoiceColors.keys, 'tidak-ada']) {
+      await db.setSetting('invoice_color', k);
+      expect(String.fromCharCodes((await buildInvoicePdf(db, id)).take(5)), '%PDF-', reason: k);
+    }
     final s = await db.docSummary(id);
     final settings = await db.allSettings();
     final msg = waMessage(s, await db.watchLines(id).first, settings);
@@ -267,9 +388,8 @@ void main() {
   });
 
   test('modal = harga beli terakhir produk (diisi repo); ubah dokumen mempertahankan modal lama', () async {
-    Future<void> buy(int price) => (db.update(
-      db.products,
-    )..where((p) => p.id.equals(lamp))).write(ProductsCompanion(buyPrice: Value(price)));
+    Future<void> buy(int price) =>
+        (db.update(db.products)..where((p) => p.id.equals(lamp))).write(ProductsCompanion(buyPrice: Value(price)));
     Future<int?> cost(int id) async => (await db.watchLines(id).first).first.cost;
     final noBuy = await db.saveDoc(kind: DocKind.invoice, at: d, lines: [lampLine(), jasaLine()]);
     expect([for (final l in await db.watchLines(noBuy).first) l.cost], [null, 0]); // barang tanpa harga beli = kosong

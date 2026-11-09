@@ -313,6 +313,22 @@ class _DocPanel extends StatelessWidget {
                       icon: const Icon(Icons.picture_as_pdf_outlined, size: 18),
                       label: const Text('PDF / Cetak'),
                     ),
+                    // Nota berstempel LUNAS sebelum uangnya masuk (R6): pembayaran dicatat nanti, rekening sudah pasti.
+                    // Khusus owner: nota LUNAS tanpa uang masuk = bukti bayar yang sah di tangan customer.
+                    if (!s.isOrder && !d.isVoid && s.remaining > 0)
+                      OutlinedButton.icon(
+                        onPressed: () async {
+                          if (!await owner.ensure(context) || !context.mounted) return;
+                          await runAction(
+                            context,
+                            () => c.openPdf(d.id, asPaid: true),
+                            'Nota LUNAS dibuat. Catat pembayarannya saat uang masuk.',
+                            'PDF gagal dibuat atau dibuka. Cek folder simpan file di Pengaturan, lalu coba lagi.',
+                          );
+                        },
+                        icon: const Icon(Icons.verified_outlined, size: 18),
+                        label: const Text('Cetak LUNAS'),
+                      ),
                     OutlinedButton.icon(
                       onPressed: () => runAction(
                         context,
@@ -351,9 +367,19 @@ class _DocPanel extends StatelessWidget {
                     if (editable)
                       DangerButton(
                         label: 'Batalkan',
+                        icon: Icons.block,
                         onPressed: () async {
                           if (!await owner.ensure(context)) return;
                           if (context.mounted) await _voidDialog(context);
+                        },
+                      ),
+                    // Hapus permanen (owner, R6) — juga dokumen yang sudah batal; pemesanan yang sudah diinvoice tidak.
+                    if (s.status != PayStatus.invoiced)
+                      DangerButton(
+                        label: 'Hapus',
+                        onPressed: () async {
+                          if (!await owner.ensure(context)) return;
+                          if (context.mounted) await _deleteDialog(context);
                         },
                       ),
                   ],
@@ -408,6 +434,16 @@ class _DocPanel extends StatelessWidget {
                                     icon: const Icon(Icons.attach_file, size: 18),
                                   ),
                                 Text(rp(p.amount), style: T.money.copyWith(color: p.amount < 0 ? C.danger : null)),
+                                // Ubah/hapus pembayaran khusus owner (R6) — dicek lagi di repo.
+                                if (p.kind == 'payment' && editable)
+                                  IconButton(
+                                    tooltip: 'Ubah pembayaran',
+                                    onPressed: () async {
+                                      if (!await owner.ensure(context)) return;
+                                      if (context.mounted) await _payDialog(context, existing: p);
+                                    },
+                                    icon: const Icon(Icons.edit_outlined, size: 18),
+                                  ),
                               ],
                             ),
                           ),
@@ -445,24 +481,34 @@ class _DocPanel extends StatelessWidget {
     ),
   );
 
-  Future<void> _payDialog(BuildContext context) async {
-    final amount = TextEditingController(text: rp(s.remaining));
-    final note = TextEditingController();
-    int? accountId = c.accounts.firstOrNull?.id;
-    var date = DateTime.now();
-    String proof = '';
+  /// Terima pembayaran baru, atau ubah/hapus [existing] (owner).
+  Future<void> _payDialog(BuildContext context, {CashEntry? existing}) async {
+    final e = existing;
+    final max = s.remaining + (e?.amount ?? 0); // saat mengubah, nominal lama ikut jadi ruang
+    final amount = TextEditingController(text: rp(e?.amount ?? s.remaining));
+    final note = TextEditingController(text: e?.note ?? '');
+    int? accountId = e?.accountId ?? c.accounts.firstOrNull?.id;
+    var date = e?.at ?? DateTime.now();
+    String proof = e?.proofPath ?? '';
+    // Rekening nonaktif tetap terlihat bila pembayaran lama tercatat di sana.
+    final accounts = [...c.accounts, ...c.allAccounts.where((a) => a.id == e?.accountId && !a.active)];
     await showDialog<void>(
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setState) => AlertDialog(
-          title: Text('${s.isOrder ? 'Terima DP' : 'Terima pembayaran'} — ${s.doc.no}'),
+          title: Text(
+            '${e != null ? 'Ubah pembayaran' : (s.isOrder ? 'Terima DP' : 'Terima pembayaran')} — ${s.doc.no}',
+          ),
           content: SizedBox(
             width: 400,
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Text('Sisa tagihan ${rupiah(s.remaining)}', style: T.label),
+                Text(
+                  e == null ? 'Sisa tagihan ${rupiah(s.remaining)}' : 'Paling banyak ${rupiah(max)}',
+                  style: T.label,
+                ),
                 const SizedBox(height: S.md),
                 MoneyField(controller: amount, label: 'Nominal *'),
                 const SizedBox(height: S.md),
@@ -474,7 +520,7 @@ class _DocPanel extends StatelessWidget {
                         DropdownButtonFormField<int>(
                           isExpanded: true,
                           initialValue: accountId,
-                          items: [for (final a in c.accounts) DropdownMenuItem(value: a.id, child: Text(a.name))],
+                          items: [for (final a in accounts) DropdownMenuItem(value: a.id, child: Text(a.name))],
                           onChanged: (v) => accountId = v,
                         ),
                       ),
@@ -526,31 +572,105 @@ class _DocPanel extends StatelessWidget {
               ],
             ),
           ),
-          actions: [
-            OutlinedButton(onPressed: () => Navigator.pop(ctx), child: const Text('Batal')),
-            FilledButton(
-              onPressed: () async {
-                if (accountId == null) return warn(ctx, 'Pilih rekening');
-                await runAction(ctx, () async {
-                  await c.db.addPayment(
-                    s.doc.id,
-                    PaymentInput(
-                      accountId: accountId!,
-                      amount: parseRupiah(amount.text),
-                      at: date,
-                      note: note.text,
-                      proofPath: proof,
-                    ),
+          actionsAlignment: MainAxisAlignment.spaceBetween,
+          actions: dialogActions(
+            danger: e == null
+                ? null
+                : DangerButton(
+                    label: 'Hapus',
+                    onPressed: () async {
+                      final ok = await confirmAction(
+                        ctx,
+                        title: 'Hapus pembayaran ${rupiah(e.amount)}?',
+                        message: 'Uang ini dianggap tidak pernah masuk; sisa tagihan ${s.doc.no} bertambah lagi.',
+                        confirmLabel: 'Hapus pembayaran',
+                        destructive: true,
+                      );
+                      if (!ok || !ctx.mounted) return;
+                      await runAction(ctx, () async {
+                        await c.db.deletePayment(e.id);
+                        if (ctx.mounted) Navigator.pop(ctx);
+                      }, 'Pembayaran dihapus');
+                    },
+                  ),
+            children: [
+              OutlinedButton(onPressed: () => Navigator.pop(ctx), child: const Text('Batal')),
+              FilledButton(
+                onPressed: () async {
+                  if (accountId == null) return warn(ctx, 'Pilih rekening');
+                  final input = PaymentInput(
+                    accountId: accountId!,
+                    amount: parseRupiah(amount.text),
+                    at: date,
+                    note: note.text,
+                    proofPath: proof,
                   );
-                  if (ctx.mounted) Navigator.pop(ctx);
-                }, 'Pembayaran diterima');
-              },
-              child: const Text('Simpan'),
-            ),
-          ],
+                  await runAction(ctx, () async {
+                    e == null ? await c.db.addPayment(s.doc.id, input) : await c.db.updatePayment(e.id, input);
+                    if (ctx.mounted) Navigator.pop(ctx);
+                  }, e == null ? 'Pembayaran diterima' : 'Pembayaran diubah');
+                },
+                child: const Text('Simpan'),
+              ),
+            ],
+          ),
         ),
       ),
     );
+  }
+
+  /// Hapus permanen: alasan wajib diisi sebagai konfirmasi (tidak disimpan — keputusan client R6). Backup dulu.
+  Future<void> _deleteDialog(BuildContext context) async {
+    final reason = TextEditingController();
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        icon: const Icon(Icons.delete_forever_outlined, color: C.danger, size: 32),
+        title: Text('Hapus ${s.doc.no}?'),
+        content: SizedBox(
+          width: 400,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                [
+                  '${s.isOrder ? 'Pemesanan' : 'Invoice'} ini hilang seluruhnya, termasuk nomornya, dan tidak bisa '
+                      'dikembalikan (backup dibuat dulu).',
+                  if (!s.isOrder && !s.doc.legacy && !s.doc.isVoid) 'Stok barang kembali.',
+                  if (s.paid > 0 && !s.doc.isVoid)
+                    s.doc.orderId == null
+                        ? 'Pembayaran ${rupiah(s.paid)} ikut terhapus dari rekening.'
+                        : 'Pembayaran yang diterima invoice ini ikut terhapus; DP tetap di pemesanan asalnya.',
+                  'Kalau hanya salah transaksi tapi perlu jejak, pakai Batalkan.',
+                ].join(' '),
+              ),
+              const SizedBox(height: S.md),
+              Labeled('Alasan dihapus *', TextField(controller: reason, autofocus: true)),
+            ],
+          ),
+        ),
+        actions: [
+          OutlinedButton(onPressed: () => Navigator.pop(ctx), child: const Text('Kembali')),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: C.danger),
+            onPressed: () {
+              if (reason.text.trim().isEmpty) return warn(ctx, 'Isi alasan dihapus');
+              Navigator.pop(ctx, true);
+            },
+            child: const Text('Hapus permanen'),
+          ),
+        ],
+      ),
+    );
+    if (ok == true && context.mounted) {
+      final no = s.doc.no;
+      await runAction(context, () async {
+        await c.db.backupTo(await c.db.backupDir());
+        await c.db.deleteDoc(s.doc.id);
+        c.panelId.value = null;
+      }, '$no dihapus');
+    }
   }
 
   Future<void> _voidDialog(BuildContext context) async {

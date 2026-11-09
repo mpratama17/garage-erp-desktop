@@ -129,9 +129,9 @@ class PenjualanController extends GetxController {
     ],
   );
 
-  /// Simpan PDF lalu buka di aplikasi PDF bawaan (Preview: bisa langsung cetak).
-  Future<void> openPdf(int docId) async {
-    final path = await saveInvoicePdf(db, docId);
+  /// Simpan PDF lalu buka di aplikasi PDF bawaan (Preview: bisa langsung cetak). [asPaid]: lihat buildInvoicePdf.
+  Future<void> openPdf(int docId, {bool asPaid = false}) async {
+    final path = await saveInvoicePdf(db, docId, asPaid: asPaid);
     await launchUrl(Uri.file(path));
   }
 
