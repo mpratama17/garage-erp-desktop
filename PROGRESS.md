@@ -1,6 +1,6 @@
 # star-garage-erp (repo: garage-erp-desktop) — Progress Snapshot
 
-Last updated: 2026-11-09 (**branch `uiux` di-merge ke main** — R5 kategori produk (skema v5), audit UI/UX, import catatan lama + kosongkan transaksi (skema **v6**). `/security-review` 0 temuan, `/simplify` diterapkan, 118 test lulus. Versi masih 1.4.0+7 — naikkan sebelum build .dmg berikutnya. `dist/` berisi .dmg 1.3.0+6 & 1.4.0+7 (skema v5), belum ada yang dikirim ke client.)
+Last updated: 2026-11-09 (**dibuild 1.5.0+8** — `dist/Garage-ERP-1.5.0+8.dmg` (universal x86_64+arm64, 28 MB) dari `main` sesudah R6 (PR #3) + naik versi. Skema DB **v6**. Client terpasang 1.4.0+7 (skema v5) — wajib backup sebelum pasang. Panduan interaktif pindah data lama untuk client: artifact claude.ai (privat; dibagikan lewat Share).)
 
 **Apa:** mini-ERP desktop **macOS** offline (Flutter + SQLite/drift + GetX) untuk Star Garage (bengkel modif lampu, member Yoong Motor Pasuruan), pengganti Kledo + Google Sheet. Dashboard + 7 modul + Pengaturan (`docs/PRD.md` v2.3). Kasir: MacBook Air M1. Ringkasan untuk GitHub: `README.md`.
 
