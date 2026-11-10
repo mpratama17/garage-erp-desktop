@@ -4,6 +4,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/format.dart';
 import '../../core/owner.dart';
+import '../../core/proof.dart';
 import '../../core/range_picker.dart';
 import '../../core/table.dart';
 import '../../core/theme.dart';
@@ -57,67 +58,105 @@ class PembelianPage extends StatelessWidget {
               builder: (_) => Obx(() {
                 final tagihan = nav.pembelianTagihan.value;
                 final range = c.range.value;
-                final rows = c.visible(tagihan: tagihan);
+                final all = c.inRange();
+                final rows = c.visible(all, tagihan: tagihan);
+                final lunas = all.where((r) => r.paid).toList(), belum = all.where((r) => !r.paid).toList();
+                int sum(List<PurchaseRow> rs) => rs.fold(0, (t, r) => t + r.purchase.total);
+
                 final opened = c.purchases.firstWhereOrNull((r) => r.purchase.id == c.purchaseId.value);
-                return MasterDetail(
-                  panelWidth: 420,
-                  list: AppTable<PurchaseRow>(
-                    rows: rows,
-                    searchHint: 'Cari no., supplier, nota supplier, keterangan…',
-                    searchText: (r) =>
-                        '${r.purchase.no} ${r.purchase.supplier} ${r.purchase.billNo} ${r.purchase.note} ${r.account}',
-                    selected: (r) => r.purchase.id == c.purchaseId.value,
-                    onTap: (r) => c.purchaseId.value = r.purchase.id,
-                    toolbar: [
-                      RangeButton(range: range, onChanged: (r) => c.range.value = r, clearable: true),
-                      const SizedBox(width: S.sm),
-                      exportButton(context, () => c.export(tagihan: tagihan)),
-                    ],
-                    emptyMessage: tagihan ? 'Tidak ada tagihan pembelian.' : 'Belum ada pembelian stok.',
-                    columns: [
-                      Col(
-                        'No.',
-                        (r) => Text(r.purchase.no.isEmpty ? '—' : r.purchase.no),
-                        flex: 2,
-                        sort: (r) => r.purchase.no.isEmpty ? null : r.purchase.no,
-                      ),
-                      Col('Tgl beli', (r) => Text(tgl(r.purchase.at)), flex: 2, sort: (r) => r.purchase.at),
-                      Col(
-                        'Supplier',
-                        (r) => Text(r.purchase.supplier.isEmpty ? '—' : r.purchase.supplier),
-                        flex: 3,
-                        sort: (r) => r.purchase.supplier.isEmpty ? null : r.purchase.supplier,
-                      ),
-                      Col(
-                        'Nota supplier',
-                        (r) => Text(r.purchase.billNo.isEmpty ? '—' : r.purchase.billNo),
-                        flex: 2,
-                        sort: (r) => r.purchase.billNo.isEmpty ? null : r.purchase.billNo,
-                      ),
-                      Col(
-                        'Total',
-                        (r) => Text(rp(r.purchase.total), style: T.money),
-                        flex: 2,
-                        numeric: true,
-                        sort: (r) => r.purchase.total,
-                      ),
-                      Col(
-                        'Status',
-                        (r) => Pill(r.paid ? 'Lunas' : 'Belum bayar', r.paid ? Tone.success : Tone.warning),
-                        flex: 3,
-                        sort: (r) => r.paid,
-                      ),
-                      Col(
-                        'Tgl lunas',
-                        (r) => Text(
-                          r.paidAt == null || DateUtils.isSameDay(r.paidAt, r.purchase.at) ? '—' : tgl(r.paidAt!),
-                        ),
-                        flex: 2,
-                        sort: (r) => r.paidAt,
-                      ),
-                    ],
+                final kpis = KpiRow(padding: const EdgeInsets.only(bottom: S.lg), [
+                  KpiCard(
+                    icon: Icons.check_circle_outline,
+                    tone: Tone.success,
+                    label: 'Sudah dibayar',
+                    value: rupiah(sum(lunas)),
+                    hint: '${lunas.length} nota',
+                    onTap: () => c.togglePaid(true),
+                    selected: !tagihan && c.paid.value == true,
                   ),
-                  panel: opened == null ? null : _PurchasePanel(key: ValueKey(opened.purchase.id), c: c, row: opened),
+                  KpiCard(
+                    icon: Icons.request_quote_outlined,
+                    tone: belum.isEmpty ? Tone.neutral : Tone.warning,
+                    label: 'Belum dibayar',
+                    value: rupiah(sum(belum)),
+                    hint: '${belum.length} nota',
+                    onTap: tagihan ? null : () => c.togglePaid(false),
+                    selected: tagihan || c.paid.value == false,
+                  ),
+                ]);
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    kpis,
+                    Expanded(
+                      child: MasterDetail(
+                        panelWidth: 420,
+                        list: AppTable<PurchaseRow>(
+                          rows: rows,
+                          searchHint: 'Cari no., supplier, nota supplier, keterangan…',
+                          searchText: (r) =>
+                              '${r.purchase.no} ${r.purchase.supplier} ${r.purchase.billNo} ${r.purchase.note} ${r.account}',
+                          selected: (r) => r.purchase.id == c.purchaseId.value,
+                          onTap: (r) => c.purchaseId.value = r.purchase.id,
+                          toolbar: [
+                            RangeButton(range: range, onChanged: (r) => c.range.value = r, clearable: true),
+                            const SizedBox(width: S.sm),
+                            exportButton(context, () => c.export(tagihan: tagihan)),
+                          ],
+                          emptyMessage: tagihan
+                              ? 'Tidak ada tagihan pembelian.'
+                              : c.paid.value != null
+                              ? 'Tidak ada pembelian untuk saringan ini.'
+                              : 'Belum ada pembelian stok.',
+                          columns: [
+                            Col(
+                              'No.',
+                              (r) => Text(r.purchase.no.isEmpty ? '—' : r.purchase.no),
+                              flex: 2,
+                              sort: (r) => r.purchase.no.isEmpty ? null : r.purchase.no,
+                            ),
+                            Col('Tgl beli', (r) => Text(tgl(r.purchase.at)), flex: 2, sort: (r) => r.purchase.at),
+                            Col(
+                              'Supplier',
+                              (r) => Text(r.purchase.supplier.isEmpty ? '—' : r.purchase.supplier),
+                              flex: 3,
+                              sort: (r) => r.purchase.supplier.isEmpty ? null : r.purchase.supplier,
+                            ),
+                            Col(
+                              'Nota supplier',
+                              (r) => Text(r.purchase.billNo.isEmpty ? '—' : r.purchase.billNo),
+                              flex: 2,
+                              sort: (r) => r.purchase.billNo.isEmpty ? null : r.purchase.billNo,
+                            ),
+                            Col(
+                              'Total',
+                              (r) => Text(rp(r.purchase.total), style: T.money),
+                              flex: 2,
+                              numeric: true,
+                              sort: (r) => r.purchase.total,
+                            ),
+                            Col(
+                              'Status',
+                              (r) => Pill(r.paid ? 'Lunas' : 'Belum bayar', r.paid ? Tone.success : Tone.warning),
+                              flex: 3,
+                              sort: (r) => r.paid,
+                            ),
+                            Col(
+                              'Tgl lunas',
+                              (r) => Text(
+                                r.paidAt == null || DateUtils.isSameDay(r.paidAt, r.purchase.at) ? '—' : tgl(r.paidAt!),
+                              ),
+                              flex: 2,
+                              sort: (r) => r.paidAt,
+                            ),
+                          ],
+                        ),
+                        panel: opened == null
+                            ? null
+                            : _PurchasePanel(key: ValueKey(opened.purchase.id), c: c, row: opened),
+                      ),
+                    ),
+                  ],
                 );
               }),
             ),
@@ -140,6 +179,28 @@ class _PurchasePanel extends StatefulWidget {
 class _PurchasePanelState extends State<_PurchasePanel> {
   // Dimuat sekali per pembelian (panel di-key per id), bukan tiap rebuild daftar.
   late final _lines = widget.c.db.purchaseLines(widget.row.purchase.id);
+
+  Future<void> _delete(BuildContext context) async {
+    final c = widget.c, p = widget.row.purchase;
+    if (!await confirmAction(
+          context,
+          title: 'Hapus pembelian${p.no.isEmpty ? '' : ' ${p.no}'}?',
+          message:
+              'Stok barang dari pembelian ini ditarik lagi dan uang keluarnya dihapus dari Kas & Bank. '
+              'Backup otomatis dibuat dulu. Bila barangnya sudah terjual, pembelian tidak bisa dihapus.',
+          confirmLabel: 'Hapus',
+          destructive: true,
+        ) ||
+        !context.mounted) {
+      return;
+    }
+    if (await runAction(context, () async {
+      await c.db.backupTo(await c.db.backupDir());
+      await c.db.deletePurchase(p.id);
+    }, 'Pembelian dihapus')) {
+      c.purchaseId.value = null;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -192,6 +253,18 @@ class _PurchasePanelState extends State<_PurchasePanel> {
                     label: const Text('Lihat nota'),
                   ),
                 ],
+                const SizedBox(height: S.sm),
+                Row(
+                  children: [
+                    DangerButton(label: 'Hapus', onPressed: () => _delete(context)),
+                    const Spacer(),
+                    OutlinedButton.icon(
+                      onPressed: () => _showEditPurchase(context, c, row),
+                      icon: const Icon(Icons.edit_outlined, size: 18),
+                      label: Text(p.proofPath.isEmpty ? 'Ubah / upload nota' : 'Ubah'),
+                    ),
+                  ],
+                ),
                 if (!row.paid) ...[
                   const SizedBox(height: S.sm),
                   FilledButton(
@@ -241,5 +314,83 @@ class _PurchasePanelState extends State<_PurchasePanel> {
         ],
       ),
     );
+  }
+}
+
+/// Ubah data nota pembelian (R7 #4). Barang/qty/harga tidak bisa diubah: hapus lalu catat ulang.
+Future<void> _showEditPurchase(BuildContext context, PembelianController c, PurchaseRow row) async {
+  final p = row.purchase;
+  final accounts = [
+    for (final a in await c.db.select(c.db.accounts).get())
+      if (a.active || a.id == p.accountId) a,
+  ];
+  if (!context.mounted) return;
+  final vendors = [for (final v in await c.db.select(c.db.vendors).get()) v.name]..sort();
+  if (!context.mounted) return;
+  final supplierFocus = FocusNode();
+  final supplier = TextEditingController(text: p.supplier),
+      billNo = TextEditingController(text: p.billNo),
+      note = TextEditingController(text: p.note);
+  var date = p.at, accountId = p.accountId, proof = p.proofPath;
+  await showDialog<void>(
+    context: context,
+    builder: (ctx) => StatefulBuilder(
+      builder: (ctx, setState) => AlertDialog(
+        title: Text('Ubah pembelian${p.no.isEmpty ? '' : ' ${p.no}'}'),
+        content: SizedBox(
+          width: 460,
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                dateField(ctx, date, (d) => setState(() => date = d), label: 'Tanggal beli'),
+                const SizedBox(height: S.sm),
+                Labeled('Vendor', VendorField(controller: supplier, focusNode: supplierFocus, vendors: vendors)),
+                const SizedBox(height: S.sm),
+                Labeled('Nota supplier', TextField(controller: billNo)),
+                const SizedBox(height: S.sm),
+                accountField(
+                  row.paid ? 'Dibayar dari' : 'Akan dibayar dari',
+                  accountId,
+                  accounts,
+                  (v) => setState(() => accountId = v!),
+                ),
+                const SizedBox(height: S.sm),
+                Labeled('Keterangan', TextField(controller: note)),
+                const SizedBox(height: S.sm),
+                proofRow(proof, () async {
+                  final f = await pickProof(billNo.text.isEmpty ? 'pembelian' : billNo.text);
+                  if (f != null) setState(() => proof = f);
+                }),
+                const SizedBox(height: S.sm),
+                Text('Barang, jumlah atau harga salah? Hapus pembelian ini lalu catat ulang.', style: T.label),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          OutlinedButton(onPressed: () => Navigator.pop(ctx), child: const Text('Batal')),
+          FilledButton(
+            onPressed: () => runAction(ctx, () async {
+              await c.db.updatePurchase(
+                p.id,
+                at: date,
+                accountId: accountId,
+                supplier: supplier.text,
+                billNo: billNo.text,
+                note: note.text,
+                proofPath: proof,
+              );
+              if (ctx.mounted) Navigator.pop(ctx);
+            }, 'Pembelian diperbarui'),
+            child: const Text('Simpan'),
+          ),
+        ],
+      ),
+    ),
+  );
+  supplierFocus.dispose();
+  for (final t in [supplier, billNo, note]) {
+    t.dispose();
   }
 }

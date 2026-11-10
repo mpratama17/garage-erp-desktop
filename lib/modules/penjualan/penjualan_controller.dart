@@ -16,12 +16,37 @@ import '../kontak/kontak_repo.dart';
 import 'invoice_pdf.dart';
 import 'penjualan_repo.dart';
 
+/// Saringan dari kartu info Penjualan (R7 #3) — sumber yang sama dengan angka di kartunya.
+enum SalesKpi {
+  month,
+  unpaid,
+  overdue,
+  open,
+  dp,
+  remaining;
+
+  bool test(DocSummary d, DateTime now) {
+    if (d.doc.isVoid) return false;
+    final unpaidNow = d.status == PayStatus.unpaid || d.status == PayStatus.partial;
+    final openOrder = !d.hasInvoice;
+    return switch (this) {
+      month => d.doc.at.year == now.year && d.doc.at.month == now.month,
+      unpaid => unpaidNow,
+      overdue => unpaidNow && d.overdue(now),
+      open => openOrder,
+      dp => openOrder && d.paid > 0,
+      remaining => openOrder && d.remaining > 0,
+    };
+  }
+}
+
 class PenjualanController extends GetxController {
   PenjualanController(this.db);
   final AppDb db;
 
   final kind = DocKind.invoice.obs;
   final status = Rxn<PayStatus>(); // filter; null = semua
+  final kpi = Rxn<SalesKpi>(); // saringan kartu info; null = tidak ada
   final range = Rxn<DateTimeRange>(); // filter tanggal dokumen (inklusif); null = semua tanggal
   final docs = <DocSummary>[].obs;
   final panelId = RxnInt();
@@ -54,7 +79,7 @@ class PenjualanController extends GetxController {
   void _listen() {
     _docSub?.cancel();
     panelId.value = null;
-    status.value = null;
+    clearFilters();
     _docSub = db.watchDocs(kind.value).listen(docs.assignAll);
   }
 
@@ -70,12 +95,28 @@ class PenjualanController extends GetxController {
   /// Pemesanan yang sudah dibuatkan invoice pindah ke Tagihan: tidak tampil di daftar Pemesanan
   /// kecuali dipilih lewat filter "Sudah diinvoice".
   List<DocSummary> get visible {
-    final r = range.value;
+    final r = range.value, k = kpi.value, now = DateTime.now();
     return docs.where((d) {
+      if (k != null) return k.test(d, now);
       if (r != null && !r.covers(d.doc.at)) return false;
       if (status.value != null) return d.status == status.value;
       return kind.value != DocKind.order || !d.hasInvoice;
     }).toList();
+  }
+
+  /// Lepas semua saringan daftar (status, tanggal, kartu info).
+  void clearFilters() {
+    status.value = null;
+    range.value = null;
+    kpi.value = null;
+  }
+
+  /// Klik kartu info: tampilkan isinya (saringan tanggal & status dilepas); klik lagi = semua.
+  void toggleKpi(SalesKpi k) {
+    final next = kpi.value == k ? null : k;
+    clearFilters();
+    kpi.value = next;
+    panelId.value = null;
   }
 
   DocSummary? get opened => docs.firstWhereOrNull((d) => d.doc.id == panelId.value);

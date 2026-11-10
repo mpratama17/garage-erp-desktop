@@ -7,7 +7,8 @@ import '../../core/table.dart';
 import '../../core/theme.dart';
 import '../../core/ui.dart';
 import '../../db/database.dart';
-import '../../shell.dart' show openDoc, openPurchase;
+import '../../shell.dart' show openDoc, openPurchase, openSales;
+import '../penjualan/penjualan_repo.dart' show DocKind;
 import 'gudang_controller.dart';
 import 'gudang_dialogs.dart';
 import 'gudang_repo.dart';
@@ -27,6 +28,25 @@ class GudangPage extends StatelessWidget {
       if (msg != null && context.mounted) notify(context, msg);
     }
 
+    Future<void> importFile({bool syncStock = false}) => ownerAction(() async {
+      if (syncStock &&
+          !await confirmAction(
+            context,
+            title: 'Import & samakan stok?',
+            message:
+                'Stok barang yang sudah ada diganti dengan angka di kolom Stok / Stok Awal file '
+                '(selisihnya tercatat sebagai penyesuaian "Import produk"). Sel kosong = stok tidak diubah. '
+                'Pakai file berisi stok terbaru hasil hitung, bukan file export lama.',
+            confirmLabel: 'Pilih file',
+          )) {
+        return null;
+      }
+      final r = await c.import(syncStock: syncStock);
+      if (r == null) return null;
+      if (r.errors.isNotEmpty && context.mounted) await showImportErrors(context, r.summary, r.errors);
+      return r.summary;
+    });
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -39,12 +59,8 @@ class GudangPage extends StatelessWidget {
                 final msg = await c.downloadTemplate();
                 if (msg != null && context.mounted) notify(context, msg);
               },
-              onImport: () => ownerAction(() async {
-                final r = await c.import();
-                if (r == null) return null;
-                if (r.errors.isNotEmpty && context.mounted) await showImportErrors(context, r.summary, r.errors);
-                return r.summary;
-              }),
+              onImport: () => importFile(),
+              onImportStock: () => importFile(syncStock: true),
             ),
             OutlinedButton(
               onPressed: () async {
@@ -55,7 +71,8 @@ class GudangPage extends StatelessWidget {
                     !await confirmAction(
                       context,
                       title: 'Tutup tanpa menyimpan?',
-                      message: 'Ada perubahan produk yang belum disimpan. Panel produk ditutup sebelum membuka Kategori.',
+                      message:
+                          'Ada perubahan produk yang belum disimpan. Panel produk ditutup sebelum membuka Kategori.',
                       confirmLabel: 'Tutup tanpa simpan',
                       destructive: true,
                     )) {
@@ -79,15 +96,15 @@ class GudangPage extends StatelessWidget {
         // Strip info yang bisa digeser ke kanan (stok, HPP, total penjualan & pembelian).
         Obx(() {
           final goods = c.products.where((s) => s.product.active && !s.isService).toList();
-          final out = goods.where((s) => s.stock <= 0).length;
-          final low = goods.where((s) => s.isLow && s.stock > 0).length;
-          final ok = goods.length - out - low;
+          int count(StockFilter f) => goods.where(f.test).length;
+          final ok = count(StockFilter.ok), low = count(StockFilter.low), out = count(StockFilter.out);
           final units = goods.fold<int>(0, (t, s) => t + (s.stock > 0 ? s.stock : 0));
           // Dihitung hanya saat owner terbuka (harga beli = data owner).
           final hpp = owner.isOwner.value
               ? goods.fold<int>(0, (t, s) => t + (s.stock > 0 ? s.stock * s.product.buyPrice : 0))
               : 0;
           Widget card(KpiCard k) => SizedBox(width: 250, child: k);
+          final f = c.filter.value;
           return SizedBox(
             height: 124,
             child: ListView(
@@ -101,6 +118,8 @@ class GudangPage extends StatelessWidget {
                     label: 'Stok tersedia',
                     value: '$ok produk',
                     hint: 'di atas batas minimum',
+                    onTap: () => c.toggleFilter(StockFilter.ok),
+                    selected: f == StockFilter.ok,
                   ),
                   KpiCard(
                     icon: Icons.warning_amber_rounded,
@@ -108,14 +127,25 @@ class GudangPage extends StatelessWidget {
                     label: 'Stok hampir habis',
                     value: '$low produk',
                     hint: low == 0 ? 'Aman' : 'perlu belanja',
+                    onTap: () => c.toggleFilter(StockFilter.low),
+                    selected: f == StockFilter.low,
                   ),
                   KpiCard(
                     icon: Icons.remove_shopping_cart_outlined,
                     tone: out == 0 ? Tone.neutral : Tone.danger,
                     label: 'Stok habis',
                     value: '$out produk',
+                    onTap: () => c.toggleFilter(StockFilter.out),
+                    selected: f == StockFilter.out,
                   ),
-                  KpiCard(icon: Icons.inventory_2_outlined, tone: Tone.info, label: 'Total stok', value: '$units unit'),
+                  KpiCard(
+                    icon: Icons.inventory_2_outlined,
+                    tone: Tone.info,
+                    label: 'Total stok',
+                    value: '$units unit',
+                    onTap: c.toggleFilter,
+                    selected: c.tab.value == GudangTab.ready,
+                  ),
                   KpiCard(
                     icon: Icons.account_balance_wallet_outlined,
                     tone: Tone.purple,
@@ -130,6 +160,7 @@ class GudangPage extends StatelessWidget {
                     label: 'Total penjualan',
                     value: rupiah(c.flow.value.sales),
                     hint: 'barang, seluruh waktu',
+                    onTap: () => openSales(DocKind.invoice),
                   ),
                   KpiCard(
                     icon: Icons.shopping_cart_outlined,
@@ -138,6 +169,7 @@ class GudangPage extends StatelessWidget {
                     value: rupiah(c.flow.value.purchases),
                     hint: 'stok, seluruh waktu',
                     ownerOnly: true,
+                    onTap: openPurchase,
                   ),
                 ]) ...[card(k), const SizedBox(width: S.lg)],
               ],
@@ -161,6 +193,7 @@ class GudangPage extends StatelessWidget {
                   selected: {c.tab.value},
                   onSelectionChanged: (s) {
                     c.tab.value = s.first;
+                    c.filter.value = null;
                     c.panelId.value = null;
                   },
                 ),
@@ -174,6 +207,7 @@ class GudangPage extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(S.xxl, 0, S.xxl, S.xl),
             child: Obx(() {
               final isJasa = c.tab.value == GudangTab.jasa;
+              final inactive = c.inactiveCount;
               return MasterDetail(
                 panelWidth: 420,
                 list: AppTable<StockedProduct>(
@@ -182,7 +216,19 @@ class GudangPage extends StatelessWidget {
                   searchText: (s) => '${s.product.name} ${s.product.sku ?? ''} ${s.product.category}',
                   selected: (s) => s.product.id == c.panelId.value,
                   onTap: (s) => c.panelId.value = s.product.id,
-                  emptyMessage: isJasa ? 'Belum ada jasa.' : 'Belum ada barang. Tambah produk atau Import dari Excel.',
+                  toolbar: [
+                    if (c.inactiveToggle && inactive > 0)
+                      FilterChip(
+                        label: Text('Tampilkan nonaktif ($inactive)'),
+                        selected: c.showInactive.value,
+                        onSelected: (v) => c.showInactive.value = v,
+                      ),
+                  ],
+                  emptyMessage: c.filter.value != null
+                      ? 'Tidak ada barang untuk saringan ini.'
+                      : isJasa
+                      ? 'Belum ada jasa.'
+                      : 'Belum ada barang. Tambah produk atau Import dari Excel.',
                   columns: [
                     Col(
                       'Kode',
@@ -296,6 +342,32 @@ class _ProductPanelState extends State<ProductPanel> {
     }, 'Produk tersimpan');
   }
 
+  /// Hapus produk (R7 #6): total bila belum pernah dipakai, selain itu nonaktif + stok 0.
+  Future<void> _delete() async {
+    final c = widget.controller, p = f.p!;
+    if (!await Get.find<OwnerController>().ensure(context) || !mounted) return;
+    final history = await c.db.productHasHistory(p.id);
+    if (!mounted ||
+        !await confirmAction(
+          context,
+          title: 'Hapus ${p.name}?',
+          message: history
+              ? 'Produk ini sudah punya riwayat (invoice, pemesanan atau pembelian), jadi riwayatnya tetap '
+                    'tersimpan. Produk akan dinonaktifkan, stoknya dijadikan 0, dan disembunyikan dari daftar.'
+              : 'Produk belum pernah dipakai, jadi akan dihapus total.',
+          confirmLabel: 'Hapus',
+          destructive: true,
+        ) ||
+        !mounted) {
+      return;
+    }
+    var total = false;
+    if (!await runAction(context, () async => total = await c.db.deleteProduct(p.id)) || !mounted) return;
+    // Notifikasi dulu (daftar baru menyusul setelah query ulang), baru panel ditutup. Teks dari hasil sebenarnya.
+    notify(context, total ? 'Produk dihapus' : 'Produk dinonaktifkan & stok dijadikan 0');
+    c.panelId.value = null;
+  }
+
   @override
   Widget build(BuildContext context) {
     final p = f.p;
@@ -338,8 +410,9 @@ class _ProductPanelState extends State<ProductPanel> {
                 ],
                 gap(),
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
                   children: [
+                    if (!isNew) DangerButton(label: 'Hapus', onPressed: _delete),
+                    const Spacer(),
                     OutlinedButton(onPressed: () => widget.controller.panelId.value = null, child: const Text('Batal')),
                     const SizedBox(width: S.sm),
                     FilledButton(onPressed: _save, child: const Text('Simpan')),

@@ -19,7 +19,7 @@ void main() {
       ),
     );
     final led = await db.saveProduct(
-      ProductsCompanion.insert(name: 'CANBUS LED', sku: const Value('CB/001')),
+      ProductsCompanion.insert(name: 'DECODER LED', sku: const Value('DC/001')),
       openingStock: 10,
     );
     await db.saveDoc(
@@ -27,7 +27,7 @@ void main() {
       at: DateTime(2026, 10, 1),
       customerId: budi,
       plate: 'N 1234 AB',
-      lines: [LineInput(productId: led, name: 'CANBUS LED', qty: 1, price: 1)],
+      lines: [LineInput(productId: led, name: 'DECODER LED', qty: 1, price: 1)],
     );
 
     final byPlate = await db.search('n 1234');
@@ -38,7 +38,7 @@ void main() {
     expect((await db.search('%%')).isEmpty, true);
     expect((await db.search('+62 812 3456')).docs.length, 1);
     expect((await db.search('INV/00')).docs.single.doc.no, startsWith('INV/'));
-    expect((await db.search('cb/0')).products.single.name, 'CANBUS LED');
+    expect((await db.search('dc/0')).products.single.name, 'DECODER LED');
     expect((await db.search('x')).isEmpty, true); // minimal 2 huruf
     expect((await db.search('tidak ada')).isEmpty, true);
   });

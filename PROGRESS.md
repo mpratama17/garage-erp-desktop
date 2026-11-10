@@ -1,6 +1,6 @@
 # star-garage-erp (repo: garage-erp-desktop) — Progress Snapshot
 
-Last updated: 2026-11-09 (**dibuild 1.5.0+8** — `dist/Garage-ERP-1.5.0+8.dmg` (universal x86_64+arm64, 28 MB) dari `main` sesudah R6 (PR #3) + naik versi. Skema DB **v6**. Client terpasang 1.4.0+7 (skema v5) — wajib backup sebelum pasang. Panduan interaktif pindah data lama untuk client: artifact claude.ai (privat; dibagikan lewat Share).)
+Last updated: 2026-11-10 (**R7 selesai di branch `r7-masukan-client`, PR dibuka, belum dibuild**; sebelumnya: **dibuild 1.5.0+8** — `dist/Garage-ERP-1.5.0+8.dmg` (universal x86_64+arm64, 28 MB) dari `main` sesudah R6 (PR #3) + naik versi. Skema DB **v6**. Client terpasang 1.4.0+7 (skema v5) — wajib backup sebelum pasang. Panduan interaktif pindah data lama untuk client: artifact claude.ai (privat; dibagikan lewat Share).)
 
 **Apa:** mini-ERP desktop **macOS** offline (Flutter + SQLite/drift + GetX) untuk Star Garage (bengkel modif lampu, member Yoong Motor Pasuruan), pengganti Kledo + Google Sheet. Dashboard + 7 modul + Pengaturan (`docs/PRD.md` v2.3). Kasir: MacBook Air M1. Ringkasan untuk GitHub: `README.md`.
 
@@ -50,7 +50,23 @@ Permintaan: data dummy di app dikosongkan, riwayat Des 2024 → sekarang dari sp
 - **Uji di app (user, 6 Nov 14:15):** Import lewat Pengaturan di DB dev → hasil dicek read-only: kas masuk/keluar = total sheet, 0 invoice tidak lunas, kategori Biaya tetap 18, gerak stok tidak berubah. (Dijalankan dengan kode sebelum perbaikan review di bawah; datanya benar.)
 - **`/code-review` (10 temuan → semua diperbaiki):** batalkan import hanya mengembalikan saldo awal rekening yang tercatat saat import; import produk Excel tidak mencocokkan penampung; catatan yang muncul saat import ditampilkan di dialog hasil; tanggal batas default = sehari sebelum transaksi app pertama; parser: barang tanpa tanggal sesudah uang tanpa rincian ikut uang itu, total di baris lanjutan tetap terbaca; Samakan saldo memuat rekening nonaktif; Kosongkan ikut membersihkan customer/produk hasil import (import ulang tidak dobel); gaji & pembelian stok hasil import bisa dihapus dari Kas & Bank; undo pakai subquery. Invoice hasil import tidak ikut omzet gaji (tunjangan sales). Penampung disembunyikan dari Gudang & cari; kategorinya hanya bila sama dengan kategori produk yang ada. 118 test lulus; dry-run ulang identik.
 
-## Masukan client R6 (9 Nov) — selesai, belum di-commit
+## Masukan client R7 (10 Nov) — branch `r7-masukan-client`, PR dibuka
+
+| # | Masukan | Hasil |
+|---|---|---|
+| 1 | Laba app ≠ "laba" spreadsheet | Dijawab, tanpa kode: "laba" sheet = uang masuk − keluar = **Laporan › Arus kas** (sudah termasuk pembelian stok lama); Laba rugi = penjualan − modal barang terjual − biaya operasional. Tidak perlu memisah data. |
+| 2 | Pembelian kosong & stok tidak berubah setelah import | Sesuai desain: pembelian stok lama → Kas (`old_stock`), bukan menu Pembelian, dan tidak mengubah stok (baris sheet teks bebas tanpa kode; penjualan lama juga tidak mengurangi stok). Stok disamakan lewat opname / import produk (lihat E). |
+| 3/4/5/7 | Kartu info bisa diklik | ✅ `KpiCard(onTap, selected)`. Penjualan: bulan ini / belum dibayar / lewat tempo; pemesanan terbuka / ada DP / ada sisa (`SalesKpi`, sumber yang sama dengan angka kartu; klik melepas saringan tanggal & status). Gudang: tersedia / hampir habis / habis / ada stok (`StockFilter`), Total penjualan → Penjualan, Total pembelian → Pembelian. Biaya: semua / operasional / pribadi. Klik lagi = semua. |
+| 4 | CRUD tagihan pembelian + bukti nota | ✅ Kartu **Sudah dibayar / Belum dibayar** (Pembelian & Tagihan Pembelian; Lunas dari Tagihan membuka Pembelian tersaring). **Ubah** (tanggal, vendor, nota supplier, rekening, keterangan, upload/ganti bukti) — `updatePurchase`; barang/qty/harga tidak diubah (hapus lalu catat ulang). **Hapus** (backup dulu) — `deletePurchase`: stok ditarik, kas keluar dihapus; ditolak bila stoknya sudah terpakai; harga beli produk tidak dikembalikan. |
+| 6 | Barang dummy ("barang po") tidak bisa dihapus | ✅ **Hapus produk** (owner): belum pernah dipakai → hapus total; punya riwayat → nonaktif + stok 0 (penyesuaian), riwayat tetap. Produk nonaktif disembunyikan, chip "Tampilkan nonaktif". Akar masalah: barang baru dari form **Pemesanan** kini boleh stok awal 0 (invoice tetap ≥ 1). |
+| E | (usulan, disetujui) Samakan stok lewat import | ✅ Menu terpisah Gudang › Import › **Import & samakan stok** (dengan konfirmasi): barang lama dengan kolom Stok/Stok Awal terisi → stok disamakan (penyesuaian "Import produk"); kosong = tidak diubah. Import biasa tetap tidak menyentuh stok barang lama. Produk nonaktif yang ikut diimport diaktifkan lagi. |
+| 8 | Grafik Dashboard sulit dibaca | ✅ Client pilih **B** (dari simulasi HTML 4 pilihan, sudah dihapus): tulisan sumbu 14 px tebal, label tanpa tahun (tahun di tooltip & tombol rentang), semua bulan tampil (harian ±7 label), batang 14 px untuk ≤ 12 titik, total Masuk/Keluar di judul. Grafik Omzet ikut ukuran tulisan yang sama. |
+
+**Verifikasi R7:** analyze bersih, **124 test lulus** (+3 di `gudang_test.dart`, +1 di `penjualan_test.dart`, aksi owner baru di `akses_test.dart`); screenshot `tool/preview` (dashboard bulanan/harian, gudang-saring, pembelian-ubah, pembelian-saring-lunas, tagihan-saring) dicek.
+
+**Review R7:** `/code-review` 10 temuan → semua diperbaiki (import tidak lagi menimpa stok diam-diam — jadi menu terpisah; hapus pembelian dicek per produk; tanggal beli tidak boleh melewati tanggal lunas; pesan SKU kembar menyebut produk nonaktif; kartu Gudang/Pembelian/Penjualan membuka halaman tanpa saringan lama; vendor di dialog ubah pakai pencarian vendor; notifikasi hapus produk dari hasil sebenarnya). `/security-review`: 0 temuan (semua aksi baru `requireOwner()` di repo). `/simplify` diterapkan (`dateField`/`accountField` dipakai ulang, `adjustStock` mengembalikan ada/tidaknya selisih, deskripsi kas pembelian satu sumber, saringan kartu = rumus angka kartu, toggle saringan di controller). **Data test**: nama/SKU/harga katalog client yang terbawa di test lama diganti fiktif (riwayat git lama tidak ditulis ulang).
+
+## Masukan client R6 (9 Nov) — ✅ merged (PR #3), build 1.5.0+8
 
 | # | Masukan | Hasil |
 |---|---|---|

@@ -1,6 +1,7 @@
 import 'dart:math';
 
 import 'package:drift/drift.dart';
+import 'package:flutter/material.dart' show DateUtils;
 
 import '../../core/format.dart';
 import '../../core/xlsx.dart';
@@ -28,10 +29,10 @@ class MoveRow {
 /// Satu baris riwayat pembelian stok: [paidAt] = tanggal pelunasan (null = belum dibayar).
 typedef PurchaseRow = ({Purchase purchase, String account, bool paid, DateTime? paidAt});
 
-/// Format SKU client: PREFIX/NNN per merek (OSR/001, HVT/017). Kode lain (mis. "SR800.3") tidak dihitung.
+/// Format SKU client: PREFIX/NNN per merek (mis. ABC/001, XYZ/017). Kode lain (mis. "AB800.3") tidak dihitung.
 final _skuPattern = RegExp(r'^([A-Z]+)/(\d+)$');
 
-/// SKU berikutnya untuk [prefix]: nomor terbesar prefix itu + 1 (HVT/017 → HVT/018); prefix baru mulai /001.
+/// SKU berikutnya untuk [prefix]: nomor terbesar prefix itu + 1 (XYZ/017 → XYZ/018); prefix baru mulai /001.
 String nextSku(String prefix, Iterable<String?> skus) {
   final p = prefix.trim().toUpperCase();
   var last = 0;
@@ -46,8 +47,8 @@ String nextSku(String prefix, Iterable<String?> skus) {
 List<String> skuPrefixes(Iterable<String?> skus) =>
     {for (final s in skus) ?_skuPattern.firstMatch(s?.trim().toUpperCase() ?? '')?[1]}.toList()..sort();
 
-/// Tebak prefix SKU dari produk yang namanya paling mirip [name] (prefix tidak selalu ada di nama: "T20 YELLOW"
-/// = RCH). Kata yang sama menambah skor; kata umum (dipakai banyak produk, mis. LED, WHITE) bernilai kecil.
+/// Tebak prefix SKU dari produk yang namanya paling mirip [name] (prefix tidak selalu ada di nama: "T20 KUNING"
+/// = KTX). Kata yang sama menambah skor; kata umum (dipakai banyak produk, mis. LED, WHITE) bernilai kecil.
 /// null = tidak ada yang mirip.
 String? guessSkuPrefix(String name, Iterable<(String name, String? sku)> products) {
   Set<String> words(String s) => s.toUpperCase().split(RegExp(r'[^A-Z0-9.]+')).where((w) => w.length >= 2).toSet();
@@ -240,18 +241,21 @@ extension GudangRepo on AppDb {
     requireOwner();
     final n = await _newCategoryName(name, except: old);
     await (update(products)..where((x) => x.category.equals(old))).write(ProductsCompanion(category: Value(n)));
-    await (update(productCategories)..where((x) => x.name.equals(old))).write(ProductCategoriesCompanion(name: Value(n)));
+    await (update(
+      productCategories,
+    )..where((x) => x.name.equals(old))).write(ProductCategoriesCompanion(name: Value(n)));
   });
 
   /// Hapus kategori (owner) — ditolak bila masih dipakai produk (aktif maupun nonaktif).
   Future<void> deleteProductCategory(String name) => transaction(() async {
     requireOwner();
     final count = products.id.count();
-    final used = await (selectOnly(products)
-          ..addColumns([count])
-          ..where(products.category.equals(name)))
-        .map((r) => r.read(count)!)
-        .getSingle();
+    final used =
+        await (selectOnly(products)
+              ..addColumns([count])
+              ..where(products.category.equals(name)))
+            .map((r) => r.read(count)!)
+            .getSingle();
     if (used > 0) {
       throw ArgumentError(
         'Kategori "$name" masih dipakai $used produk — pindahkan produknya dulu atau ganti nama kategorinya',
@@ -355,7 +359,10 @@ extension GudangRepo on AppDb {
                     (p.id.present ? x.id.equals(p.id.value).not() : const Constant(true)),
               ))
               .getSingleOrNull();
-      if (dup != null) throw ArgumentError('SKU "${clean.sku.value}" sudah dipakai "${dup.name}"');
+      if (dup != null) {
+        final hidden = dup.active ? '' : ' (nonaktif — centang "Tampilkan nonaktif" di Gudang)';
+        throw ArgumentError('SKU "${clean.sku.value}" sudah dipakai "${dup.name}"$hidden');
+      }
     }
     return transaction(() async {
       if (p.id.present) {
@@ -371,13 +378,41 @@ extension GudangRepo on AppDb {
     });
   }
 
-  /// Stok opname: set stok menjadi [actual]; selisihnya dicatat sebagai penyesuaian.
-  Future<void> adjustStock(int productId, int actual, String note) async {
+  /// Sudah dipakai di invoice/pemesanan atau punya pergerakan stok selain stok awal/opname.
+  Future<bool> productHasHistory(int id) async =>
+      await (select(invoiceLines)
+                ..where((l) => l.productId.equals(id))
+                ..limit(1))
+              .getSingleOrNull() !=
+          null ||
+      await (select(stockMoves)
+                ..where((m) => m.productId.equals(id) & m.kind.isNotIn(['opening', 'adjust']))
+                ..limit(1))
+              .getSingleOrNull() !=
+          null;
+
+  /// Hapus produk (owner, R7 #6). Belum pernah dipakai di invoice/pemesanan/pembelian → dihapus total
+  /// (beserta stok awal & opname-nya). Sudah punya riwayat → riwayat tetap, produk dinonaktifkan dan
+  /// stoknya dinolkan (tercatat sebagai penyesuaian). Mengembalikan true bila dihapus total.
+  Future<bool> deleteProduct(int id) => transaction(() async {
+    requireOwner();
+    if (!await productHasHistory(id)) {
+      await (delete(stockMoves)..where((m) => m.productId.equals(id))).go();
+      await (delete(products)..where((p) => p.id.equals(id))).go();
+      return true;
+    }
+    await adjustStock(id, 0, 'Produk dihapus');
+    await (update(products)..where((p) => p.id.equals(id))).write(const ProductsCompanion(active: Value(false)));
+    return false;
+  });
+
+  /// Stok opname: set stok menjadi [actual]; selisihnya dicatat sebagai penyesuaian. true = ada selisih dicatat.
+  Future<bool> adjustStock(int productId, int actual, String note) async {
     requireOwner();
     if (note.trim().isEmpty) throw ArgumentError('Alasan penyesuaian wajib diisi');
-    await transaction(() async {
+    return transaction(() async {
       final delta = actual - await stockOf(productId);
-      if (delta == 0) return;
+      if (delta == 0) return false;
       await into(stockMoves).insert(
         StockMovesCompanion.insert(
           at: now(),
@@ -387,6 +422,7 @@ extension GudangRepo on AppDb {
           note: Value(note.trim()),
         ),
       );
+      return true;
     });
   }
 
@@ -469,10 +505,85 @@ extension GudangRepo on AppDb {
           amount: -total,
           kind: 'purchase',
           refId: Value(id),
-          description: supplier.trim().isEmpty ? 'Pembelian stok' : 'Pembelian stok — ${supplier.trim()}',
+          description: _purchaseDesc(supplier),
           note: Value(note.trim()),
         ),
       );
+
+  /// Ubah data nota pembelian (owner, R7 #4): tanggal, vendor, nota supplier, rekening, keterangan, bukti nota.
+  /// Barang/qty/harga tidak diubah di sini — salah barang = hapus pembelian lalu catat ulang.
+  Future<void> updatePurchase(
+    int id, {
+    required DateTime at,
+    required int accountId,
+    String supplier = '',
+    String billNo = '',
+    String note = '',
+    String proofPath = '',
+  }) => transaction(() async {
+    requireOwner();
+    final old = await (select(purchases)..where((x) => x.id.equals(id))).getSingle();
+    if (accountId != old.accountId) await requireActiveAccount(accountId);
+    final vendor = await vendorByName(supplier);
+    final name = vendor?.name ?? '';
+    await (update(purchases)..where((x) => x.id.equals(id))).write(
+      PurchasesCompanion(
+        at: Value(at),
+        accountId: Value(accountId),
+        supplier: Value(name),
+        vendorId: Value(vendor?.id),
+        billNo: Value(billNo.trim()),
+        note: Value(note.trim()),
+        proofPath: Value(proofPath),
+      ),
+    );
+    await (update(
+      stockMoves,
+    )..where((m) => m.kind.equals('purchase') & m.refId.equals(id))).write(StockMovesCompanion(at: Value(at)));
+    final cash = await (select(
+      cashEntries,
+    )..where((c) => c.kind.equals('purchase') & c.refId.equals(id))).getSingleOrNull();
+    if (cash != null) {
+      // Dibayar saat beli = tanggal & keterangan kas ikut pembelian; dilunasi belakangan = tanggal lunas tetap.
+      final sameDay = DateUtils.isSameDay(cash.at, old.at);
+      if (!sameDay && DateUtils.dateOnly(at).isAfter(cash.at)) {
+        throw ArgumentError('Tanggal beli tidak boleh sesudah tanggal lunas (${tgl(cash.at)})');
+      }
+      await (update(cashEntries)..where((c) => c.id.equals(cash.id))).write(
+        CashEntriesCompanion(
+          accountId: Value(accountId),
+          at: sameDay ? Value(at) : const Value.absent(),
+          description: Value(_purchaseDesc(name)),
+          note: sameDay ? Value(note.trim()) : const Value.absent(),
+        ),
+      );
+    }
+  });
+
+  /// Hapus pembelian (owner, R7 #4): stok yang masuk ditarik lagi dan uang keluarnya dihapus. Ditolak bila stok
+  /// barangnya sudah terpakai (stok jadi minus). Harga beli produk tidak dikembalikan ke harga sebelumnya.
+  Future<void> deletePurchase(int id) => transaction(() async {
+    requireOwner();
+    final qty = <int, int>{}; // per produk: satu pembelian bisa berisi beberapa baris barang yang sama
+    for (final m in await (select(stockMoves)..where((m) => m.kind.equals('purchase') & m.refId.equals(id))).get()) {
+      qty[m.productId] = (qty[m.productId] ?? 0) + m.qty;
+    }
+    for (final MapEntry(key: productId, value: n) in qty.entries) {
+      final left = await stockOf(productId) - n;
+      if (left < 0) {
+        final p = await (select(products)..where((x) => x.id.equals(productId))).getSingle();
+        throw ArgumentError(
+          'Stok "${p.name}" dari pembelian ini sudah terpakai (akan jadi $left). Tidak bisa dihapus.',
+        );
+      }
+    }
+    await (delete(stockMoves)..where((m) => m.kind.equals('purchase') & m.refId.equals(id))).go();
+    await (delete(cashEntries)..where((c) => c.kind.equals('purchase') & c.refId.equals(id))).go();
+    await (delete(purchases)..where((x) => x.id.equals(id))).go();
+  });
+
+  static String _purchaseDesc(String supplier) =>
+      supplier.trim().isEmpty ? 'Pembelian stok' : 'Pembelian stok — ${supplier.trim()}';
 
   /// Lunasi pembelian yang tadinya [recordPurchase]-nya [paidNow]=false. Dibayar dari rekening yang
   /// dipilih saat pembelian dicatat (bukan dipilih ulang) — selaras dengan dialog pembelian.
@@ -488,41 +599,49 @@ extension GudangRepo on AppDb {
   });
 
   /// Terapkan hasil import: cocokkan ke produk lama via SKU (atau nama bila tanpa SKU).
-  /// Barang baru tanpa stok awal diisi 1 (keputusan client). Stok produk lama tidak diubah.
-  Future<({int created, int updated})> applyImport(List<ProductRow> rows) => transaction(() async {
-    requireOwner(); // import menulis harga beli
-    var created = 0, updated = 0;
-    // Penampung import catatan lama bukan barang: tidak ikut dicocokkan.
-    final existing = await (select(products)..where((p) => p.imported.equals(false))).get();
-    final bySku = {
-      for (final p in existing)
-        if (p.sku != null) p.sku!.toUpperCase(): p,
-    };
-    final byName = {for (final p in existing) p.name.toUpperCase(): p};
-    for (final r in rows) {
-      final match = r.sku != null ? bySku[r.sku!.toUpperCase()] : byName[r.name.toUpperCase()];
-      // Sel kosong = biarkan nilai lama. SKU tidak pernah dihapus, tipe barang/jasa tidak diubah.
-      final data = ProductsCompanion(
-        name: Value(r.name),
-        sku: r.sku == null ? const Value.absent() : Value(r.sku),
-        category: r.category == null ? const Value.absent() : Value(await _canonicalCategory(r.category!)),
-        unit: Value(r.unit),
-        buyPrice: r.buyPrice == null ? const Value.absent() : Value(r.buyPrice!),
-        sellPrice: r.sellPrice == null ? const Value.absent() : Value(r.sellPrice!),
-        minStock: r.minStock == null ? const Value.absent() : Value(r.minStock!),
-        incentive: r.incentive == null ? const Value.absent() : Value(r.incentive!),
-      );
-      if (match != null) {
-        await (update(products)..where((x) => x.id.equals(match.id))).write(data);
-        updated++;
-      } else {
-        await saveProduct(
-          data.copyWith(isService: Value(r.isService)),
-          openingStock: r.isService ? 0 : (r.openingStock ?? 1),
-        );
-        created++;
-      }
-    }
-    return (created: created, updated: updated);
-  });
+  /// Barang baru tanpa stok awal diisi 1 (keputusan client). Stok barang lama tidak diubah, kecuali [syncStock]
+  /// (menu "Import & samakan stok", R7): kolom stok terisi = stok disamakan (penyesuaian "Import produk").
+  /// Produk nonaktif yang cocok diaktifkan lagi (mis. yang pernah "dihapus" tapi punya riwayat).
+  Future<({int created, int updated, int stocked})> applyImport(List<ProductRow> rows, {bool syncStock = false}) =>
+      transaction(() async {
+        requireOwner(); // import menulis harga beli
+        var created = 0, updated = 0, stocked = 0;
+        // Penampung import catatan lama bukan barang: tidak ikut dicocokkan.
+        final existing = await (select(products)..where((p) => p.imported.equals(false))).get();
+        final bySku = {
+          for (final p in existing)
+            if (p.sku != null) p.sku!.toUpperCase(): p,
+        };
+        final byName = {for (final p in existing) p.name.toUpperCase(): p};
+        for (final r in rows) {
+          final match = r.sku != null ? bySku[r.sku!.toUpperCase()] : byName[r.name.toUpperCase()];
+          // Sel kosong = biarkan nilai lama. SKU tidak pernah dihapus, tipe barang/jasa tidak diubah.
+          final data = ProductsCompanion(
+            name: Value(r.name),
+            sku: r.sku == null ? const Value.absent() : Value(r.sku),
+            category: r.category == null ? const Value.absent() : Value(await _canonicalCategory(r.category!)),
+            unit: Value(r.unit),
+            buyPrice: r.buyPrice == null ? const Value.absent() : Value(r.buyPrice!),
+            sellPrice: r.sellPrice == null ? const Value.absent() : Value(r.sellPrice!),
+            minStock: r.minStock == null ? const Value.absent() : Value(r.minStock!),
+            incentive: r.incentive == null ? const Value.absent() : Value(r.incentive!),
+            active: const Value(true),
+          );
+          if (match != null) {
+            await (update(products)..where((x) => x.id.equals(match.id))).write(data);
+            updated++;
+            final stock = r.openingStock;
+            if (syncStock && stock != null && !match.isService && await adjustStock(match.id, stock, 'Import produk')) {
+              stocked++;
+            }
+          } else {
+            await saveProduct(
+              data.copyWith(isService: Value(r.isService)),
+              openingStock: r.isService ? 0 : (r.openingStock ?? 1),
+            );
+            created++;
+          }
+        }
+        return (created: created, updated: updated, stocked: stocked);
+      });
 }

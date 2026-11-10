@@ -217,9 +217,10 @@ class _DocEditorState extends State<_DocEditor> {
   }
 
   /// Barang/jasa baru langsung dari form (keputusan owner 23 Okt; form lengkap seperti Gudang sejak R4 #1).
-  /// Barang wajib stok awal ≥ 1 supaya bisa masuk invoice.
+  /// Barang untuk invoice wajib stok awal ≥ 1; pemesanan (barang PO) & transaksi lama boleh 0 (R7 #6).
   Future<void> _newProduct() async {
-    final p = await showProductDialog(context, c.db, [for (final s in c.products) s.product], minOpening: 1);
+    final minOpening = !isOrder && !widget.legacy ? 1 : 0;
+    final p = await showProductDialog(context, c.db, [for (final s in c.products) s.product], minOpening: minOpening);
     if (p == null || !mounted) return;
     final item = StockedProduct(p, await c.db.stockOf(p.id));
     if (!mounted) return;

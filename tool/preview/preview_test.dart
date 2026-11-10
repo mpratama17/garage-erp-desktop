@@ -64,9 +64,9 @@ Future<void> _seed(AppDb db) async {
   }
   final items = await db.watchProducts().first;
   final cb =
-      items.where((s) => s.product.sku == 'CB/002').firstOrNull?.product.id ??
+      items.where((s) => s.product.sku == 'DC/002').firstOrNull?.product.id ??
       await db.saveProduct(
-        ProductsCompanion.insert(name: 'CANBUS LED 15', sku: const Value('CB/002'), sellPrice: const Value(200000)),
+        ProductsCompanion.insert(name: 'DECODER LED 15', sku: const Value('DC/002'), sellPrice: const Value(200000)),
         openingStock: 1,
       );
   await db.adjustStock(cb, 0, 'stok opname: rusak');
@@ -108,7 +108,7 @@ Future<void> _seed(AppDb db) async {
   final siti = custs.firstWhere((c) => c.name == 'SITI AMINAH');
   final bca = (await db.select(db.accounts).get()).first.id;
   final now = DateTime.now();
-  final canbus = all.firstWhere((s) => s.product.name == 'CANBUS LED 15').product;
+  final canbus = all.firstWhere((s) => s.product.name == 'DECODER LED 15').product;
   await db.recordPurchase(
     at: now.subtract(const Duration(days: 3)),
     accountId: bca,
@@ -302,9 +302,15 @@ void main() {
     await tester.tap(find.text('Gudang'));
     await settle();
     await shot('gudang');
+    // R7: kartu info = saringan; klik lagi = semua.
+    await tester.tap(find.text('Stok hampir habis'));
+    await settle();
+    await shot('gudang-saring');
+    await tester.tap(find.text('Stok hampir habis'));
+    await settle();
 
     owner.isOwner.value = true;
-    await tester.tap(find.text('CANBUS LED 15'));
+    await tester.tap(find.text('DECODER LED 15'));
     await settle();
     await shot('gudang-panel');
     // Kategori: ketik nama baru → baris "+ Tambah kategori"; ⊕ di ujung field.
@@ -323,7 +329,7 @@ void main() {
     await shot('gudang-kategori');
     await tester.tap(find.text('Selesai'));
     await settle();
-    await tester.tap(find.text('CANBUS LED 15'));
+    await tester.tap(find.text('DECODER LED 15'));
     await settle();
     await tester.drag(find.byType(ListView).last, const Offset(0, -800));
     await settle();
@@ -343,6 +349,16 @@ void main() {
     await tester.tap(find.text('CV Aksesoris'));
     await settle();
     await shot('pembelian-belum-bayar');
+    await tester.tap(find.text('Ubah / upload nota'));
+    await settle();
+    await shot('pembelian-ubah');
+    await tester.tap(find.text('Batal').last);
+    await settle();
+    await tester.tap(find.text('Sudah dibayar'));
+    await settle();
+    await shot('pembelian-saring-lunas');
+    await tester.tap(find.text('Sudah dibayar'));
+    await settle();
     await tester.tap(find.widgetWithText(FilledButton, 'Pembelian stok'));
     await settle();
     await shot('pembelian-dialog');
@@ -350,7 +366,7 @@ void main() {
     await tester.tap(find.text('Barang baru'));
     await settle();
     final buyDialog = find.byType(AlertDialog).last;
-    await tester.enterText(find.descendant(of: buyDialog, matching: find.byType(TextField)).first, 'CANBUS LED 20');
+    await tester.enterText(find.descendant(of: buyDialog, matching: find.byType(TextField)).first, 'DECODER LED 20');
     await tester.enterText(find.descendant(of: buyDialog, matching: find.byType(TextField)).at(5), '90000');
     await settle();
     await shot('pembelian-barang-baru');
@@ -365,7 +381,7 @@ void main() {
     await tester.tap(find.text('Simpan pembelian'));
     await settle();
     final stock = await tester.runAsync(() async {
-      final p = await (db.select(db.products)..where((x) => x.name.equals('CANBUS LED 20'))).getSingle();
+      final p = await (db.select(db.products)..where((x) => x.name.equals('DECODER LED 20'))).getSingle();
       return db.stockOf(p.id);
     });
     expect(stock, 3);
@@ -377,6 +393,11 @@ void main() {
     await tester.tap(find.text('Penjualan').first);
     await settle();
     await shot('tagihan');
+    await tester.tap(find.text('Belum dibayar'));
+    await settle();
+    await shot('tagihan-saring');
+    await tester.tap(find.text('Belum dibayar'));
+    await settle();
     await tester.tap(find.text('INV/00248'));
     await settle();
     await shot('tagihan-panel');
@@ -395,8 +416,8 @@ void main() {
     await settle();
     await shot('tagihan-produk-baru');
     final dialog = find.byType(AlertDialog);
-    // R4 #1–2: form lengkap; SKU ditebak dari produk yang mirip (CANBUS → CB/003).
-    await tester.enterText(find.descendant(of: dialog, matching: find.byType(TextField)).first, 'CANBUS LED BARU');
+    // R4 #1–2: form lengkap; SKU ditebak dari produk yang mirip (DECODER → DC/003).
+    await tester.enterText(find.descendant(of: dialog, matching: find.byType(TextField)).first, 'DECODER LED BARU');
     await tester.enterText(find.descendant(of: dialog, matching: find.byType(TextField)).at(4), '150000');
     await settle();
     await shot('tagihan-produk-baru-isi');

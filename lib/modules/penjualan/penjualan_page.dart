@@ -86,28 +86,49 @@ Future<void> _savedDialog(BuildContext context, PenjualanController c, int id) a
 class PenjualanPage extends StatelessWidget {
   const PenjualanPage({super.key});
 
-  /// Ringkasan dari daftar yang sudah dimuat (tab aktif).
+  /// Ringkasan dari daftar yang sudah dimuat (tab aktif). Klik kartu = saring tabel (R7 #3).
   static List<Widget> _kpis(PenjualanController c) {
     final now = DateTime.now();
-    final docs = c.docs.where((d) => !d.doc.isVoid).toList();
+    List<DocSummary> of(SalesKpi k) => c.docs.where((d) => k.test(d, now)).toList();
     int sum(Iterable<DocSummary> ds, int Function(DocSummary) f) => ds.fold(0, (t, d) => t + f(d));
+    KpiCard card(
+      SalesKpi k, {
+      required IconData icon,
+      required Tone tone,
+      required String label,
+      required String value,
+      String? hint,
+      Color? hintColor,
+    }) => KpiCard(
+      icon: icon,
+      tone: tone,
+      label: label,
+      value: value,
+      hint: hint,
+      hintColor: hintColor,
+      onTap: () => c.toggleKpi(k),
+      selected: c.kpi.value == k,
+    );
     if (c.kind.value == DocKind.order) {
-      final open = docs.where((d) => !d.hasInvoice).toList();
+      final open = of(SalesKpi.open);
       return [
-        KpiCard(
+        card(
+          SalesKpi.open,
           icon: Icons.event_note_outlined,
           tone: Tone.info,
           label: 'Pemesanan terbuka',
           value: '${open.length}',
           hint: 'Nilai ${rupiah(sum(open, (d) => d.total))}',
         ),
-        KpiCard(
+        card(
+          SalesKpi.dp,
           icon: Icons.savings_outlined,
           tone: Tone.success,
           label: 'DP diterima',
           value: rupiah(sum(open, (d) => d.paid)),
         ),
-        KpiCard(
+        card(
+          SalesKpi.remaining,
           icon: Icons.hourglass_bottom,
           tone: Tone.warning,
           label: 'Sisa tagihan',
@@ -115,25 +136,27 @@ class PenjualanPage extends StatelessWidget {
         ),
       ];
     }
-    final month = docs.where((d) => d.doc.at.year == now.year && d.doc.at.month == now.month).toList();
-    final unpaid = docs.where((d) => d.status == PayStatus.unpaid || d.status == PayStatus.partial).toList();
-    final overdue = unpaid.where((d) => d.overdue(now)).toList();
+    final month = of(SalesKpi.month), unpaid = of(SalesKpi.unpaid);
+    final overdue = unpaid.where((d) => SalesKpi.overdue.test(d, now)).toList();
     return [
-      KpiCard(
+      card(
+        SalesKpi.month,
         icon: Icons.trending_up,
         tone: Tone.success,
         label: 'Penjualan bulan ini',
         value: rupiah(sum(month, (d) => d.omzet)), // tanpa PPN, sama dengan Dashboard & Laporan
         hint: '${month.length} invoice',
       ),
-      KpiCard(
+      card(
+        SalesKpi.unpaid,
         icon: Icons.receipt_long_outlined,
         tone: Tone.warning,
         label: 'Belum dibayar',
         value: rupiah(sum(unpaid, (d) => d.remaining)),
         hint: '${unpaid.length} invoice',
       ),
-      KpiCard(
+      card(
+        SalesKpi.overdue,
         icon: Icons.warning_amber_rounded,
         tone: overdue.isEmpty ? Tone.neutral : Tone.danger,
         label: 'Lewat jatuh tempo',
@@ -198,9 +221,20 @@ class PenjualanPage extends StatelessWidget {
                   ].join(' '),
                   selected: (s) => s.doc.id == c.panelId.value,
                   onTap: (s) => c.panelId.value = s.doc.id,
-                  emptyMessage: c.kind.value == DocKind.invoice ? 'Belum ada invoice.' : 'Belum ada pemesanan.',
+                  emptyMessage: c.kpi.value != null
+                      ? 'Tidak ada data untuk saringan ini.'
+                      : c.kind.value == DocKind.invoice
+                      ? 'Belum ada invoice.'
+                      : 'Belum ada pemesanan.',
                   toolbar: [
-                    RangeButton(range: c.range.value, onChanged: (r) => c.range.value = r, clearable: true),
+                    RangeButton(
+                      range: c.range.value,
+                      onChanged: (r) {
+                        c.range.value = r;
+                        c.kpi.value = null;
+                      },
+                      clearable: true,
+                    ),
                     const SizedBox(width: S.sm),
                     DropdownButton<PayStatus?>(
                       value: c.status.value,
@@ -210,7 +244,10 @@ class PenjualanPage extends StatelessWidget {
                         const DropdownMenuItem(value: null, child: Text('Semua status')),
                         for (final s in PayStatus.values) DropdownMenuItem(value: s, child: Text(s.label)),
                       ],
-                      onChanged: (v) => c.status.value = v,
+                      onChanged: (v) {
+                        c.status.value = v;
+                        c.kpi.value = null;
+                      },
                     ),
                     const SizedBox(width: S.sm),
                     exportButton(context, c.export),
