@@ -210,36 +210,7 @@ class _PurchaseDialogState extends State<_PurchaseDialog> {
                   Expanded(
                     child: Labeled(
                       'Vendor',
-                      RawAutocomplete<String>(
-                        textEditingController: supplier,
-                        focusNode: supplierFocus,
-                        optionsBuilder: (v) => widget.vendors.where(
-                          (n) => n.toLowerCase().contains(v.text.trim().toLowerCase()) && n != v.text,
-                        ),
-                        fieldViewBuilder: (_, ctrl, focus, _) => TextField(
-                          controller: ctrl,
-                          focusNode: focus,
-                          decoration: const InputDecoration(hintText: 'Cari atau ketik vendor baru'),
-                        ),
-                        optionsViewBuilder: (_, onSelected, options) => Align(
-                          alignment: Alignment.topLeft,
-                          child: Material(
-                            elevation: 4,
-                            borderRadius: BorderRadius.circular(S.rInput),
-                            child: ConstrainedBox(
-                              constraints: const BoxConstraints(maxHeight: 200, maxWidth: 280),
-                              child: ListView(
-                                shrinkWrap: true,
-                                padding: EdgeInsets.zero,
-                                children: [
-                                  for (final o in options)
-                                    ListTile(dense: true, title: Text(o), onTap: () => onSelected(o)),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
+                      VendorField(controller: supplier, focusNode: supplierFocus, vendors: widget.vendors),
                     ),
                   ),
                   const SizedBox(width: S.md),
@@ -439,3 +410,38 @@ Future<void> showCategoriesDialog(BuildContext context, AppDb db) => showDialog<
     ],
   ),
 );
+
+/// Kolom vendor: cari dari Kontak ▸ Vendor, atau ketik nama baru (otomatis jadi vendor saat disimpan).
+class VendorField extends StatelessWidget {
+  const VendorField({super.key, required this.controller, required this.focusNode, required this.vendors});
+  final TextEditingController controller;
+  final FocusNode focusNode;
+  final List<String> vendors;
+
+  @override
+  Widget build(BuildContext context) => RawAutocomplete<String>(
+    textEditingController: controller,
+    focusNode: focusNode,
+    optionsBuilder: (v) => vendors.where((n) => n.toLowerCase().contains(v.text.trim().toLowerCase()) && n != v.text),
+    fieldViewBuilder: (_, ctrl, focus, _) => TextField(
+      controller: ctrl,
+      focusNode: focus,
+      decoration: const InputDecoration(hintText: 'Cari atau ketik vendor baru'),
+    ),
+    optionsViewBuilder: (_, onSelected, options) => Align(
+      alignment: Alignment.topLeft,
+      child: Material(
+        elevation: 4,
+        borderRadius: BorderRadius.circular(S.rInput),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxHeight: 200, maxWidth: 280),
+          child: ListView(
+            shrinkWrap: true,
+            padding: EdgeInsets.zero,
+            children: [for (final o in options) ListTile(dense: true, title: Text(o), onTap: () => onSelected(o))],
+          ),
+        ),
+      ),
+    ),
+  );
+}

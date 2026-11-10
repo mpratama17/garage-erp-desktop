@@ -51,6 +51,7 @@ class BiayaPage extends StatelessWidget {
               label: 'Total biaya',
               value: rupiah(c.total()),
               hint: '${c.expenses.length} biaya',
+              onTap: () => c.filter.value = BiayaFilter.semua,
             ),
             KpiCard(
               icon: Icons.build_outlined,
@@ -58,6 +59,8 @@ class BiayaPage extends StatelessWidget {
               label: 'Operasional',
               value: rupiah(c.total(personal: false)),
               hint: 'Masuk laba rugi',
+              onTap: () => c.toggle(BiayaFilter.operasional),
+              selected: c.filter.value == BiayaFilter.operasional,
             ),
             KpiCard(
               icon: Icons.home_outlined,
@@ -65,6 +68,8 @@ class BiayaPage extends StatelessWidget {
               label: 'Pribadi',
               value: rupiah(c.total(personal: true)),
               hint: 'Di bawah laba bersih usaha',
+              onTap: () => c.toggle(BiayaFilter.pribadi),
+              selected: c.filter.value == BiayaFilter.pribadi,
             ),
           ]),
         ),

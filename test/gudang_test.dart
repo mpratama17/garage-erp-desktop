@@ -116,30 +116,30 @@ void main() {
         TextCellValue('Stok Minimal'),
       ],
       [
-        TextCellValue('OSRAM CBI '),
-        TextCellValue('OSR/001'),
+        TextCellValue('LUMA X '),
+        TextCellValue('LUM/001'),
         TextCellValue('PROJECTOR'),
         null,
         TextCellValue('PCS'),
-        DoubleCellValue(3400000.0),
+        DoubleCellValue(3100000.0),
         TextCellValue('5-50000'),
-        IntCellValue(6500000),
+        IntCellValue(5900000),
         IntCellValue(2),
       ],
       [
-        TextCellValue('CANBUS LED'),
-        TextCellValue('CB/001'),
+        TextCellValue('DECODER LED'),
+        TextCellValue('DC/001'),
         TextCellValue('LED'),
         null,
         TextCellValue('PCS'),
-        TextCellValue('120750'),
+        TextCellValue('110500'),
         null,
         TextCellValue('Rp 200.000'),
         null,
       ],
       [
         TextCellValue('T10 WHITE'),
-        TextCellValue('cb/001'),
+        TextCellValue('dc/001'),
         TextCellValue('LED'),
         null,
         TextCellValue('PCS'),
@@ -151,18 +151,18 @@ void main() {
       [null, TextCellValue('X/9'), null, null, null, null, null, null, null],
     ]);
     final res = parseProductsXlsx(bytes);
-    expect(res.rows.map((r) => r.name), ['OSRAM CBI', 'CANBUS LED']);
+    expect(res.rows.map((r) => r.name), ['LUMA X', 'DECODER LED']);
     expect(res.errors, hasLength(2)); // SKU kembar (beda huruf besar/kecil) + nama kosong
     expect(res.errors.first, contains('Baris 4'));
-    expect((res.rows.first.buyPrice, res.rows.first.sellPrice, res.rows.first.minStock), (3400000, 6500000, 2));
+    expect((res.rows.first.buyPrice, res.rows.first.sellPrice, res.rows.first.minStock), (3100000, 5900000, 2));
     expect(res.rows.last.sellPrice, 200000);
 
-    expect(await db.applyImport(res.rows), (created: 2, updated: 0));
+    expect(await db.applyImport(res.rows), (created: 2, updated: 0, stocked: 0));
     final list = await db.watchProducts().first;
     expect(list.every((s) => s.stock == 1), true);
 
     // Import ulang = update, stok tidak berubah.
-    expect(await db.applyImport(res.rows), (created: 0, updated: 2));
+    expect(await db.applyImport(res.rows), (created: 0, updated: 2, stocked: 0));
     expect((await db.watchProducts().first).every((s) => s.stock == 1), true);
   });
 
@@ -182,8 +182,8 @@ void main() {
   test('import ulang: sel kosong tidak menimpa, SKU tidak hilang, tipe tidak berubah', () async {
     final id = await db.saveProduct(
       ProductsCompanion.insert(
-        name: 'CANBUS LED 15',
-        sku: const Value('CB/002'),
+        name: 'DECODER LED 15',
+        sku: const Value('DC/002'),
         buyPrice: const Value(85000),
         sellPrice: const Value(200000),
       ),
@@ -197,12 +197,12 @@ void main() {
           TextCellValue('Harga Penjualan'),
           TextCellValue('Tipe'),
         ],
-        [TextCellValue('canbus led 15'), null, TextCellValue('Rp 250.000,00'), TextCellValue('Jasa')],
+        [TextCellValue('decoder led 15'), null, TextCellValue('Rp 250.000,00'), TextCellValue('Jasa')],
       ]),
     );
-    expect(await db.applyImport(res.rows), (created: 0, updated: 1));
+    expect(await db.applyImport(res.rows), (created: 0, updated: 1, stocked: 0));
     final p = await (db.select(db.products)..where((x) => x.id.equals(id))).getSingle();
-    expect((p.sku, p.buyPrice, p.sellPrice, p.isService), ('CB/002', 85000, 250000, false));
+    expect((p.sku, p.buyPrice, p.sellPrice, p.isService), ('DC/002', 85000, 250000, false));
     expect(await db.stockOf(id), 3);
   });
 
@@ -275,32 +275,156 @@ void main() {
     expect(edit('1', '1234567890123456', 16).text, '1');
   });
   test('SKU otomatis: lanjut nomor terbesar per prefix, prefix ditebak dari nama yang mirip', () {
-    // Potongan data Gudang client: prefix = merek, tidak selalu tertulis di nama.
+    // Contoh data Gudang (fiktif): prefix = merek, tidak selalu tertulis di nama.
     const data = [
-      ('OSRAM CBI LASER G2', 'OSR/001'),
-      ('OSRAM LED XLZ V3 (HB3,H11)', 'OSR/004'),
-      ('SR800.3', 'SR/001'),
-      ('SR1 AERO', 'SR/004'),
-      ('LED HVT EXPERT SERIES (H4) 65W', 'HVT/003'),
-      ('MINI PROJ MAXI YY', 'HVT/008'),
-      ('HVT 2\' LASER FL', 'HVT/017'),
-      ('T20 YELLOW', 'RCH/001'),
-      ('T20 WHITE', 'RCH/003'),
-      ('T20 WHITE BASIC', 'NB/004'),
-      ('LAMA', 'SR800.3'), // di luar pola: diabaikan
+      ('LUMA X LASER G2', 'LUM/001'),
+      ('LUMA LED V3 (HB3,H11)', 'LUM/004'),
+      ('ZR800.3', 'ZR/001'),
+      ('ZR1 AERO', 'ZR/004'),
+      ('LED NVX PRO SERIES (H4) 65W', 'NVX/003'),
+      ('MINI PROJ ALPHA YY', 'NVX/008'),
+      ('NVX 2\' LASER FL', 'NVX/017'),
+      ('T20 YELLOW', 'KTX/001'),
+      ('T20 WHITE', 'KTX/003'),
+      ('T20 WHITE BASIC', 'QB/004'),
+      ('LAMA', 'ZR800.3'), // di luar pola: diabaikan
       ('TANPA SKU', null),
     ];
     final skus = data.map((d) => d.$2);
-    expect(nextSku('HVT', skus), 'HVT/018');
-    expect(nextSku('osr', skus), 'OSR/005');
+    expect(nextSku('NVX', skus), 'NVX/018');
+    expect(nextSku('lum', skus), 'LUM/005');
     expect(nextSku('ABC', skus), 'ABC/001'); // prefix baru
-    expect(skuPrefixes(skus), ['HVT', 'NB', 'OSR', 'RCH', 'SR']);
-    expect(guessSkuPrefix('OSRAM CBI NEW', data), 'OSR');
-    expect(guessSkuPrefix('LED HVT EXPERT SERIES (H9) 65W', data), 'HVT');
-    expect(guessSkuPrefix('MINI PROJ MAXI WW', data), 'HVT');
-    expect(guessSkuPrefix('SR1 NANO', data), 'SR');
-    expect(guessSkuPrefix('T20 RED', data), 'RCH');
-    expect(guessSkuPrefix('T15 WHITE BASIC', data), 'NB');
+    expect(skuPrefixes(skus), ['KTX', 'LUM', 'NVX', 'QB', 'ZR']);
+    expect(guessSkuPrefix('LUMA X NEW', data), 'LUM');
+    expect(guessSkuPrefix('LED NVX PRO SERIES (H9) 65W', data), 'NVX');
+    expect(guessSkuPrefix('MINI PROJ ALPHA WW', data), 'NVX');
+    expect(guessSkuPrefix('ZR1 NANO', data), 'ZR');
+    expect(guessSkuPrefix('T20 RED', data), 'KTX');
+    expect(guessSkuPrefix('T15 WHITE BASIC', data), 'QB');
     expect(guessSkuPrefix('KABEL', data), isNull);
+  });
+
+  test('R7: hapus produk — total bila belum dipakai, nonaktif + stok 0 bila sudah punya riwayat', () async {
+    final baru = await barang('Barang Uji A', stock: 2);
+    await db.adjustStock(baru, 3, 'hitung ulang'); // stok awal & opname bukan riwayat transaksi
+    expect(await db.productHasHistory(baru), false);
+    expect(await db.deleteProduct(baru), true);
+    expect(await (db.select(db.products)..where((p) => p.id.equals(baru))).getSingleOrNull(), isNull);
+    expect(await (db.select(db.stockMoves)..where((m) => m.productId.equals(baru))).get(), isEmpty);
+
+    final dipakai = await barang('Barang Uji B', stock: 4);
+    await db.saveDoc(
+      kind: DocKind.order,
+      at: DateTime(2026, 11, 1),
+      lines: [LineInput(productId: dipakai, name: 'Barang Uji B', qty: 1, price: 100)],
+    );
+    expect(await db.productHasHistory(dipakai), true);
+    expect(await db.deleteProduct(dipakai), false);
+    final p = await (db.select(db.products)..where((x) => x.id.equals(dipakai))).getSingle();
+    expect((p.active, await db.stockOf(dipakai)), (false, 0));
+    expect(await db.select(db.invoiceLines).get(), hasLength(1)); // riwayat pemesanan tetap
+
+    // Diimport lagi = aktif kembali (tidak tersembunyi).
+    await db.applyImport([ProductRow(rowNo: 2, name: 'Barang Uji B')]);
+    expect((await (db.select(db.products)..where((x) => x.id.equals(dipakai))).getSingle()).active, true);
+
+    db.ownerUnlocked = false;
+    await expectLater(db.deleteProduct(dipakai), throwsArgumentError);
+  });
+
+  test('R7: "Import & samakan stok" menyamakan stok barang lama; import biasa tidak', () async {
+    final a = await barang('Barang Uji A', sku: 'UJI/1', stock: 5);
+    final b = await barang('Barang Uji B', sku: 'UJI/2', stock: 2);
+    final rows = [
+      ProductRow(rowNo: 2, name: 'Barang Uji A', sku: 'UJI/1', openingStock: 3),
+      ProductRow(rowNo: 3, name: 'Barang Uji B', sku: 'UJI/2'), // kosong = stok tidak diubah
+    ];
+    // Import biasa (mis. file setup lama berkolom Stok Awal) tidak menyentuh stok barang lama.
+    expect(await db.applyImport(rows), (created: 0, updated: 2, stocked: 0));
+    expect(await db.stockOf(a), 5);
+    final r = await db.applyImport(rows, syncStock: true);
+    expect(r, (created: 0, updated: 2, stocked: 1));
+    expect((await db.stockOf(a), await db.stockOf(b)), (3, 2));
+    final m = (await db.watchMoves(a).first).first.move;
+    expect((m.kind, m.qty, m.note), ('adjust', -2, 'Import produk'));
+  });
+
+  test('R7: ubah data nota pembelian & hapus pembelian (stok ditarik, ditolak bila sudah terjual)', () async {
+    final a = await barang('Barang Uji A');
+    final accs = await db.select(db.accounts).get();
+    final bca = accs.firstWhere((x) => x.name == 'BCA').id, tunai = accs.firstWhere((x) => x.name == 'Tunai').id;
+    final id = await db.recordPurchase(
+      at: DateTime(2026, 11, 2),
+      accountId: bca,
+      supplier: 'Toko Uji',
+      lines: [PurchaseLine(productId: a, qty: 3, unitCost: 1000)],
+    );
+    await db.updatePurchase(
+      id,
+      at: DateTime(2026, 11, 1),
+      accountId: tunai,
+      supplier: 'Toko Uji Dua',
+      billNo: 'N-1',
+      proofPath: '/tmp/nota.jpg',
+    );
+    final p = await (db.select(db.purchases)..where((x) => x.id.equals(id))).getSingle();
+    expect(
+      (p.at, p.accountId, p.supplier, p.billNo, p.proofPath),
+      (DateTime(2026, 11, 1), tunai, 'Toko Uji Dua', 'N-1', '/tmp/nota.jpg'),
+    );
+    final cash = await db.select(db.cashEntries).getSingle();
+    expect(
+      (cash.accountId, cash.at, cash.description),
+      (tunai, DateTime(2026, 11, 1), 'Pembelian stok — Toko Uji Dua'),
+    );
+    expect((await db.watchMoves(a).first).single.move.at, DateTime(2026, 11, 1));
+
+    // Sudah terjual 2 dari 3 → stok tinggal 1, menarik 3 akan minus → ditolak.
+    await db.saveDoc(
+      kind: DocKind.invoice,
+      at: DateTime(2026, 11, 3),
+      lines: [LineInput(productId: a, name: 'Barang Uji A', qty: 2, price: 100)],
+    );
+    await expectLater(db.deletePurchase(id), throwsArgumentError);
+
+    final b = await barang('Barang Uji B');
+    final id2 = await db.recordPurchase(
+      at: DateTime(2026, 11, 4),
+      accountId: bca,
+      paidNow: false,
+      lines: [PurchaseLine(productId: b, qty: 2, unitCost: 500)],
+    );
+    await db.deletePurchase(id2);
+    expect(await db.stockOf(b), 0);
+
+    // Dua baris barang sama (5 + 5), stok tinggal 7 → dihitung per produk, ditolak.
+    final id3 = await db.recordPurchase(
+      at: DateTime(2026, 11, 5),
+      accountId: bca,
+      lines: [
+        PurchaseLine(productId: b, qty: 5, unitCost: 1),
+        PurchaseLine(productId: b, qty: 5, unitCost: 1),
+      ],
+    );
+    await db.adjustStock(b, 7, 'hitung ulang');
+    await expectLater(db.deletePurchase(id3), throwsArgumentError);
+
+    // Dilunasi belakangan: tanggal beli tidak boleh digeser melewati tanggal lunas.
+    final id4 = await db.recordPurchase(
+      at: DateTime(2026, 11, 1),
+      accountId: bca,
+      paidNow: false,
+      lines: [PurchaseLine(productId: b, qty: 1, unitCost: 1)],
+    );
+    await db.payPurchase(id4, at: DateTime(2026, 11, 5));
+    await expectLater(db.updatePurchase(id4, at: DateTime(2026, 11, 10), accountId: bca), throwsArgumentError);
+    await db.updatePurchase(id4, at: DateTime(2026, 11, 3), accountId: bca, note: 'baru');
+    final paidCash = await (db.select(db.cashEntries)..where((x) => x.refId.equals(id4))).getSingle();
+    expect((paidCash.at, paidCash.note), (DateTime(2026, 11, 5), '')); // tanggal & keterangan lunas tetap
+    expect(await (db.select(db.purchases)..where((x) => x.id.equals(id2))).getSingleOrNull(), isNull);
+
+    db.ownerUnlocked = false;
+    await expectLater(db.deletePurchase(id), throwsArgumentError);
+    await expectLater(db.updatePurchase(id, at: DateTime(2026, 11, 1), accountId: bca), throwsArgumentError);
   });
 }

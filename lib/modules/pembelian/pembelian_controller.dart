@@ -8,6 +8,7 @@ import '../../core/owner.dart';
 import '../../core/range_picker.dart';
 import '../../core/xlsx.dart';
 import '../../db/database.dart';
+import '../../shell.dart' show Nav;
 import '../gudang/gudang_repo.dart';
 
 /// Riwayat & tagihan pembelian stok (khusus owner: berisi harga beli).
@@ -18,6 +19,7 @@ class PembelianController extends GetxController {
   final purchases = <PurchaseRow>[].obs;
   final purchaseId = RxnInt();
   final range = Rxn<DateTimeRange>(); // filter tanggal beli (inklusif); null = semua
+  final paid = RxnBool(); // saringan kartu info Lunas/Belum bayar (R7 #4); null = semua
   StreamSubscription<Object?>? _sub;
   Worker? _ownerWorker;
 
@@ -36,10 +38,28 @@ class PembelianController extends GetxController {
     if (Get.find<OwnerController>().isOwner.value) _sub = db.watchPurchases().listen(purchases.assignAll);
   }
 
-  /// Pembelian dalam rentang; [tagihan] = hanya yang belum dibayar (menu Tagihan Pembelian).
-  List<PurchaseRow> visible({required bool tagihan}) {
+  /// Pembelian dalam rentang (dasar kartu info).
+  List<PurchaseRow> inRange() {
     final r = range.value;
-    return purchases.where((p) => (!tagihan || !p.paid) && (r == null || r.covers(p.purchase.at))).toList();
+    return purchases.where((p) => r == null || r.covers(p.purchase.at)).toList();
+  }
+
+  /// Yang tampil di tabel dari [all] (= [inRange]); [tagihan] = hanya yang belum dibayar (menu Tagihan Pembelian).
+  List<PurchaseRow> visible(List<PurchaseRow> all, {required bool tagihan}) {
+    final want = tagihan ? false : paid.value;
+    return all.where((p) => want == null || p.paid == want).toList();
+  }
+
+  /// Klik kartu Sudah/Belum dibayar; klik lagi = semua. Dari Tagihan Pembelian pindah ke halaman Pembelian.
+  void togglePaid(bool v) {
+    final nav = Get.find<Nav>();
+    if (nav.pembelianTagihan.value) {
+      nav.pembelianTagihan.value = false;
+      paid.value = v;
+    } else {
+      paid.value = paid.value == v ? null : v;
+    }
+    purchaseId.value = null;
   }
 
   /// Export daftar yang sedang tampil ke .xlsx, satu baris per pembelian (R4 #3).
@@ -51,7 +71,7 @@ class PembelianController extends GetxController {
     noun: 'pembelian',
     headers: ['No.', 'Tgl beli', 'Supplier', 'Nota supplier', 'Rekening', 'Total', 'Status', 'Tgl lunas', 'Keterangan'],
     rows: [
-      for (final p in visible(tagihan: tagihan))
+      for (final p in visible(inRange(), tagihan: tagihan))
         [
           p.purchase.no,
           tgl(p.purchase.at),

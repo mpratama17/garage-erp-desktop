@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:garage_erp_desktop/db/database.dart';
 import 'package:garage_erp_desktop/modules/gudang/gudang_repo.dart';
 import 'package:garage_erp_desktop/modules/penjualan/invoice_pdf.dart';
+import 'package:garage_erp_desktop/modules/penjualan/penjualan_controller.dart' show SalesKpi;
 import 'package:garage_erp_desktop/modules/penjualan/penjualan_repo.dart';
 
 void main() {
@@ -453,5 +454,39 @@ void main() {
     final o = await db.docSummary(so);
     expect((o.status, o.paid), (PayStatus.partial, 100000));
     expect((await db.docSummary(inv)).paid, 0);
+  });
+
+  test('R7: saringan kartu info Penjualan', () async {
+    final now = DateTime(2026, 11, 20);
+    LineInput jual(int price) => LineInput(productId: jasa, name: 'Jasa', qty: 1, price: price);
+    final lunas = await db.saveDoc(
+      kind: DocKind.invoice,
+      at: DateTime(2026, 11, 2),
+      lines: [jual(100)],
+      payNow: PaymentInput(accountId: bca, amount: 100, at: DateTime(2026, 11, 2)),
+    );
+    final telat = await db.saveDoc(
+      kind: DocKind.invoice,
+      at: DateTime(2026, 9, 1),
+      dueAt: DateTime(2026, 10, 1),
+      lines: [jual(200)],
+    );
+    final dp = await db.saveDoc(
+      kind: DocKind.order,
+      at: DateTime(2026, 11, 3),
+      lines: [jual(300)],
+      payNow: PaymentInput(accountId: bca, amount: 50, at: DateTime(2026, 11, 3)),
+    );
+    final tanpaDp = await db.saveDoc(kind: DocKind.order, at: DateTime(2026, 11, 4), lines: [jual(400)]);
+    Future<List<int>> ids(String kind, SalesKpi k) async => [
+      for (final d in await db.watchDocs(kind).first)
+        if (k.test(d, now)) d.doc.id,
+    ]..sort();
+    expect(await ids(DocKind.invoice, SalesKpi.month), [lunas]);
+    expect(await ids(DocKind.invoice, SalesKpi.unpaid), [telat]);
+    expect(await ids(DocKind.invoice, SalesKpi.overdue), [telat]);
+    expect(await ids(DocKind.order, SalesKpi.open), [dp, tanpaDp]);
+    expect(await ids(DocKind.order, SalesKpi.dp), [dp]);
+    expect(await ids(DocKind.order, SalesKpi.remaining), [dp, tanpaDp]);
   });
 }

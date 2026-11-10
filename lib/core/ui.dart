@@ -429,18 +429,19 @@ Widget exportButton(BuildContext context, Future<String?> Function() export) => 
   label: const Text('Export'),
 );
 
-Widget dateField(BuildContext ctx, DateTime value, ValueChanged<DateTime> onPick) => InkWell(
-  onTap: () async {
-    final d = await showDatePicker(
-      context: ctx,
-      initialDate: value,
-      firstDate: DateTime(2020),
-      lastDate: DateTime.now(),
+Widget dateField(BuildContext ctx, DateTime value, ValueChanged<DateTime> onPick, {String label = 'Tanggal'}) =>
+    InkWell(
+      onTap: () async {
+        final d = await showDatePicker(
+          context: ctx,
+          initialDate: value,
+          firstDate: DateTime(2020),
+          lastDate: DateTime.now(),
+        );
+        if (d != null) onPick(d);
+      },
+      child: Labeled(label, InputDecorator(decoration: const InputDecoration(), child: Text(tgl(value)))),
     );
-    if (d != null) onPick(d);
-  },
-  child: Labeled('Tanggal', InputDecorator(decoration: const InputDecoration(), child: Text(tgl(value)))),
-);
 
 Widget proofRow(String proof, VoidCallback onPick) => Row(
   children: [
@@ -492,6 +493,7 @@ class OwnerGate extends StatelessWidget {
 
 /// Kartu ringkasan angka (design.md §6): ikon di kotak pastel + label + angka besar + keterangan.
 /// [ownerOnly] = angka disembunyikan (••••) sampai PIN owner dimasukkan.
+/// [onTap] = kartu bisa diklik (mis. menyaring tabel di bawahnya, R7); [selected] = saringan sedang aktif.
 class KpiCard extends StatelessWidget {
   const KpiCard({
     super.key,
@@ -502,13 +504,16 @@ class KpiCard extends StatelessWidget {
     this.hint,
     this.hintColor,
     this.ownerOnly = false,
+    this.onTap,
+    this.selected = false,
   });
   final IconData icon;
   final Tone tone;
   final String label, value;
   final String? hint;
   final Color? hintColor;
-  final bool ownerOnly;
+  final bool ownerOnly, selected;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -521,38 +526,48 @@ class KpiCard extends StatelessWidget {
     // Seperti referensi: seluruh kartu pastel, ikon di kotak pastel yang sedikit lebih tua.
     return Card(
       color: Color.lerp(tone.bg, C.surface, 0.25),
-      child: Padding(
-        padding: const EdgeInsets.all(S.lg),
-        child: Row(
-          children: [
-            Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(
-                color: Color.lerp(tone.bg, tone.fg, 0.14),
-                borderRadius: BorderRadius.circular(12),
+      clipBehavior: Clip.antiAlias,
+      shape: selected
+          ? RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(S.rCard),
+              side: BorderSide(color: tone.fg, width: 2),
+            )
+          : null,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(S.lg),
+          child: Row(
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: Color.lerp(tone.bg, tone.fg, 0.14),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(icon, color: tone.fg, size: 22),
               ),
-              child: Icon(icon, color: tone.fg, size: 22),
-            ),
-            const SizedBox(width: S.md),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(label, style: T.label, maxLines: 1, overflow: TextOverflow.ellipsis),
-                  const SizedBox(height: 2),
-                  ownerOnly ? OwnerOnly(child: number) : number,
-                  if (hint != null)
-                    Text(
-                      hint!,
-                      style: T.label.copyWith(color: hintColor, fontWeight: FontWeight.w500),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                ],
+              const SizedBox(width: S.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(label, style: T.label, maxLines: 1, overflow: TextOverflow.ellipsis),
+                    const SizedBox(height: 2),
+                    ownerOnly ? OwnerOnly(child: number) : number,
+                    if (hint != null)
+                      Text(
+                        hint!,
+                        style: T.label.copyWith(color: hintColor, fontWeight: FontWeight.w500),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -619,33 +634,26 @@ class MasterDetail extends StatelessWidget {
 
 /// Tombol Import dengan menu: unduh template lebih dulu, atau langsung pilih file. Satu tempat untuk keduanya.
 class ImportButton extends StatelessWidget {
-  const ImportButton({super.key, required this.onTemplate, required this.onImport});
+  const ImportButton({super.key, required this.onTemplate, required this.onImport, this.onImportStock});
   final VoidCallback onTemplate, onImport;
 
+  /// Opsional (Gudang, R7): import yang juga menyamakan stok barang lama — dipilih sengaja, bukan bawaan.
+  final VoidCallback? onImportStock;
+
+  static PopupMenuItem<int> _item(int v, IconData icon, String title) => PopupMenuItem(
+    value: v,
+    child: ListTile(dense: true, leading: Icon(icon), title: Text(title), contentPadding: EdgeInsets.zero),
+  );
+
   @override
-  Widget build(BuildContext context) => PopupMenuButton<bool>(
+  Widget build(BuildContext context) => PopupMenuButton<int>(
     tooltip: '',
     position: PopupMenuPosition.under,
-    onSelected: (pick) => pick ? onImport() : onTemplate(),
-    itemBuilder: (_) => const [
-      PopupMenuItem(
-        value: false,
-        child: ListTile(
-          dense: true,
-          leading: Icon(Icons.download_outlined),
-          title: Text('Unduh template'),
-          contentPadding: EdgeInsets.zero,
-        ),
-      ),
-      PopupMenuItem(
-        value: true,
-        child: ListTile(
-          dense: true,
-          leading: Icon(Icons.upload_file_outlined),
-          title: Text('Pilih file untuk diimport'),
-          contentPadding: EdgeInsets.zero,
-        ),
-      ),
+    onSelected: (v) => [onTemplate, onImport, onImportStock][v]?.call(),
+    itemBuilder: (_) => [
+      _item(0, Icons.download_outlined, 'Unduh template'),
+      _item(1, Icons.upload_file_outlined, 'Pilih file untuk diimport'),
+      if (onImportStock != null) _item(2, Icons.inventory_outlined, 'Import & samakan stok'),
     ],
     child: IgnorePointer(
       child: OutlinedButton.icon(

@@ -84,6 +84,9 @@ class BiayaController extends GetxController {
   );
 
   /// Total biaya dalam rentang; [personal] null = semua.
+  /// Klik kartu info Operasional/Pribadi; klik lagi = semua.
+  void toggle(BiayaFilter f) => filter.value = filter.value == f ? BiayaFilter.semua : f;
+
   int total({bool? personal}) =>
       expenses.where((e) => personal == null || e.personal == personal).fold(0, (t, e) => t + e.amount);
 }

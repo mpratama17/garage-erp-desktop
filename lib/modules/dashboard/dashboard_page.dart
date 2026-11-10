@@ -191,8 +191,20 @@ class _DashboardPageState extends State<DashboardPage> {
 /// oleh buta warna merah-hijau, tidak seperti hijau vs merah).
 const _income = C.primary, _expense = Color(0xFFC77700);
 
-/// Jarak antar label sumbu X supaya tidak sesak (maks. ~6 label).
-double _axisInterval(int n) => (n / 6).ceilToDouble().clamp(1, double.infinity);
+/// Tulisan sumbu grafik: lebih besar & tebal dari label biasa supaya terbaca dari kursi kasir (R7 #8).
+final _axis = T.label.copyWith(fontSize: 14, fontWeight: FontWeight.w600);
+
+/// Label sumbu X tanpa tahun ("Des 2025" → "Des", "10 Nov 2026" → "10 Nov"); tahun ada di tooltip & tombol rentang.
+String _axisLabel(String l) {
+  final w = l.split(' ');
+  return w.length > 1 ? w.sublist(0, w.length - 1).join(' ') : l;
+}
+
+/// Jarak antar label sumbu X: ≤ 12 titik (bulanan setahun) semua tampil; lebih banyak (harian) ±7 label.
+double _axisInterval(int n) => n <= 12 ? 1 : (n / 7).ceilToDouble();
+
+/// Lebar batang: tebal untuk ≤ 12 titik (bulanan), menipis untuk harian.
+double _barWidth(int n) => n <= 12 ? 14 : (n <= 31 ? 5 : 3);
 
 /// fl_chart selalu memaksa label di titik terakhir (meta.max) di luar kelipatan [interval] — kalau
 /// dibiarkan, tanda kisi terdekat bertabrakan dengannya. Lewati tanda itu, titik terakhir tetap tampil.
@@ -279,16 +291,17 @@ class _SalesChart extends StatelessWidget {
                           leftTitles: AxisTitles(
                             sideTitles: SideTitles(
                               showTitles: true,
-                              reservedSize: 52,
+                              reservedSize: 64,
                               getTitlesWidget: (v, meta) => SideTitleWidget(
                                 meta: meta,
-                                child: Text(v == meta.max ? '' : rpShort(v.round()), style: T.label),
+                                child: Text(v == meta.max ? '' : rpShort(v.round()), style: _axis),
                               ),
                             ),
                           ),
                           bottomTitles: AxisTitles(
                             sideTitles: SideTitles(
                               showTitles: true,
+                              reservedSize: 32,
                               interval: _axisInterval(points.length),
                               getTitlesWidget: (v, meta) {
                                 final i = v.round();
@@ -296,7 +309,7 @@ class _SalesChart extends StatelessWidget {
                                 if (!_showAxisLabel(i, points.length, meta.appliedInterval)) return const SizedBox();
                                 return SideTitleWidget(
                                   meta: meta,
-                                  child: Text(points[i].label, style: T.label),
+                                  child: Text(_axisLabel(points[i].label), style: _axis),
                                 );
                               },
                             ),
@@ -345,6 +358,8 @@ class _FlowChart extends StatelessWidget {
   Widget build(BuildContext context) => Obx(() {
     final rows = c.flowPoints.toList();
     final maxY = rows.fold<int>(0, (m, f) => [f.income, f.expense, m].reduce((a, b) => a > b ? a : b));
+    final totalIn = rows.fold<int>(0, (t, f) => t + f.income), totalOut = rows.fold<int>(0, (t, f) => t + f.expense);
+    final bar = _barWidth(rows.length);
     return Card(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(S.lg, S.lg, S.xl, S.md),
@@ -357,9 +372,9 @@ class _FlowChart extends StatelessWidget {
                   child: Text('Pemasukan & pengeluaran', style: T.section, overflow: TextOverflow.ellipsis),
                 ),
                 const SizedBox(width: S.md),
-                _Dot(_income, 'Masuk'),
+                _Dot(_income, 'Masuk ${rpShort(totalIn)}'),
                 const SizedBox(width: S.md),
-                _Dot(_expense, 'Keluar'),
+                _Dot(_expense, 'Keluar ${rpShort(totalOut)}'),
               ],
             ),
             const SizedBox(height: S.lg),
@@ -380,16 +395,17 @@ class _FlowChart extends StatelessWidget {
                           leftTitles: AxisTitles(
                             sideTitles: SideTitles(
                               showTitles: true,
-                              reservedSize: 52,
+                              reservedSize: 64,
                               getTitlesWidget: (v, meta) => SideTitleWidget(
                                 meta: meta,
-                                child: Text(v == meta.max ? '' : rpShort(v.round()), style: T.label),
+                                child: Text(v == meta.max ? '' : rpShort(v.round()), style: _axis),
                               ),
                             ),
                           ),
                           bottomTitles: AxisTitles(
                             sideTitles: SideTitles(
                               showTitles: true,
+                              reservedSize: 32,
                               interval: _axisInterval(rows.length),
                               getTitlesWidget: (v, meta) {
                                 final i = v.round();
@@ -397,7 +413,7 @@ class _FlowChart extends StatelessWidget {
                                 if (!_showAxisLabel(i, rows.length, meta.appliedInterval)) return const SizedBox();
                                 return SideTitleWidget(
                                   meta: meta,
-                                  child: Text(rows[i].label, style: T.label),
+                                  child: Text(_axisLabel(rows[i].label), style: _axis),
                                 );
                               },
                             ),
@@ -420,13 +436,13 @@ class _FlowChart extends StatelessWidget {
                                 BarChartRodData(
                                   toY: f.income.toDouble(),
                                   color: _income,
-                                  width: 8,
+                                  width: bar,
                                   borderRadius: const BorderRadius.vertical(top: Radius.circular(3)),
                                 ),
                                 BarChartRodData(
                                   toY: f.expense.toDouble(),
                                   color: _expense,
-                                  width: 8,
+                                  width: bar,
                                   borderRadius: const BorderRadius.vertical(top: Radius.circular(3)),
                                 ),
                               ],
@@ -451,12 +467,12 @@ class _Dot extends StatelessWidget {
     mainAxisSize: MainAxisSize.min,
     children: [
       Container(
-        width: 8,
-        height: 8,
+        width: 10,
+        height: 10,
         decoration: BoxDecoration(color: color, shape: BoxShape.circle),
       ),
       const SizedBox(width: S.xs),
-      Text(label, style: T.label),
+      Text(label, style: T.label.copyWith(fontSize: 13, color: C.ink)),
     ],
   );
 }

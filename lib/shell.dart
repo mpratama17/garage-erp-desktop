@@ -504,18 +504,25 @@ class _TodayState extends State<_Today> {
   Widget build(BuildContext context) => Text(DateFormat('EEEE, d MMMM y', 'id').format(DateTime.now()), style: T.label);
 }
 
-/// Buka invoice/pemesanan [d] di halaman Penjualan (dari cari global, riwayat stok, riwayat belanja).
-void openDoc(Invoice d) {
+/// Buka halaman Penjualan ([kind]) tanpa saringan apa pun; kembalikan controllernya.
+PenjualanController openSales(String kind) {
   final c = Get.put(PenjualanController(Get.find<AppDb>()));
-  c.kind.value = d.kind;
-  c.status.value = null;
-  c.panelId.value = d.id;
+  c
+    ..kind.value = kind
+    ..clearFilters();
   Get.find<Nav>().page.value = AppPage.penjualan;
+  return c;
 }
 
-/// Buka pembelian [id] di halaman Pembelian (dari riwayat stok Gudang).
-void openPurchase(int id) {
-  Get.put(PembelianController(Get.find<AppDb>())).purchaseId.value = id;
+/// Buka invoice/pemesanan [d] di halaman Penjualan (dari cari global, riwayat stok, riwayat belanja).
+void openDoc(Invoice d) => openSales(d.kind).panelId.value = d.id;
+
+/// Buka halaman Pembelian (riwayat, tanpa saringan); [id] = pembelian yang dibuka (dari riwayat stok Gudang).
+void openPurchase([int? id]) {
+  Get.put(PembelianController(Get.find<AppDb>()))
+    ..paid.value = null
+    ..range.value = null
+    ..purchaseId.value = id;
   Get.find<Nav>()
     ..pembelianTagihan.value = false
     ..page.value = AppPage.pembelian;
